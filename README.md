@@ -137,9 +137,15 @@ Setiap paket mengemas tepat **48 frame waktu** (`0,5 milidetik` pada `96 kHz`, a
 * **Sampel ke-0 (`Anchor Frame`):** Dikirim mentah tanpa kompresi (`6 channel × 3 byte = 18 byte`). Ini menjamin bahwa setiap paket bersifat **100% independen (*stateless across packets*)** — jika 1 paket hilang karena gangguan kabel USB, paket berikutnya langsung pulih seketika tanpa merusak suara.
 
 ### 5.2. Prediktor Linear Orde-4 Bergaya FLAC (*Single-Pass*)
-Untuk sampel ke-$n \in \lbrace 1, \dots, 47 \rbrace$ pada setiap channel $c \in \lbrace 0, \dots, 5 \rbrace$, prediktor menghitung estimasi nilai sampel menggunakan polinomial beda hingga (*finite-difference*) orde-4:
+Untuk indeks sampel $n \in \lbrace 1, \dots, 47 \rbrace$ pada setiap channel $c \in \lbrace 0, \dots, 5 \rbrace$, prediktor menghitung estimasi nilai sampel menggunakan polinomial beda hingga (*finite-difference*) orde-4:
 
-$$\hat{x}_c[n] = \begin{cases} x_c[0], & n = 1 \\ 2x_c[1] - x_c[0], & n = 2 \\ 3x_c[2] - 3x_c[1] + x_c[0], & n = 3 \\ 4x_c[n-1] - 6x_c[n-2] + 4x_c[n-3] - x_c[n-4], & n \ge 4 \end{cases}$$
+* **Sampel Transisi Awal** ($n = 1, 2, 3$):
+  * $n = 1 \implies \hat{x}_c[1] = x_c[0]$
+  * $n = 2 \implies \hat{x}_c[2] = 2x_c[1] - x_c[0]$
+  * $n = 3 \implies \hat{x}_c[3] = 3x_c[2] - 3x_c[1] + x_c[0]$
+* **Sampel Kondisi Tunak Orde-4** ($n \ge 4$):
+
+$$\hat{x}_c[n] = 4x_c[n-1] - 6x_c[n-2] + 4x_c[n-3] - x_c[n-4]$$
 
 Nilai selisih (*residual*) dihitung dalam aritmetika komplemen-2 24-bit:
 
