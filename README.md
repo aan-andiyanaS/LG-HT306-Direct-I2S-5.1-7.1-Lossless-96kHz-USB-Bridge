@@ -23,7 +23,8 @@
 9. [Verifikasi & Hasil Benchmark End-to-End](#9-verifikasi--hasil-benchmark-end-to-end)
 10. [Panduan Kompilasi & Flash Firmware (`.uf2`)](#10-panduan-kompilasi--flash-firmware-uf2)
 11. [Konfigurasi JRiver Media Center (DSP Studio)](#11-konfigurasi-jriver-media-center-dsp-studio)
-12. [Lisensi (MIT License)](#12-lisensi-mit-license)
+12. [Inspirasi & Referensi Proyek Serupa (*Prior Art*)](#12-inspirasi--referensi-proyek-serupa-prior-art)
+13. [Lisensi (MIT License)](#13-lisensi-mit-license)
 
 ---
 
@@ -371,7 +372,21 @@ Agar pemisahan suara bioskop (**Dolby Digital AC-3, TrueHD, Atmos, DTS**) dan mu
 
 ---
 
-## 12. Lisensi (MIT License)
+## 12. Inspirasi & Referensi Proyek Serupa (*Prior Art*)
+
+Proyek ini berdiri di atas fondasi riset dan eksperimen berbagai proyek *open-source* di GitHub yang telah lebih dulu membuktikan kepingan-kepingan teknologinya, lalu menyatukannya untuk pertama kalinya menjadi satu jembatan **96 kHz / 24-bit 5.1 Lossless Direct-to-PWM**:
+
+| Repositori / Proyek Referensi | Kontribusi & Inspirasi terhadap Proyek Ini | Perbedaan / Inovasi Baru pada Proyek Ini |
+| :--- | :--- | :--- |
+| **[`tierneytim/Pico-USB-audio`](https://github.com/tierneytim/Pico-USB-audio)** | Pelopor *open-source* yang membuktikan bahwa mikrokontroler Raspberry Pi Pico dapat mengeluarkan sinyal **8-Channel (7.1) Multi-Lane I2S / TDM** secara sinkron melalui satu blok `PIO` dari USB PC. | Proyek `tierneytim` terbatas pada **`48 kHz`** karena mentok batas fisik USB 1.1 Full-Speed (`12 Mbps`). Proyek kita menambahkan **Core 1 Lossless Order-4 Golomb-Rice Unpacker** sehingga sanggup menembus **`96 kHz / 24-bit 5.1`** (`1.728 KB/detik` $\rightarrow$ `716,1 KB/detik`). |
+| **[`xiph/flac`](https://github.com/xiph/flac)** & **[`dbry/WavPack`](https://github.com/dbry/WavPack)** | Inspirasi matematis untuk **Prediktor Linear Polinomial Orde-4** (`4*x[n-1] - 6*x[n-2] + 4*x[n-3] - x[n-4]`) dan pengodean residual **Golomb-Rice**. | Diadaptasi menjadi protokol mikro-frame **`0,5 ms` (`48 sampel`)** yang *stateless* antar-paket dengan *Escaped 25-bit Transient Guard* (`q >= 15`) dan waktu buka kompresi `< 0,03 ms` di SRAM Cortex-M33. |
+| **[`raspberrypi/pico-extras` (`pico_audio_i2s`)](https://github.com/raspberrypi/pico-extras)** & **[`earlephilhower/arduino-pico`](https://github.com/earlephilhower/arduino-pico)** | Referensi arsitektur dasar penggunaan *State Machine* `PIO` yang dipadukan dengan *Chained Ping-Pong DMA* untuk menghasilkan detak I2S yang bebas *jitter*. | Diperluas dari stereo 1-pin (`out pins, 1`) menjadi **4-Lane Synchronous I2S (`out pins, 4`)** pada *falling edge* `BCK` dengan *Wait-Free SPSC Monotonic Ring Buffer* untuk chip `Pulsus PS9850`. |
+| **[`hathach/tinyusb`](https://github.com/hathach/tinyusb)** | Fondasi stack USB Device pada `RP2350` / `RP2040`. | Dilengkapi mesin perakit ulang (*stream reassembler*) potongan 64-byte USB Bulk (`ht306_usb_process_vendor_stream`) dengan fitur *Auto-Resync* `0xA55A` dan *Zero-Silence Underrun Protection*. |
+| **Komunitas Modifikasi *Direct-I2S Home Theater* (`MT1389` $\rightarrow$ `Pulsus PS9850` / `TAS5508`)** | Inspirasi teknik penyadapan perangkat keras (*hardware tapping*) pada 5 resistor seri jalur I2S di antara SoC DVD `MediaTek MT1389` dan prosesor PWM digital. | Mempertahankan jalur **`I2C` (`SDA`/`SCL`)** asli dari `MT1389MH` menuju `IC602 (Pulsus PS9850)` sekaligus menyematkan kontrol `74LVC157` MUX (`GP8`) & injeksi *Open-Drain NEC Remote* (`GP9`) agar **69-Band Hardware EQ bawaan LG HT306 tetap aktif 100%**. |
+
+---
+
+## 13. Lisensi (MIT License)
 
 Proyek ini dilisensikan di bawah **MIT License** — silakan gunakan, modifikasi, dan kembangkan secara bebas baik untuk keperluan pribadi maupun komersial. Lihat file [`LICENSE`](LICENSE) untuk teks lisensi selengkapnya.
 
