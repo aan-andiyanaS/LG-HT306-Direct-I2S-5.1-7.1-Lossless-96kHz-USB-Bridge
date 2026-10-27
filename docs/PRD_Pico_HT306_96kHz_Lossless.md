@@ -45,7 +45,7 @@ Sistem ini dirancang untuk menembus batas *bandwidth* fisik USB Full-Speed (`12 
    * Residual bertanda $e_c[n]$ diubah menjadi bilangan bulat tak bertanda:
      $$z = (e \ll 1) \oplus (e \gg 31)$$
    * Parameter Rice $k \in \{0..22\}$ dihitung secara optimal per channel pada setiap *sub-frame* menggunakan instruksi hardware `CLZ` (`__builtin_clz`).
-   * Kuosien $q = z \gg k$ ditulis sebagai kode *unary* (atau *escaped 25-bit fallback* jika $q \ge 15$ untuk menjamin batas ukuran bit maksimum pada adegan ledakan), diikuti sisa $r = z \ \& \ ((1 \ll k) - 1)$ sebanyak $k$ bit.
+   * Kuosien $q = \lfloor z / 2^k \rfloor$ (`z >> k`) ditulis sebagai kode *unary* (atau *escaped 25-bit fallback* jika $q \ge 15$ untuk menjamin batas ukuran bit maksimum pada adegan ledakan), diikuti sisa $r = z \bmod 2^k$ (`z & ((1 << k) - 1)`) sebanyak $k$ bit.
 4. **Struktur Header Paket (`HT306_LosslessHeader_t` — 14 Byte):**
    * `sync_word` (`0xA55A`, 2 Byte — Offset `0..1`)
    * `packet_len` (2 Byte — Offset `2..3`, panjang total paket untuk penyatuan potongan 64-Byte USB Bulk)
