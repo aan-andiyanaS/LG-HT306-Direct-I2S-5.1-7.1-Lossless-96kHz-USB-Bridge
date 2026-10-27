@@ -137,38 +137,25 @@ Setiap paket mengemas tepat **48 frame waktu** (`0,5 milidetik` pada `96 kHz`, a
 * **Sampel ke-0 (`Anchor Frame`):** Dikirim mentah tanpa kompresi (`6 channel × 3 byte = 18 byte`). Ini menjamin bahwa setiap paket bersifat **100% independen (*stateless across packets*)** — jika 1 paket hilang karena gangguan kabel USB, paket berikutnya langsung pulih seketika tanpa merusak suara.
 
 ### 5.2. Prediktor Linear Orde-4 Bergaya FLAC (*Single-Pass*)
-Untuk sampel ke-$n \in \{1, \dots, 47\}$ pada setiap channel $c \in \{0, \dots, 5\}$, prediktor menghitung estimasi nilai sampel menggunakan polinomial beda hingga (*finite-difference*) orde-4:
+Untuk sampel ke-$n \in \lbrace 1, \dots, 47 \rbrace$ pada setiap channel $c \in \lbrace 0, \dots, 5 \rbrace$, prediktor menghitung estimasi nilai sampel menggunakan polinomial beda hingga (*finite-difference*) orde-4:
 
-$$
-\hat{x}_c[n] = \begin{cases}
-x_c[0], & n = 1 \\
-2x_c[1] - x_c[0], & n = 2 \\
-3x_c[2] - 3x_c[1] + x_c[0], & n = 3 \\
-4x_c[n-1] - 6x_c[n-2] + 4x_c[n-3] - x_c[n-4], & n \ge 4
-\end{cases}
-$$
+$$\hat{x}_c[n] = \begin{cases} x_c[0], & n = 1 \\ 2x_c[1] - x_c[0], & n = 2 \\ 3x_c[2] - 3x_c[1] + x_c[0], & n = 3 \\ 4x_c[n-1] - 6x_c[n-2] + 4x_c[n-3] - x_c[n-4], & n \ge 4 \end{cases}$$
 
 Nilai selisih (*residual*) dihitung dalam aritmetika komplemen-2 24-bit:
 
-$$
-e_c[n] = \operatorname{sext}_{24}\left(x_c[n] - \hat{x}_c[n]\right)
-$$
+$$e_c[n] = \mathrm{sext}_{24}\left(x_c[n] - \hat{x}_c[n]\right)$$
 
 ### 5.3. Pemetaan ZigZag & *Escaped Golomb-Rice Coding*
 1. **ZigZag Mapping:** Mengubah angka bertanda $e_c[n] \in [-2^{23}, 2^{23}-1]$ menjadi bilangan bulat tak bertanda $z \in [0, 2^{24}-1]$ agar angka di sekitar nol selalu bernilai positif kecil:
 
-$$
-z = (e \ll 1) \oplus (e \gg 31)
-$$
+   $$z = (e \ll 1) \oplus (e \gg 31)$$
 
 2. **Penentuan Parameter Optimal $k$ dengan Instruksi Hardware `CLZ`:**
-   Parameter Golomb-Rice $k_c \in \{0, \dots, 22\}$ dihitung dari rata-rata residual kondisi tunak ($n \ge 3$):
+   Parameter Golomb-Rice $k_c \in \lbrace 0, \dots, 22 \rbrace$ dihitung dari rata-rata residual kondisi tunak ($n \ge 3$):
 
-$$
-k_c = \min\left(22,\ 31 - \operatorname{CLZ}(\bar{z}_c)\right)
-$$
+   $$k_c = \min\left(22,\ 31 - \mathrm{CLZ}(\bar{z}_c)\right)$$
 
-   *(Untuk sampel transisi awal $n \in \{1, 2\}$, digunakan $k_{\text{warmup}} = k_c + 6$ agar lonjakan polinomial awal tidak memperbesar kode unary).*
+   Untuk sampel transisi awal $n \in \lbrace 1, 2 \rbrace$, digunakan $k_{\mathrm{warmup}} = k_c + 6$ agar lonjakan polinomial awal tidak memperbesar kode unary.
 
 3. **Kode Bit *Escaped Golomb-Rice*:**
    Bagi nilai $z$ menjadi kuosien $q = \lfloor z / 2^k \rfloor$ (`q = z >> k`) dan sisa $r = z \bmod 2^k$ (`r = z & ((1 << k) - 1)`):

@@ -39,12 +39,17 @@ Sistem ini dirancang untuk menembus batas *bandwidth* fisik USB Full-Speed (`12 
 
 1. **Ukuran Sub-Frame:** `48 sampel per channel` (`0,5 ms` pada `96 kHz`), total `288 sampel` per paket (`6 channel × 48`).
 2. **Prediktor Linear Orde-4 FLAC-Style (*Single-Pass Lossless*):**
+
    $$\hat{x}_c[n] = 4 \cdot x_c[n-1] - 6 \cdot x_c[n-2] + 4 \cdot x_c[n-3] - x_c[n-4]$$
+
    $$e_c[n] = x_c[n] - \hat{x}_c[n]$$
+
 3. **Pemetaan ZigZag & Escaped Golomb-Rice Bit-Packing:**
    * Residual bertanda $e_c[n]$ diubah menjadi bilangan bulat tak bertanda:
+
      $$z = (e \ll 1) \oplus (e \gg 31)$$
-   * Parameter Rice $k \in \{0..22\}$ dihitung secara optimal per channel pada setiap *sub-frame* menggunakan instruksi hardware `CLZ` (`__builtin_clz`).
+
+   * Parameter Rice $k \in \lbrace 0, \dots, 22 \rbrace$ dihitung secara optimal per channel pada setiap *sub-frame* menggunakan instruksi hardware `CLZ` (`__builtin_clz`).
    * Kuosien $q = \lfloor z / 2^k \rfloor$ (`z >> k`) ditulis sebagai kode *unary* (atau *escaped 25-bit fallback* jika $q \ge 15$ untuk menjamin batas ukuran bit maksimum pada adegan ledakan), diikuti sisa $r = z \bmod 2^k$ (`z & ((1 << k) - 1)`) sebanyak $k$ bit.
 4. **Struktur Header Paket (`HT306_LosslessHeader_t` — 14 Byte):**
    * `sync_word` (`0xA55A`, 2 Byte — Offset `0..1`)
