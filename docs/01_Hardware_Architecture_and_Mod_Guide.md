@@ -1,26 +1,30 @@
-# 1. Bedah Arsitektur Hardware LG HT306 & Panduan Modifikasi Injeksi I2S
+# 1. LG HT306 Hardware Architecture & Direct-I2S Injection Guide
 
-[⬅️ Kembali ke README Utama](../README.md)
+<p align="left">
+  <strong>Language:</strong> <strong>English</strong> | <a href="01_Hardware_Architecture_and_Mod_Guide.id.md">Bahasa Indonesia</a>
+</p>
 
-Dokumen ini menjelaskan arsitektur internal mainboard **LG HT306 (`HT306SU` / `HT306SF` / `HT306PD`)**, anatomi 5 resistor seri SMD tempat penyuntikan sinyal I2S dari **`Waveshare RP2350-Zero`**, serta alasan teknis mengapa mode **`AUX`** dan **EQ Bawaan LG HT306 (`2 to 5.1 PLII`, `Bass Blast`, `Natural`)** tetap berfungsi normal tanpa mencampur/merusak suara 5.1 murni dari PC.
+[⬅️ Back to Main README](../README.md)
+
+This document details the internal hardware architecture of the **LG HT306 (`HT306SU` / `HT306SF` / `HT306PD`)** mainboard, the physical layout of the 5 series SMD damping resistors tapped for **`Waveshare RP2350-Zero`** I2S injection, and the technical explanation of why **`AUX` mode** and **Stock LG Hardware EQ (`2 to 5.1 PLII`, `Bass Blast`, `Natural`)** will never alter, downmix, or interfere with pure 5.1 multichannel audio streamed from the PC.
 
 ---
 
-## 1.1. Rantai Chip Audio di Mainboard LG HT306
+## 1.1. LG HT306 Mainboard Audio IC Chain
 
-Berdasarkan *Service Manual* LG HT306, pemrosesan sinyal di dalam mainboard terbagi ke dalam 3 IC utama:
+According to the official LG HT306 *Service Manual*, signal processing across the mainboard is handled by three primary integrated circuits:
 
-| Kode IC | Nama Komponen | Fungsi Asli di LG HT306 | Peran dalam Modifikasi Ini |
+| IC Ref | Component | Stock Role in LG HT306 | Role in This Direct-I2S Project |
 | :--- | :--- | :--- | :--- |
-| **`IC501`** | **MediaTek `MT1389MH`** | SoC DVD Player, Dekoder MPEG/AC-3 internal, Upmixer *Dolby Pro Logic II*, & Mikrokontroler Sistem | Tetap bertugas menginisialisasi `IC602` saat menyala serta mengirim resep **EQ & Master Volume** melalui jalur **`I2C` (`SDA`/`SCL`)**. |
-| **`IC602`** | **Pulsus `PS9850`** | 8-Channel Digital Audio PWM Processor (`192 kHz / 24-bit`, internal `ASRC 13–192 kHz`, **69-Band Biquad EQ**, Crystal `19,2 MHz`) | **Titik Injeksi Utama:** Menerima sinyal digital `BCK`, `LRCK`, `ADATA0`, `ADATA1`, `ADATA2` langsung dari `Waveshare RP2350-Zero`. |
-| **`IC701` / `IC702`** | **TI `TAS5352`** | 6-Channel High-Power Class-D MOSFET Power Stage (`330W RMS Total`) | Menguatkan sinyal PWM dari `IC602` langsung ke 6 speaker fisik HT306 (`FL, FR, C, Sub, SL, SR`). |
+| **`IC501`** | **MediaTek `MT1389MH`** | DVD SoC, internal MPEG/AC-3 decoder, *Dolby Pro Logic II* matrix upmixer, & System Master MCU | Remains powered to initialize `IC602` at boot and dispatch **Hardware EQ & Master Volume** registers over the **`I2C` (`SDA`/`SCL`)** bus. |
+| **`IC602`** | **Pulsus `PS9850`** | 8-Channel Digital Audio PWM Processor (`192 kHz / 24-bit`, internal `ASRC 13–192 kHz`, **69-Band Biquad EQ**, `19.2 MHz` Crystal) | **Primary Injection Target:** Receives synchronous digital `BCK`, `LRCK`, `ADATA0`, `ADATA1`, and `ADATA2` lines directly from the `Waveshare RP2350-Zero`. |
+| **`IC701` / `IC702`** | **TI `TAS5352`** | 6-Channel High-Power Class-D MOSFET Power Stage (`330W RMS Total`) | Directly drives the 6 physical HT306 speakers (`FL, FR, C, Sub, SL, SR`) from `IC602`'s PWM outputs. |
 
 ---
 
-## 1.2. Anatomi 5 Resistor Seri SMD Antara `MT1389MH` dan `Pulsus PS9850` (*No Trace Cutting*)
+## 1.2. Anatomy of the 5 SMD Series Damping Resistors (*No Trace Cutting*)
 
-Pada mainboard LG HT306, jalur sinyal digital I2S antara kaki output **`IC501 (MediaTek MT1389MH)`** dan kaki input **`IC602 (Pulsus PS9850)`** hanya dibatasi oleh **1 buah resistor SMD seri (*damping resistor*, `33 Ω – 100 Ω`) pada masing-masing jalur**. Tidak ada komponen aktif atau *level shifter* di tengahnya karena kedua chip sama-sama bekerja pada tegangan **`3.3V CMOS`**.
+On the LG HT306 PCB, the digital I2S lines running between the output pins of **`IC501 (MediaTek MT1389MH)`** and the input pins of **`IC602 (Pulsus PS9850)`** are bridged exclusively by **a single SMD series resistor (`33 Ω – 100 Ω` damping resistor) per line**. There are no active buffers, switches, or level shifters in between, as both ICs operate on native **`3.3V CMOS`** logic.
 
 ```mermaid
 flowchart LR
@@ -33,7 +37,7 @@ flowchart LR
         I2C_M["Pin SDA & SCL (I2C)"]
     end
 
-    subgraph RES["5x Resistor Seri SMD (Diangkat / Disisipi)"]
+    subgraph RES["5x SMD Series Resistors (Lifted / Tapped)"]
         R1["R_BCK (Pad A ──[33Ω]── Pad B)"]
         R2["R_LRCK (Pad A ──[33Ω]── Pad B)"]
         R3["R_DATA0 (Pad A ──[33Ω]── Pad B)"]
@@ -55,67 +59,67 @@ flowchart LR
     O3 --> R3 --> I3
     O4 --> R4 --> I4
     O5 --> R5 --> I5
-    I2C_M ==>|"TETAP UTUH (Jangan Dilepas)"| I2C_P
+    I2C_M ==>|"LEFT INTACT (Do Not Remove)"| I2C_P
 ```
 
-### Prosedur Injeksi Tanpa Potong Jalur (*No Trace Cutting*)
-1. **Setiap resistor SMD memiliki 2 titik timah (`Pad A` & `Pad B`):**
-   * **`Pad A`:** Mengarah ke kaki output `MediaTek MT1389MH` (`IC501`).
-   * **`Pad B`:** Mengarah langsung ke kaki input `Pulsus PS9850` (`IC602`).
-2. **Langkah Penyambungan:**
-   * Lepas (atau angkat satu sisi kaki) **5 resistor SMD** khusus jalur `BCK`, `LRCK`, `ADATA0`, `ADATA1`, dan `ADATA2`. Mengangkat resistor ini otomatis memutus sinyal I2S dari `MT1389MH` sehingga tidak beradu tegangan (*bus contention*) dengan `RP2350-Zero`.
-   * Solder kabel dari `GP2`..`GP6` **`Waveshare RP2350-Zero`** (melalui resistor seri `33 Ω` pengaman) tepat ke **`Pad B`** (sisi yang mengarah ke `IC602`).
-   * *(Opsional)* Jika ingin mempertahankan fungsi pemutar DVD asli sekaligus PC USB, hubungkan `Pad A` ke input `A` IC Multiplexer **`74LVC157`**, `RP2350-Zero` ke input `B`, output `Y` ke `Pad B`, dan pin `Select` ke **`GP8`**.
+### Clean Injection Procedure (*No Trace Cutting*)
+1. **Each SMD Resistor Features Two Solder Pads (`Pad A` & `Pad B`):**
+   * **`Pad A`:** Leads towards the output pins of `MediaTek MT1389MH` (`IC501`).
+   * **`Pad B`:** Leads directly into the input pins of `Pulsus PS9850` (`IC602`).
+2. **Wiring Steps:**
+   * De-solder (or tilt up on one side) the **5 SMD resistors** for `BCK`, `LRCK`, `ADATA0`, `ADATA1`, and `ADATA2`. Lifting them physically disconnects the I2S outputs of `MT1389MH`, eliminating bus contention.
+   * Solder jumper wires from `GP2`..`GP6` of the **`Waveshare RP2350-Zero`** (via `33 Ω` protection resistors) directly to **`Pad B`** (the pads leading into `IC602`).
+   * *(Optional Dual-Mode)* To preserve stock DVD playback alongside PC USB, wire `Pad A` into input `A` of a **`74LVC157`** multiplexer, the `RP2350-Zero` into input `B`, output `Y` to `Pad B`, and the select pin to **`GP8`**.
 
-| Kelompok Jalur | Nama Sinyal | Tindakan pada Resistor SMD di Mainboard |
+| Line Group | Signal Name | Action on Mainboard SMD Resistors |
 | :--- | :--- | :--- |
-| **5 Jalur Audio I2S** | `BCK`, `LRCK`, `ADATA0`, `ADATA1`, `ADATA2` | ✅ **Angkat ke-5 resistornya**, lalu solder jalur dari `RP2350-Zero` ke **Pad B (arah `IC602`)**. |
-| **Jalur Kontrol EQ & Volume** | `SDA`, `SCL` (**`I2C`**), `RESET`, dan `MCLK` (`19,2 MHz` Crystal) | ⛔ **JANGAN DILEPAS / BIARKAN UTUH** agar `MT1389MH` tetap menyalakan `IC602` dan seluruh tombol **EQ & Volume** di remote asli LG tetap berfungsi. |
+| **5 Audio I2S Lines** | `BCK`, `LRCK`, `ADATA0`, `ADATA1`, `ADATA2` | ✅ **Lift all 5 resistors**, then solder wires from `RP2350-Zero` to **Pad B (towards `IC602`)**. |
+| **Control & Clock Lines**| `SDA`, `SCL` (**`I2C`**), `RESET`, and `MCLK` (`19.2 MHz` Crystal) | ⛔ **DO NOT DISCONNECT / LEAVE INTACT** so that `MT1389MH` continues to boot `IC602` and respond to remote **Volume & EQ** commands. |
 
 ---
 
-## 1.3. Mengapa Mode `AUX` & Settingan *"2 to 5.1 (`PLII`)"* / EQ Bawaan HT306 Tidak Bentrok dengan Sinyal 5.1 PC?
+## 1.3. Why `AUX` Mode & *"2 to 5.1 (`PLII`)"* / Stock EQ Never Interfere with PC 5.1
 
-Di dalam mainboard LG HT306, tugas pemrosesan suara dibagi ke dalam **2 chip yang terpisah**:
+Inside the LG HT306 mainboard, audio processing tasks are strictly partitioned between **two separate chips**:
 
 ```mermaid
 flowchart TD
-    subgraph MT["1. IC501: MediaTek MT1389MH (Otak DVD & Upmixer)"]
-        AUX["Input RCA AUX (Kosong)"] --> ADC["ADC Stereo"]
-        ADC --> PL2["DSP Upmixer 2 to 5.1\n(Dolby Pro Logic II / Matrix)"]
-        PL2 --> OUT_MT["Output I2S MT1389MH\n(ADATA0, ADATA1, ADATA2)"]
-        EQ_CMD["Pengirim Resep EQ & Unmute 6-Ch\nvia Jalur I2C (SDA / SCL)"]
+    subgraph MT["1. IC501: MediaTek MT1389MH (DVD Master & Upmixer)"]
+        AUX["Stereo AUX RCA Input (Unconnected)"] --> ADC["Stereo ADC"]
+        ADC --> PL2["DSP 2 to 5.1 Upmixer\n(Dolby Pro Logic II / Matrix)"]
+        PL2 --> OUT_MT["MT1389MH I2S Outputs\n(ADATA0, ADATA1, ADATA2)"]
+        EQ_CMD["EQ Curve & 6-Ch Unmute Commands\nover I2C Bus (SDA / SCL)"]
     end
 
-    subgraph CUT["5 Resistor Seri SMD (SUDAH DIANGKAT)"]
-        OUT_MT -.-x|"TERPUTUS DI SINI!\n(Suara Upmix Palsu Dibuang)"| X["❌"]
+    subgraph CUT["5 SMD Series Resistors (LIFTED / DISCONNECTED)"]
+        OUT_MT -.-x|"TERMINATES HERE!\n(Fake Upmix Discarded)"| X["❌"]
     end
 
     subgraph PICO["Waveshare RP2350-Zero (PC JRiver)"]
-        USB_IN["5.1 Murni 96kHz/24-bit\ndari JRiver Media Center"]
+        USB_IN["Pure 5.1 96kHz/24-bit\nfrom JRiver Media Center"]
     end
 
-    subgraph PS["2. IC602: Pulsus PS9850 (Prosesor EQ & PWM 6-Ch)"]
-        IN_PS["Input I2S (SDATA0, SDATA1, SDATA2)\nPemetaan 1-ke-1 Murni (6 Channel)"]
+    subgraph PS["2. IC602: Pulsus PS9850 (PWM Processor & 6-Ch EQ)"]
+        IN_PS["I2S Inputs (SDATA0, SDATA1, SDATA2)\n1-to-1 Discrete Channel Mapping"]
         BIQUAD["69-Band Hardware Biquad EQ\n(Bass Blast, Natural, Pop, Volume)"]
-        PWM["6-Channel PWM Output ➔ Speaker 5.1"]
+        PWM["6-Channel PWM Output ➔ 5.1 Speakers"]
         IN_PS --> BIQUAD --> PWM
     end
 
-    USB_IN ==>|"Masuk Murni 6-Ch"| IN_PS
-    EQ_CMD ==>|"Hanya Mengatur Kurva EQ & Volume"| BIQUAD
+    USB_IN ==>|"Direct 6-Channel In"| IN_PS
+    EQ_CMD ==>|"Controls Curves & Master Volume Only"| BIQUAD
 ```
 
-1. **Proses *Upmix 2 to 5.1 (`Pro Logic II`)* Berjalan di Dalam `MT1389MH` (`IC501`), Bukan di `PS9850` (`IC602`):**
-   * Saat Anda memilih mode `AUX` dan menyalakan settingan *2 to 5.1*, chip `MT1389MH` memang mencoba mengolah input analog RCA (yang kosong) menjadi 6 channel pada kaki output I2S-nya.
-   * **Namun karena ke-5 resistor seri I2S dari `MT1389MH` sudah diangkat**, sinyal *upmix* dari `MT1389MH` tersebut **berhenti di kaki resistor yang terangkat dan terbuang sepenuhnya**.
-2. **`Pulsus PS9850` (`IC602`) Bekerja Secara *1-to-1 Discrete 6-Channel*:**
-   * Chip `Pulsus PS9850` **tidak memiliki pencampur Pro Logic II**. Kaki inputnya (`SDATA0`, `SDATA1`, `SDATA2`) selalu meneruskan 6 kanal diskrit dari `RP2350-Zero` secara murni (`FL/FR`, `SL/SR`, `C/Sub`) melewati **69-Band Hardware Biquad EQ** menuju penguat daya `TAS5352`.
+1. **The *2 to 5.1 Upmixer (`Pro Logic II`)* Operates Exclusively in `MT1389MH` (`IC501`), Not in `PS9850` (`IC602`):**
+   * When `AUX` mode is selected and 2-to-5.1 upmixing is engaged, `MT1389MH` attempts to synthesise multichannel audio on its own I2S pins.
+   * **Because the 5 series resistors have been lifted**, this synthetic audio **terminates on the lifted pads and is discarded completely**.
+2. **`Pulsus PS9850` (`IC602`) Functions in Pure *1-to-1 Discrete 6-Channel* Mode:**
+   * `Pulsus PS9850` **does not have an onboard matrix upmixer**. Its input pins (`SDATA0`, `SDATA1`, `SDATA2`) pass all 6 discrete channels from the `RP2350-Zero` straight through the **69-Band Hardware Biquad EQ** and into the `TAS5352` power stages.
 
-### Efek Tiap Mode EQ / Sound Mode di Remote LG Saat Posisi `AUX`
+### Effect of LG Remote EQ / Sound Modes in `AUX` Mode
 
-| Settingan EQ / Mode di Remote LG (Saat `AUX`) | Perintah yang Dikirim `MT1389MH` ke `PS9850` via `I2C` | Hasil Akhir pada Suara 5.1 dari `RP2350-Zero` |
+| Sound Mode on LG Remote (in `AUX`) | Command Sent by `MT1389MH` over `I2C` | Impact on PC 5.1 Audio from `RP2350-Zero` |
 | :--- | :--- | :--- |
-| **`BASS BLAST` / `NATURAL` / `POP` / `CLASSIC` / `PLII MOVIE` (Mode 5.1)** | Membuka (*unmute*) seluruh **6 channel amplifier** (`FL, FR, C, Sub, SL, SR`) di `PS9850` + memuat kurva **69-Band EQ** bawaan LG. | ✅ **TERBAIK & NORMAL 100%:** Suara tetap **murni diskrit 5.1 dari JRiver** (tidak tercampur sama sekali), ditambah karakter bass & warna suara khas LG HT306. |
-| **`BYPASS` (Mode 2.0 Stereo Murni)** | Pada sebagian firmware LG, mode `BYPASS` di posisi `AUX` memerintahkan `PS9850` via `I2C` untuk me-*mute* speaker `Center` & `Rear` (karena mengira input `AUX` hanya stereo 2.0). | ⚠️ **Hindari memilih `BYPASS` jika speaker belakang ikut mati.** Gunakan `NATURAL` atau `PLII MOVIE` agar ke-6 kanal di `PS9850` selalu aktif penuh. |
-| **`SPEAKER LEVEL` & `VOLUME` (`+`/`-`)** | Mengatur penguatan (*gain* dB) per kanal (`FL, FR, C, SW, SL, SR`) di dalam register `PS9850`. | ✅ **Tetap berfungsi 100%** (level Subwoofer/Center dapat diatur dari remote asli LG maupun dari JRiver). |
+| **`BASS BLAST` / `NATURAL` / `POP` / `CLASSIC` / `PLII MOVIE` (5.1 Modes)** | Unmutes all **6 amplifier channels** (`FL, FR, C, Sub, SL, SR`) in `PS9850` and loads stock **69-Band Biquad EQ** curves. | ✅ **RECOMMENDED (100% Normal):** PC audio remains **100% discrete 5.1**, enhanced by LG's custom hardware bass boost and tonality. |
+| **`BYPASS` (Pure 2.0 Stereo Mode)** | In some LG firmware versions, selecting `BYPASS` while in `AUX` commands `PS9850` to mute `Center` and `Surround` channels. | ⚠️ **Avoid `BYPASS` if surround channels become silent.** Use `NATURAL` or `PLII MOVIE` to keep all 6 channels unmuted. |
+| **`SPEAKER LEVEL` & `VOLUME` (`+`/`-`)** | Adjusts individual channel trims (`FL, FR, C, SW, SL, SR`) within `PS9850` registers. | ✅ **Fully Functional 100%:** You can fine-tune Subwoofer or Center volume directly using the original LG remote. |

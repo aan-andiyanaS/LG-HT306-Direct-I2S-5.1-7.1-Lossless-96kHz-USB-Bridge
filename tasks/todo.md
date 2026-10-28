@@ -28,3 +28,7 @@
 - [x] **Slice 6: Dokumentasi Profesional `README.md` & `LICENSE` (MIT License)**
   - Acceptance: `README.md` profesional mencakup latar belakang, bedah arsitektur LG HT306 (`MT1389MH` + `PS9850` + `TAS5352`), diagram arsitektur Mermaid, spesifikasi matematis FLAC Order-4 Golomb-Rice, diagram sekuens PIO 4-Lane I2S, tabel pinout hardware, hasil benchmark, panduan build `.uf2`, konfigurasi JRiver DSP Studio, dan MIT License.
   - Files: `README.md`, `LICENSE`
+
+- [x] **Slice 7: Struktur Dokumentasi Bilingual (English Default + Bahasa Indonesia) & Penghapusan PRD**
+  - Acceptance: Menghapus file PRD, menjadikan Bahasa Inggris sebagai bahasa default di seluruh dokumentasi (`README.md` dan `docs/*.md`), menyediakan versi Bahasa Indonesia lengkap (`README.id.md` dan `docs/*.id.md`) dengan tombol peralihan bahasa di setiap file, dan melakukan push ke repositori GitHub.
+  - Files: `README.md`, `README.id.md`, `docs/*.md`, `docs/*.id.md`

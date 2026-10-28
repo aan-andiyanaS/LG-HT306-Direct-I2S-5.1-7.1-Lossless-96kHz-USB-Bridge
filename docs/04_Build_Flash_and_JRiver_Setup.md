@@ -1,50 +1,54 @@
-# 4. Panduan Kompilasi Firmware (`.uf2`), Flashing `RP2350-Zero`, Pengujian, & Setup JRiver
+# 4. Firmware Build (`.uf2`), RP2350-Zero Flashing, Test Verification, & JRiver Setup
 
-[⬅️ Kembali ke README Utama](../README.md)
+<p align="left">
+  <strong>Language:</strong> <strong>English</strong> | <a href="04_Build_Flash_and_JRiver_Setup.id.md">Bahasa Indonesia</a>
+</p>
 
-Dokumen ini berisi panduan langkah demi langkah untuk mengompilasi firmware, memasukkannya ke papan **`Waveshare RP2350-Zero`**, menjalankan suite verifikasi, serta mengonfigurasi **JRiver Media Center (`DSP Studio`)**.
+[⬅️ Back to Main README](../README.md)
+
+This document provides a step-by-step guide to compiling the firmware, flashing the resulting `.uf2` onto the **`Waveshare RP2350-Zero`**, running the automated mathematical verification test suite, and configuring **JRiver Media Center (`DSP Studio`)** for bit-perfect multichannel playback.
 
 ---
 
-## 4.1. Kompilasi Firmware (`.uf2`)
+## 4.1. Firmware Compilation (`.uf2`)
 
-### Prasyarat
-* **Raspberry Pi Pico SDK** versi **`2.0.0`** atau lebih baru (mendukung arsitektur `RP2350` / `pico2`).
-* **CMake** `>= 3.20`, **Ninja**, dan toolchain **ARM GNU (`arm-none-eabi-gcc`)** — dapat diinstal otomatis menggunakan ekstensi resmi **Raspberry Pi Pico** di Visual Studio Code.
+### Prerequisites
+* **Raspberry Pi Pico SDK** version **`2.0.0`** or higher (with native `RP2350` / `pico2` target support).
+* **CMake** `>= 3.20`, **Ninja**, and the **ARM GNU Toolchain (`arm-none-eabi-gcc`)** — readily configured via the official **Raspberry Pi Pico** extension in Visual Studio Code.
 
-### Perintah Kompilasi
+### Compilation Commands
 ```powershell
-# 1. Masuk ke direktori firmware
+# 1. Navigate to the firmware workspace
 cd firmware
 
-# 2. Buat direktori build & jalankan CMake untuk target pico2 (RP2350-Zero)
+# 2. Generate build tree for pico2 target (Waveshare RP2350-Zero)
 cmake -B build -DPICO_BOARD=pico2 -DCMAKE_BUILD_TYPE=Release
 
-# 3. Compile menjadi file ht306_rp2350_zero.uf2
+# 3. Build the binary firmware artifact ht306_rp2350_zero.uf2
 cmake --build build --config Release -j
 ```
 
 ---
 
-## 4.2. Flash ke Papan `Waveshare RP2350-Zero`
+## 4.2. Flashing the `Waveshare RP2350-Zero`
 
-1. Tekan dan tahan tombol **`BOOT`** kecil pada papan `Waveshare RP2350-Zero`.
-2. Hubungkan kabel USB Type-C ke PC, lalu lepaskan tombol **`BOOT`**.
-3. Drive baru bernama **`RP2350`** akan muncul di Windows Explorer.
-4. Salin (*Drag & Drop*) file **`firmware/build/ht306_rp2350_zero.uf2`** ke dalam drive **`RP2350`**.
-5. Papan akan melakukan *reboot* otomatis dan langsung terdeteksi di Windows sebagai **`LG HT306 5.1 Surround Direct-I2S (RP2350-Zero)`** (`VID: 0x2E8A`, `PID: 0x4306`).
+1. Press and hold down the tiny **`BOOT`** button on the `Waveshare RP2350-Zero`.
+2. Connect the board to your PC via a USB Type-C cable, then release the **`BOOT`** button.
+3. A mass-storage drive named **`RP2350`** will mount in Windows Explorer.
+4. Drag and drop (or copy) **`firmware/build/ht306_rp2350_zero.uf2`** directly into the **`RP2350`** drive.
+5. The MCU will reboot automatically and be recognized by Windows as **`LG HT306 5.1 Surround Direct-I2S (RP2350-Zero)`** (`VID: 0x2E8A`, `PID: 0x4306`).
 
 ---
 
-## 4.3. Menjalankan Verifikasi & Benchmark End-to-End
+## 4.3. Running Automated End-to-End Verification
 
-Seluruh algoritma (mulai dari *Single-Pass FLAC Order-4 + Escaped Golomb-Rice Codec*, *4-Lane PIO Bit-Interleaver*, *Falling-Edge Clock Timing*, hingga *64-Byte USB Bulk Stream Reassembler*) dapat diverifikasi langsung menggunakan Python:
+The complete audio pipeline (from *Single-Pass FLAC Order-4 + Escaped Golomb-Rice Codec*, *4-Lane PIO Bit-Interleaving*, *Falling-Edge Clocking*, to the *64-Byte USB Bulk Reassembler with Noise Guard*) can be verified instantly via Python:
 
 ```powershell
 python tests/verify_end_to_end.py
 ```
 
-### Output Verifikasi Standar
+### Reference Test Suite Output
 ```text
 === [TEST 1] Verifikasi Bit-Perfect Codec 96 kHz 24-bit 5.1 (RP2350-Zero) ===
   -> Bit-Exactness : LULUS 100% (0 bit error dari 115.200 sampel 24-bit)
@@ -70,19 +74,19 @@ python tests/verify_end_to_end.py
 
 ---
 
-## 4.4. Konfigurasi JRiver Media Center (`DSP Studio`)
+## 4.4. JRiver Media Center (`DSP Studio`) Configuration
 
-Agar pemisahan kanal film (**Dolby Digital AC-3, TrueHD, Atmos, DTS-HD**) dan musik terpetakan secara presisi ke 6 speaker LG HT306:
+To route discrete movie audio (**Dolby Digital AC-3, TrueHD, Atmos, DTS-HD MA**) and music accurately across the 6 physical HT306 speakers:
 
-1. Buka **JRiver Media Center** $\rightarrow$ klik menu **`Tools`** $\rightarrow$ **`Options`** $\rightarrow$ **`Audio`**.
-2. Pada bagian **`DSP & Output Format`**, buka **`DSP Studio`**:
+1. In **JRiver Media Center**, navigate to **`Tools`** $\rightarrow$ **`Options`** $\rightarrow$ **`Audio`**.
+2. Under **`DSP & Output Format`**, open **`DSP Studio`**:
    * **Output Format:**
-     * **Channels:** Pilih **`5.1`** (`6 Channels: FL, FR, C, LFE, SL, SR`).
+     * **Channels:** Select **`5.1`** (`6 Channels: FL, FR, C, LFE, SL, SR`).
      * **Sample Rate:**
-       * **Opsi Otomatis:** Biarkan default untuk mengikuti frekuensi asli file (`48.000 Hz` untuk AC-3, `96.000 Hz` untuk TrueHD/Hi-Res) — `RP2350-Zero` dan `Pulsus PS9850` akan otomatis menyesuaikan detak `LRCK` & `BCK`.
-       * **Opsi Upsampling 96 kHz:** Atur semua input menjadi **`96.000 Hz`** jika Anda ingin JRiver melakukan *upsampling* 64-bit otomatis untuk seluruh sumber suara.
+       * **Automatic Matching:** Keep default to follow source content rate (`48,000 Hz` for AC-3, `96,000 Hz` for TrueHD/Hi-Res) — `RP2350-Zero` and `Pulsus PS9850` will adjust `LRCK` and `BCK` clocking automatically.
+       * **96 kHz Upsampling:** Set target output to **`96,000 Hz`** if you prefer JRiver's 64-bit engine to upsample all audio streams consistently.
    * **Room Correction:**
-     * Atur jarak (*delay*) tiap speaker sesuai posisi duduk Anda, dan aktifkan *Bass Management* (crossover `80 Hz` menuju kanal Subwoofer/LFE).
-3. Pada unit **LG HT306**:
-   * Pilih mode **`AUX`** menggunakan remote asli.
-   * Pilih preset EQ 5.1 seperti **`BASS BLAST`**, **`NATURAL`**, atau **`PLII MOVIE`** agar ke-6 kanal amplifier di dalam `IC602 (Pulsus PS9850)` aktif penuh beserta kurva 69-Band EQ bawaan LG.
+     * Set speaker distance delays to align with your listening position, and enable *Bass Management* (crossover at `80 Hz` routed to Subwoofer/LFE).
+3. On the **LG HT306 Unit**:
+   * Select **`AUX`** mode using the stock remote control.
+   * Choose a 5.1 sound preset such as **`BASS BLAST`**, **`NATURAL`**, or **`PLII MOVIE`** to keep all 6 amplifier stages unmuted in `IC602 (Pulsus PS9850)` with LG's custom 69-Band EQ tuning enabled.

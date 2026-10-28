@@ -1,16 +1,20 @@
-# 3. Arsitektur Mesin `PIO0` 4-Lane Synchronous I2S & Dual-Core Wait-Free DMA
+# 3. `PIO0` 4-Lane Synchronous I2S Engine & Dual-Core Wait-Free DMA Architecture
 
-[⬅️ Kembali ke README Utama](../README.md)
+<p align="left">
+  <strong>Language:</strong> <strong>English</strong> | <a href="03_PIO_4Lane_I2S_and_DualCore_DMA.id.md">Bahasa Indonesia</a>
+</p>
 
-Dokumen ini menjelaskan cara kerja generator sinyal I2S multi-lane pada [`firmware/src/i2s_multi.pio`](../firmware/src/i2s_multi.pio), [`firmware/src/i2s_engine.c`](../firmware/src/i2s_engine.c), dan orkestrasi Dual-Core Cortex-M33 pada [`firmware/src/main.c`](../firmware/src/main.c).
+[⬅️ Back to Main README](../README.md)
+
+This document explains the inner workings of the multi-lane I2S signal generator in [`firmware/src/i2s_multi.pio`](../firmware/src/i2s_multi.pio), the hardware driver in [`firmware/src/i2s_engine.c`](../firmware/src/i2s_engine.c), and the Dual-Core Cortex-M33 orchestration in [`firmware/src/main.c`](../firmware/src/main.c).
 
 ---
 
-## 3.1. Sekuens Timing `PIO0` 4-Lane Synchronous I2S (`i2s_multi.pio`)
+## 3.1. Precision Timing Sequence: `PIO0` 4-Lane Synchronous I2S (`i2s_multi.pio`)
 
-Berbeda dengan DAC stereo biasa yang hanya memiliki 1 jalur data, chip **`Pulsus PS9850` (`IC602`)** menerima **3 jalur data I2S paralel (`ADATA0`, `ADATA1`, `ADATA2`)** yang berbagi satu **`BCK`** dan satu **`LRCK`**.
+Unlike conventional stereo audio DACs that accept only a single data lane, the **`Pulsus PS9850` (`IC602`)** processor receives **3 synchronous parallel I2S data lanes (`ADATA0`, `ADATA1`, `ADATA2`)** sharing a common **`BCK`** and **`LRCK`**.
 
-Di dalam [`i2s_multi.pio`](../firmware/src/i2s_multi.pio), satu *State Machine* (`PIO0_SM0`) mengeluarkan keempat jalur data (`GP4..GP7`) secara serentak menggunakan instruksi `out pins, 4` dengan *side-set* 2-bit untuk `BCK` (`GP2`) dan `LRCK` (`GP3`):
+Within [`i2s_multi.pio`](../firmware/src/i2s_multi.pio), a single PIO State Machine (`PIO0_SM0`) drives all four data lines (`GP4..GP7`) simultaneously using the `out pins, 4` instruction, paired with a 2-bit side-set configuration for `BCK` (`GP2`) and `LRCK` (`GP3`):
 
 ```mermaid
 sequenceDiagram
@@ -20,45 +24,45 @@ sequenceDiagram
     participant DATA as GP4..GP7 (ADATA0..3)
     participant PS as IC602 (Pulsus PS9850)
 
-    Note over DMA,PS: Setiap 1 Frame Waktu (1/Fs) = 128 Siklus PIO (64 Siklus BCK @ 50% Duty Cycle)
-    DMA->>OSR: Kirim 4x Word 32-bit (Sub-frame Kiri: FL, SL, C, BL)
-    loop 32 Bit Kiri (MSB ke LSB)
-        OSR->>DATA: out pins, 4 (Set GP4..GP7 serentak)
-        BCK->>PS: side 0b00 (Falling Edge BCK — Data Stabil)
-        BCK->>PS: side 0b01 (Rising Edge BCK — PS9850 Mencuplik Bit!)
+    Note over DMA,PS: Each 1 Time Frame (1/Fs) = 128 PIO Clock Cycles (64 BCK Cycles @ 50% Duty Cycle)
+    DMA->>OSR: Send 4x 32-bit Words (Left Sub-frame: FL, SL, C, BL)
+    loop 32 Left Bits (MSB to LSB)
+        OSR->>DATA: out pins, 4 (Drive GP4..GP7 simultaneously)
+        BCK->>PS: side 0b00 (Falling Edge BCK — Lines Settle)
+        BCK->>PS: side 0b01 (Rising Edge BCK — PS9850 Samples Bits!)
     end
-    DMA->>OSR: Kirim 4x Word 32-bit (Sub-frame Kanan: FR, SR, LFE, BR)
-    loop 32 Bit Kanan (MSB ke LSB)
-        OSR->>DATA: out pins, 4 (Set GP4..GP7 serentak)
-        BCK->>PS: side 0b10 (Falling Edge BCK — Data Stabil)
-        BCK->>PS: side 0b11 (Rising Edge BCK — PS9850 Mencuplik Bit!)
+    DMA->>OSR: Send 4x 32-bit Words (Right Sub-frame: FR, SR, LFE, BR)
+    loop 32 Right Bits (MSB to LSB)
+        OSR->>DATA: out pins, 4 (Drive GP4..GP7 simultaneously)
+        BCK->>PS: side 0b10 (Falling Edge BCK — Lines Settle)
+        BCK->>PS: side 0b11 (Rising Edge BCK — PS9850 Samples Bits!)
     end
 ```
 
-### Karakteristik Timing Presisi:
-* **128 Siklus PIO per Frame Stereo (`64 × BCK` @ 50% Duty Cycle):**
-  * Pada `Fs = 48 kHz`: `PIO Clock = 6,144 MHz`, `BCK = 3,072 MHz`, `LRCK = 48,00 kHz`.
-  * Pada `Fs = 96 kHz`: `PIO Clock = 12,288 MHz`, `BCK = 6,144 MHz`, `LRCK = 96,00 kHz`.
-* **Perubahan Data Tepat pada *Falling Edge* `BCK`:** Seluruh 32 bit Kiri (`side 0b00`) dan 32 bit Kanan (`side 0b10`) dikeluarkan saat `BCK = 0`, sehingga sinyal pada `GP4..GP7` sudah stabil sepenuhnya ketika `BCK` naik ke `1` (`side 0b01` / `side 0b11`) saat `Pulsus PS9850` mencuplik bit.
+### Key Timing Characteristics:
+* **128 PIO Cycles per Audio Frame (`64 × BCK` at 50% Duty Cycle):**
+  * At `Fs = 48 kHz`: `PIO Clock = 6.144 MHz`, `BCK = 3.072 MHz`, `LRCK = 48.00 kHz`.
+  * At `Fs = 96 kHz`: `PIO Clock = 12.288 MHz`, `BCK = 6.144 MHz`, `LRCK = 96.00 kHz`.
+* **Zero Inter-Channel Skew on Falling Edge `BCK`:** All 32 Left bits (`side 0b00`) and 32 Right bits (`side 0b10`) are driven when `BCK = 0`, ensuring data lines `GP4..GP7` are completely stabilized before `BCK` rises to `1` (`side 0b01` / `side 0b11`) where the `Pulsus PS9850` latches each bit.
 
 ---
 
-## 3.2. Bit-Interleaving 4-Lane (`ht306_interleave_4lanes_to_pio_words`)
+## 3.2. 4-Lane Bit-Interleaving (`ht306_interleave_4lanes_to_pio_words`)
 
-Karena instruksi `out pins, 4` menggeser 4 bit sekaligus dari *Output Shift Register* (`OSR`) menuju pin `GP4..GP7` pada setiap siklus `BCK`, fungsi `ht306_interleave_4lanes_to_pio_words()` di [`i2s_engine.c`](../firmware/src/i2s_engine.c) menyusun setiap bit ke-$b \in \lbrace 31, \dots, 0 \rbrace$ dari 4 kanal ke dalam satu *nibble* 4-bit:
+Because `out pins, 4` shifts 4 bits simultaneously from the *Output Shift Register* (`OSR`) to `GP4..GP7` on every bit clock, the function `ht306_interleave_4lanes_to_pio_words()` in [`i2s_engine.c`](../firmware/src/i2s_engine.c) groups bit $b \in \lbrace 31, \dots, 0 \rbrace$ from each channel into a 4-bit nibble:
 
-* **Bit 0 (`GP4` - `ADATA0`):** `Front Left` (saat `LRCK=0`) / `Front Right` (saat `LRCK=1`)
-* **Bit 1 (`GP5` - `ADATA1`):** `Surround Left` (saat `LRCK=0`) / `Surround Right` (saat `LRCK=1`)
-* **Bit 2 (`GP6` - `ADATA2`):** `Center` (saat `LRCK=0`) / `Subwoofer LFE` (saat `LRCK=1`)
-* **Bit 3 (`GP7` - `ADATA3`):** `Back Left` (saat `LRCK=0`) / `Back Right` (saat `LRCK=1`)
+* **Bit 0 (`GP4` - `ADATA0`):** `Front Left` (when `LRCK=0`) / `Front Right` (when `LRCK=1`)
+* **Bit 1 (`GP5` - `ADATA1`):** `Surround Left` (when `LRCK=0`) / `Surround Right` (when `LRCK=1`)
+* **Bit 2 (`GP6` - `ADATA2`):** `Center` (when `LRCK=0`) / `Subwoofer LFE` (when `LRCK=1`)
+* **Bit 3 (`GP7` - `ADATA3`):** `Back Left` (when `LRCK=0`) / `Back Right` (when `LRCK=1`)
 
-Setiap 1 waktu cuplik ($1/F_s$) menghasilkan **8 word 32-bit (`32 Byte`)** di dalam *Ring Buffer* DMA (4 word untuk sub-frame Kiri + 4 word untuk sub-frame Kanan).
+Each audio sample ($1/F_s$) generates **8 32-bit words (`32 Bytes`)** inside the SRAM ring buffer (4 words for the Left sub-frame + 4 words for the Right sub-frame).
 
 ---
 
-## 3.3. Orkestrasi Dual-Core & Wait-Free SPSC Chained Ping-Pong DMA
+## 3.3. Dual-Core Orchestration & Wait-Free SPSC Chained Ping-Pong DMA
 
-Untuk menjamin aliran audio bebas *glitch* tanpa pernah mematikkan interupsi global (`__disable_irq`):
+To deliver glitch-free audio without ever disabling global interrupts (`__disable_irq`):
 
 ```mermaid
 flowchart LR
@@ -73,7 +77,7 @@ flowchart LR
     end
 
     subgraph CORE1["Core 1 (Dedicated Unpacker in SRAM)"]
-        DEC["ht306_lossless_decode_frame()\n(< 0,03 ms / 48 frames)"]
+        DEC["ht306_lossless_decode_frame()\n(< 0.03 ms / 48 frames)"]
         INT["ht306_i2s_write_frames_6ch()\n(4-Lane Bit Interleaver)"]
         DEC --> INT
     end
@@ -87,16 +91,16 @@ flowchart LR
         SIL["g_silence_block (Zero Fallback)"]
         PIO_SM["PIO0_SM0 (GP2..GP7)"]
         DMA_AB --> PIO_SM
-        SIL -.->|"Saat Underrun"| DMA_AB
+        SIL -.->|"On Underrun"| DMA_AB
     end
 
     REASM --> PKT_Q --> DEC
     INT --> PIO_RB --> DMA_AB
 ```
 
-1. **Bebas *Race Condition* (`Wait-Free Monotonic SPSC`):**
-   * Baik antrian paket (`Core 0` $\rightarrow$ `Core 1`) maupun *Ring Buffer* I2S (`Core 1` $\rightarrow$ `DMA_IRQ_0`) menggunakan *counter* monotonik terpisah (`write_count` hanya ditulis oleh *Producer*, `read_count` hanya ditulis oleh *Consumer*) yang dipadukan dengan instruksi *Data Memory Barrier* (`__dmb()`).
-2. **Keamanan Stack Core 1 (`Static SRAM Allocation`):**
-   * Seluruh buffer dekode (`g_core1_decoded_i2s32`) dialokasikan secara statis di SRAM global, sehingga stack `Core 1` (`2 KB`) tetap aman dari *stack overflow*.
-3. **Chained Ping-Pong DMA + *Zero-Silence Fallback*:**
-   * Dua kanal DMA (`g_dma_chan_a` dan `g_dma_chan_b`) saling memicu (*chain-to*) secara otomatis di tingkat hardware tanpa jeda siklus clock. Jika aliran USB dari PC berhenti, ISR DMA otomatis mengarahkan pembacaan ke `g_silence_block` (berisi nol) agar speaker tidak mengeluarkan bunyi *buzz/pop*.
+1. **Race-Condition-Free (`Wait-Free Monotonic SPSC`):**
+   * Both queues (USB Packet Queue `Core 0` $\rightarrow$ `Core 1` and I2S Ring Buffer `Core 1` $\rightarrow$ `DMA_IRQ_0`) rely on independent monotonic write/read counters paired with ARM Cortex-M33 memory barrier instructions (`__dmb()`).
+2. **Deterministic Stack Safety (`Static SRAM Allocation`):**
+   * All decoding scratch buffers (`g_core1_decoded_i2s32`) are pre-allocated statically in SRAM, ensuring `Core 1`'s `2 KB` stack remains completely safe from stack overflow.
+3. **Chained Ping-Pong DMA + Zero-Silence Fallback:**
+   * Two DMA channels (`g_dma_chan_a` and `g_dma_chan_b`) ping-pong back and forth in hardware. If the host PC stalls audio transmission, the DMA interrupt automatically routes transfers to `g_silence_block` (zeroes), eliminating any pop or buzz sounds through the speakers.
