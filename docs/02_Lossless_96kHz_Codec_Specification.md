@@ -1,8 +1,6 @@
 # 2. Mathematical Specification & Protocol of the Real-Time Lossless Codec (`96 kHz / 24-bit 5.1`)
 
-<p align="left">
-  <strong>Language:</strong> <strong>English</strong> | <a href="02_Lossless_96kHz_Codec_Specification.id.md">Bahasa Indonesia</a>
-</p>
+🌐 **Language:** **English** | [Bahasa Indonesia](./02_Lossless_96kHz_Codec_Specification.id.md)
 
 [⬅️ Back to Main README](../README.md)
 

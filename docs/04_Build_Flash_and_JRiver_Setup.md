@@ -1,8 +1,6 @@
 # 4. Firmware Build (`.uf2`), RP2350-Zero Flashing, Test Verification, & JRiver Setup
 
-<p align="left">
-  <strong>Language:</strong> <strong>English</strong> | <a href="04_Build_Flash_and_JRiver_Setup.id.md">Bahasa Indonesia</a>
-</p>
+🌐 **Language:** **English** | [Bahasa Indonesia](./04_Build_Flash_and_JRiver_Setup.id.md)
 
 [⬅️ Back to Main README](../README.md)
 

@@ -1,8 +1,6 @@
 # 1. LG HT306 Hardware Architecture & Direct-I2S Injection Guide
 
-<p align="left">
-  <strong>Language:</strong> <strong>English</strong> | <a href="01_Hardware_Architecture_and_Mod_Guide.id.md">Bahasa Indonesia</a>
-</p>
+🌐 **Language:** **English** | [Bahasa Indonesia](./01_Hardware_Architecture_and_Mod_Guide.id.md)
 
 [⬅️ Back to Main README](../README.md)
 

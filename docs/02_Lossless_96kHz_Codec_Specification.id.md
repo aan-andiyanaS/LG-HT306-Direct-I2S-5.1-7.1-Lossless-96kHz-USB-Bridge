@@ -1,8 +1,6 @@
 # 2. Spesifikasi Matematis & Protokol Codec *Real-Time Lossless* (`96 kHz / 24-bit 5.1`)
 
-<p align="left">
-  <strong>Bahasa:</strong> <a href="02_Lossless_96kHz_Codec_Specification.md">English</a> | <strong>Bahasa Indonesia</strong>
-</p>
+🌐 **Bahasa:** [English](./02_Lossless_96kHz_Codec_Specification.md) | **Bahasa Indonesia**
 
 [⬅️ Kembali ke README Utama](../README.id.md)
 

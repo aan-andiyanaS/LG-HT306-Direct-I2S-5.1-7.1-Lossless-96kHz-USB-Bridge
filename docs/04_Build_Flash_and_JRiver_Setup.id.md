@@ -1,8 +1,6 @@
 # 4. Panduan Kompilasi Firmware (`.uf2`), Flashing `RP2350-Zero`, Pengujian, & Setup JRiver
 
-<p align="left">
-  <strong>Bahasa:</strong> <a href="04_Build_Flash_and_JRiver_Setup.md">English</a> | <strong>Bahasa Indonesia</strong>
-</p>
+🌐 **Bahasa:** [English](./04_Build_Flash_and_JRiver_Setup.md) | **Bahasa Indonesia**
 
 [⬅️ Kembali ke README Utama](../README.id.md)
 

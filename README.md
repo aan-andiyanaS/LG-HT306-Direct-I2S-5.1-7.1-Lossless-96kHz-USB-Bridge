@@ -1,8 +1,6 @@
 # 🎬 LG HT306 Direct-I2S 5.1/7.1 Lossless 96 kHz USB Bridge (`Waveshare RP2350-Zero`)
 
-<p align="left">
-  <strong>Language:</strong> <strong>English</strong> | [Bahasa Indonesia](README.id.md)
-</p>
+🌐 **Language:** **English** | [Bahasa Indonesia](./README.id.md)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform: RP2350-Zero](https://img.shields.io/badge/MCU-Waveshare%20RP2350--Zero-purple.svg)](https://www.waveshare.com/rp2350-zero.htm)

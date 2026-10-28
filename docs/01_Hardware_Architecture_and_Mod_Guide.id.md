@@ -1,8 +1,6 @@
 # 1. Bedah Arsitektur Hardware LG HT306 & Panduan Modifikasi Injeksi I2S
 
-<p align="left">
-  <strong>Bahasa:</strong> <a href="01_Hardware_Architecture_and_Mod_Guide.md">English</a> | <strong>Bahasa Indonesia</strong>
-</p>
+🌐 **Bahasa:** [English](./01_Hardware_Architecture_and_Mod_Guide.md) | **Bahasa Indonesia**
 
 [⬅️ Kembali ke README Utama](../README.id.md)
 

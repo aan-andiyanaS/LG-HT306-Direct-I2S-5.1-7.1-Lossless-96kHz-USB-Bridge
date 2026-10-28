@@ -1,8 +1,6 @@
 # 3. Arsitektur Mesin `PIO0` 4-Lane Synchronous I2S & Dual-Core Wait-Free DMA
 
-<p align="left">
-  <strong>Bahasa:</strong> <a href="03_PIO_4Lane_I2S_and_DualCore_DMA.md">English</a> | <strong>Bahasa Indonesia</strong>
-</p>
+🌐 **Bahasa:** [English](./03_PIO_4Lane_I2S_and_DualCore_DMA.md) | **Bahasa Indonesia**
 
 [⬅️ Kembali ke README Utama](../README.id.md)
 
