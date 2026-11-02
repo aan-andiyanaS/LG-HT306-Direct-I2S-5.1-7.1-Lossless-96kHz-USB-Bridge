@@ -34,3 +34,7 @@ Thumbs.db
 # Scratch & Temporary
 scratch/
 
+# Large Service Manuals & Temporary Extractions
+*.pdf
+*_compress/
+
