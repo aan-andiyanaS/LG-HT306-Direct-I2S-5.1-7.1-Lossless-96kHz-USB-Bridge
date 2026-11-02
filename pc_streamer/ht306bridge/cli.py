@@ -178,7 +178,9 @@ def main(argv: list[str] | None = None) -> int:
             time.sleep(1.0)
             elapsed = time.time() - t0
             ram_mb = get_ram_usage_mb()
-            tr_st = transport.state().name
+            raw_st = transport.state
+            st_obj = raw_st() if callable(raw_st) else raw_st
+            tr_st = st_obj.name if hasattr(st_obj, "name") else str(st_obj)
             st = engine.stats
             throughput_kb = (st.frames * (6 * (4 if is_32bit else 3))) / (1024.0 * max(1.0, elapsed))
             

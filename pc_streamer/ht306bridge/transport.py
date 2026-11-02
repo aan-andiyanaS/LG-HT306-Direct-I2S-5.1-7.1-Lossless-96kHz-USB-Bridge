@@ -26,6 +26,10 @@ class State(enum.Enum):
     STREAMING = "STREAMING"
     ERROR = "ERROR"
 
+    def __call__(self):
+        """Dukungan kompatibilitas agar bisa diakses sebagai property maupun fungsi."""
+        return self
+
 
 class UsbDisconnected(Exception):
     """Perangkat tercabut / ENODEV."""

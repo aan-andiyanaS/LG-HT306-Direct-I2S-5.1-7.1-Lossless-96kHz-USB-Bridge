@@ -293,7 +293,8 @@ class BridgeRequestHandler(BaseHTTPRequestHandler):
         if engine is not None:
             transport = getattr(engine, "transport", None)
             if transport is not None and hasattr(transport, "state"):
-                st = transport.state()
+                raw_st = transport.state
+                st = raw_st() if callable(raw_st) else raw_st
                 state_str = st.name if hasattr(st, "name") else str(st)
             elif getattr(engine, "_thread", None) and engine._thread.is_alive():
                 state_str = "STREAMING"
