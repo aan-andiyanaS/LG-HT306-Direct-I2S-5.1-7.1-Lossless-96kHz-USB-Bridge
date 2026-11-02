@@ -29,9 +29,14 @@ extern "C" {
 
 #define CFG_TUD_VENDOR              1U
 #define CFG_TUD_AUDIO               0U
-#define CFG_TUD_CDC                 0U
+#define CFG_TUD_CDC                 1U
 #define CFG_TUD_MSC                 0U
 #define CFG_TUD_HID                 0U
+
+/* Buffer FIFO Endpoint CDC (VS Code Serial Monitor) */
+#define CFG_TUD_CDC_RX_BUFSIZE      256U
+#define CFG_TUD_CDC_TX_BUFSIZE      512U
+#define CFG_TUD_CDC_EP_BUFSIZE      64U
 
 /* Buffer FIFO Endpoint Vendor (Mode 96 kHz Lossless & 48 kHz PCM) */
 #define CFG_TUD_VENDOR_RX_BUFSIZE   1024U

@@ -49,6 +49,7 @@ typedef struct {
     uint32_t underrun_count;
     uint32_t overrun_count;
     uint32_t blocks_transmitted;
+    uint32_t total_written_frames;
 } HT306_I2SStats_t;
 
 /**

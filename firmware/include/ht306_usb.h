@@ -29,6 +29,12 @@ void ht306_usb_process_vendor_stream(const uint8_t *buf, uint32_t count);
  */
 void ht306_usb_task(void);
 
+/**
+ * Mengirim pesan teks diagnostik ke Serial Monitor (CDC ACM / COM Port).
+ */
+void ht306_usb_log(const char *msg);
+void ht306_usb_log_printf(const char *fmt, ...);
+
 #ifdef __cplusplus
 }
 #endif
