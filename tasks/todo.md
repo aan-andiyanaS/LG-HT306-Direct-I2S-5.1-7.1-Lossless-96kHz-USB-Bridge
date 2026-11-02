@@ -32,3 +32,8 @@
 - [x] **Slice 7: Struktur Dokumentasi Bilingual (English Default + Bahasa Indonesia) & Penghapusan PRD**
   - Acceptance: Menghapus file PRD, menjadikan Bahasa Inggris sebagai bahasa default di seluruh dokumentasi (`README.md` dan `docs/*.md`), menyediakan versi Bahasa Indonesia lengkap (`README.id.md` dan `docs/*.id.md`) dengan tombol peralihan bahasa di setiap file, dan melakukan push ke repositori GitHub.
   - Files: `README.md`, `README.id.md`, `docs/*.md`, `docs/*.id.md`
+
+- [x] **Slice 8: Integrasi USB CDC ACM Serial Monitor, Detak Jantung Diagnostik & Kompatibilitas Build Pico SDK 2.3.1**
+  - Acceptance: Mengaktifkan USB CDC ACM Interface 0/1 (`COM4`) bersamaan dengan Vendor Bulk Interface 2 melalui IAD descriptor, memperbaiki dependensi DTR pada `tud_cdc_connected()`, menambahkan detak jantung periodik 1 detik, echo respon interaktif serial, perbaikan header `pico.h`, integrasi konfigurasi Pico VS Code Extension (`pico-vscode.cmake`), dan berhasil kompilasi file tunggal `ht306_rp2350_zero.uf2`.
+  - Verify: Serial Monitor VS Code pada COM4 menampilkan banner boot dan heartbeat real-time setiap 1 detik.
+  - Files: `firmware/include/tusb_config.h`, `firmware/include/ht306_usb.h`, `firmware/src/usb_descriptors.c`, `firmware/src/main.c`, `firmware/src/lossless_codec.c`, `firmware/CMakeLists.txt`

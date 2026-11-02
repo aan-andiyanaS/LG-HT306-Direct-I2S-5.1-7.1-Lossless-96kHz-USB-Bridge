@@ -2,7 +2,7 @@
 #include <string.h>
 
 #if defined(PICO_BUILD) || defined(PICO_RP2350) || defined(PICO_RP2040)
-#include "pico/platform.h"
+#include "pico.h"
 #define HT306_RAM_FUNC(fn) __not_in_flash_func(fn)
 #else
 #define HT306_RAM_FUNC(fn) fn

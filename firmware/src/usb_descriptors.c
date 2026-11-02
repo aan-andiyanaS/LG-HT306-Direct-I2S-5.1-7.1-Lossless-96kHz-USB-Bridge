@@ -1,6 +1,8 @@
 #include "ht306_usb.h"
 #include "lossless_codec.h"
 #include <string.h>
+#include <stdio.h>
+#include <stdarg.h>
 
 #if defined(PICO_BUILD) || defined(PICO_RP2350) || defined(PICO_RP2040)
 #include "tusb.h"
@@ -13,8 +15,14 @@
 #define HT306_USB_PID                 0x4306U
 #define HT306_USB_BCD                 0x0200U
 
-#define EPNUM_VENDOR_OUT              0x02U
-#define EPNUM_VENDOR_IN               0x82U
+/* Endpoint CDC ACM (Serial Monitor) */
+#define EPNUM_CDC_CMD                 0x81U
+#define EPNUM_CDC_DATA_OUT            0x02U
+#define EPNUM_CDC_DATA_IN             0x82U
+
+/* Endpoint Vendor (High-Speed Lossless 96kHz Pipe) */
+#define EPNUM_VENDOR_OUT              0x03U
+#define EPNUM_VENDOR_IN               0x83U
 
 /**
  * Mesin Perakitan Paket Stream USB (Reassembler untuk potongan 64-Byte pada USB Bulk Endpoint).
@@ -73,17 +81,20 @@ void HT306_USB_RAM_FUNC(ht306_usb_process_vendor_stream)(const uint8_t *buf, uin
 #if defined(PICO_BUILD) || defined(PICO_RP2350) || defined(PICO_RP2040)
 
 enum {
-    ITF_NUM_VENDOR = 0,
+    ITF_NUM_CDC = 0,
+    ITF_NUM_CDC_DATA,
+    ITF_NUM_VENDOR,
     ITF_NUM_TOTAL
 };
 
+/* Composite Device Descriptor (MISC / IAD untuk CDC ACM + Vendor Bulk) */
 static const tusb_desc_device_t g_desc_device = {
     .bLength            = sizeof(tusb_desc_device_t),
     .bDescriptorType    = TUSB_DESC_DEVICE,
     .bcdUSB             = HT306_USB_BCD,
-    .bDeviceClass       = TUSB_CLASS_VENDOR_SPECIFIC,
-    .bDeviceSubClass    = 0x00,
-    .bDeviceProtocol    = 0x00,
+    .bDeviceClass       = TUSB_CLASS_MISC,
+    .bDeviceSubClass    = MISC_SUBCLASS_COMMON,
+    .bDeviceProtocol    = MISC_PROTOCOL_IAD,
     .bMaxPacketSize0    = CFG_TUD_ENDPOINT0_SIZE,
     .idVendor           = HT306_USB_VID,
     .idProduct          = HT306_USB_PID,
@@ -98,11 +109,12 @@ const uint8_t *tud_descriptor_device_cb(void) {
     return (const uint8_t *)&g_desc_device;
 }
 
-#define CONFIG_TOTAL_LEN  (TUD_CONFIG_DESC_LEN + TUD_VENDOR_DESC_LEN)
+#define CONFIG_TOTAL_LEN  (TUD_CONFIG_DESC_LEN + TUD_CDC_DESC_LEN + TUD_VENDOR_DESC_LEN)
 
 static const uint8_t g_desc_configuration[] = {
     TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, CONFIG_TOTAL_LEN, 0x00, 250),
-    TUD_VENDOR_DESCRIPTOR(ITF_NUM_VENDOR, 4, EPNUM_VENDOR_OUT, EPNUM_VENDOR_IN, 64)
+    TUD_CDC_DESCRIPTOR(ITF_NUM_CDC, 4, EPNUM_CDC_CMD, 8, EPNUM_CDC_DATA_OUT, EPNUM_CDC_DATA_IN, 64),
+    TUD_VENDOR_DESCRIPTOR(ITF_NUM_VENDOR, 5, EPNUM_VENDOR_OUT, EPNUM_VENDOR_IN, 64)
 };
 
 const uint8_t *tud_descriptor_configuration_cb(uint8_t index) {
@@ -115,10 +127,11 @@ static const char * const g_string_desc_arr[] = {
     "LG HT306 Custom Digital Mod",
     "LG HT306 5.1 Surround Direct-I2S (RP2350-Zero)",
     "HT306-RP2350Z-96K",
+    "HT306 Diagnostics Serial Monitor",
     "HT306 96kHz Lossless Direct Pipe"
 };
 
-static uint16_t g_desc_str[32];
+static uint16_t g_desc_str[48];
 
 const uint16_t *tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
     (void)langid;
@@ -133,8 +146,8 @@ const uint16_t *tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
         }
         const char *str = g_string_desc_arr[index];
         chr_count = (uint8_t)strlen(str);
-        if (chr_count > 31U) {
-            chr_count = 31U;
+        if (chr_count > 47U) {
+            chr_count = 47U;
         }
         for (uint8_t i = 0U; i < chr_count; ++i) {
             g_desc_str[1U + i] = (uint16_t)str[i];
@@ -145,9 +158,9 @@ const uint16_t *tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
     return g_desc_str;
 }
 
-// ponytail: poll tud_vendor_available/tud_vendor_read directly (eliminates TinyUSB version callback prototype conflicts & saves 2KB UAC2 buffers)
 void HT306_USB_RAM_FUNC(ht306_usb_task)(void) {
     tud_task();
+
     while (tud_vendor_available() > 0U) {
         uint8_t chunk[64];
         uint32_t n = tud_vendor_read(chunk, sizeof(chunk));
@@ -157,8 +170,41 @@ void HT306_USB_RAM_FUNC(ht306_usb_task)(void) {
     }
 }
 
+void ht306_usb_log(const char *msg) {
+    if (msg == NULL) return;
+    if (tud_ready()) {
+        uint32_t len = (uint32_t)strlen(msg);
+        uint32_t pos = 0U;
+        while (pos < len) {
+            uint32_t avail = tud_cdc_write_available();
+            if (avail == 0U) break;
+            uint32_t chunk = (len - pos < avail) ? (len - pos) : avail;
+            uint32_t written = tud_cdc_write(msg + pos, chunk);
+            if (written == 0U) break;
+            pos += written;
+            tud_cdc_write_flush();
+        }
+    }
+}
+
+void ht306_usb_log_printf(const char *fmt, ...) {
+    if (fmt == NULL) return;
+    if (tud_ready()) {
+        char buf[160];
+        va_list args;
+        va_start(args, fmt);
+        int n = vsnprintf(buf, sizeof(buf), fmt, args);
+        va_end(args);
+        if (n > 0) {
+            ht306_usb_log(buf);
+        }
+    }
+}
+
 #else
 
 void ht306_usb_task(void) {}
+void ht306_usb_log(const char *msg) { (void)msg; }
+void ht306_usb_log_printf(const char *fmt, ...) { (void)fmt; }
 
 #endif
