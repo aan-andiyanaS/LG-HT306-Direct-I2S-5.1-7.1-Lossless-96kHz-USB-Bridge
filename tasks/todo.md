@@ -101,3 +101,13 @@
        - 64/64 Unit Test lulus 100% (`pytest pc_streamer/tests -v`).
        - Hardware Test nyata terverifikasi lulus (`pytest pc_streamer/tests_hw --hardware`): RP2350-Zero fisik terdeteksi seketika pada `COM4` dengan VID/PID `0x2E8A:0x4306` dan serial `HT306-RP2350Z-96K`.
   - Files: `pc_streamer/ht306bridge/discovery.py`, `pc_streamer/ht306bridge/transport.py`, `pc_streamer/ht306bridge/web/index.html`, `firmware/src/usb_descriptors.c`, `firmware/src/main.c`, `firmware/build/ht306_rp2350_zero.uf2`
+
+- [x] **Slice 14: Perbaikan Dual-Access Enum State pada UI Server & Stabilisasi Koneksi Real-Time**
+  - Acceptance:
+    1. Menyelesaikan TypeError: 'State' object is not callable pada endpoint GET /api/status di ui_server.py:296 dan cli.py:181.
+    2. Menambahkan implementasi method __call__(self) pada enum State di 	ransport.py sehingga mendukung dual-access (sebagai property 	ransport.state maupun pemanggilan fungsi 	ransport.state()).
+    3. Memperbaiki pemanggilan aman di ui_server.py dan cli.py (
+aw_st = transport.state; st = raw_st() if callable(raw_st) else raw_st).
+    4. Menyesuaikan assertion di 	est_hw_stream.py.
+    5. Verifikasi: 64/64 unit tests lulus 100%, user mengonfirmasi aplikasi berjalan normal ('oke, bisa') dan status di UI terhubung/aktif secara lancar.
+  - Files: pc_streamer/ht306bridge/transport.py, pc_streamer/ht306bridge/ui_server.py, pc_streamer/ht306bridge/cli.py, pc_streamer/tests_hw/test_hw_stream.py
