@@ -13,7 +13,7 @@
 
 #define HT306_USB_VID                 0x2E8AU
 #define HT306_USB_PID                 0x4306U
-#define HT306_USB_BCD                 0x0200U
+#define HT306_USB_BCD                 0x0210U  /* USB 2.1: wajib agar host meminta BOS */
 
 /* Endpoint CDC ACM (Serial Monitor / Heartbeat / Diagnostik) */
 #define EPNUM_CDC_CMD                 0x81U
@@ -142,6 +142,62 @@ static const uint8_t g_desc_configuration[] = {
 const uint8_t *tud_descriptor_configuration_cb(uint8_t index) {
     (void)index;
     return g_desc_configuration;
+}
+
+/* ---- BOS + Microsoft OS 2.0 (auto-bind winusb.sys ke Interface Vendor) ---- */
+
+#define HT306_VENDOR_CODE_MS_OS_20    0x01U   /* bRequest yang diumumkan di BOS */
+#define MS_OS_20_DESCRIPTOR_INDEX     0x07U   /* wIndex untuk request descriptor set */
+#define MS_OS_20_SET_HEADER_LEN       10U
+#define MS_OS_20_SUBSET_HEADER_CFG    8U
+#define MS_OS_20_SUBSET_HEADER_FUNC   8U
+#define MS_OS_20_FEATURE_COMPAT_ID    20U
+#define MS_OS_20_DESC_LEN             (MS_OS_20_SET_HEADER_LEN + MS_OS_20_SUBSET_HEADER_CFG + \
+                                       MS_OS_20_SUBSET_HEADER_FUNC + MS_OS_20_FEATURE_COMPAT_ID)
+#define BOS_TOTAL_LEN                 (TUD_BOS_DESC_LEN + TUD_BOS_MICROSOFT_OS_DESC_LEN)
+
+_Static_assert(MS_OS_20_DESC_LEN == 46U, "MS OS 2.0 descriptor set harus 46 byte");
+_Static_assert(BOS_TOTAL_LEN == 33U, "BOS harus 5 + 28 = 33 byte");
+_Static_assert(CONFIG_TOTAL_LEN == (9U + 66U + 23U), "Panjang configuration descriptor berubah");
+
+static const uint8_t g_desc_bos[] = {
+    TUD_BOS_DESCRIPTOR(BOS_TOTAL_LEN, 1),
+    TUD_BOS_MS_OS_20_DESCRIPTOR(MS_OS_20_DESC_LEN, HT306_VENDOR_CODE_MS_OS_20)
+};
+_Static_assert(sizeof(g_desc_bos) == BOS_TOTAL_LEN, "BOS blob tidak sesuai wTotalLength");
+
+static const uint8_t g_desc_ms_os_20[] = {
+    /* Set header: wLength, wDescriptorType=SET_HEADER(0), dwWindowsVersion=Win 8.1+, wTotalLength */
+    U16_TO_U8S_LE(MS_OS_20_SET_HEADER_LEN), U16_TO_U8S_LE(0x0000),
+    U32_TO_U8S_LE(0x06030000), U16_TO_U8S_LE(MS_OS_20_DESC_LEN),
+    /* Configuration subset (konfigurasi indeks 0) */
+    U16_TO_U8S_LE(MS_OS_20_SUBSET_HEADER_CFG), U16_TO_U8S_LE(0x0001), 0x00, 0x00,
+    U16_TO_U8S_LE(MS_OS_20_DESC_LEN - MS_OS_20_SET_HEADER_LEN),
+    /* Function subset: hanya Interface Vendor (ITF_NUM_VENDOR) */
+    U16_TO_U8S_LE(MS_OS_20_SUBSET_HEADER_FUNC), U16_TO_U8S_LE(0x0002), ITF_NUM_VENDOR, 0x00,
+    U16_TO_U8S_LE(MS_OS_20_DESC_LEN - MS_OS_20_SET_HEADER_LEN - MS_OS_20_SUBSET_HEADER_CFG),
+    /* Compatible ID feature: "WINUSB" + subCompatibleID kosong */
+    U16_TO_U8S_LE(MS_OS_20_FEATURE_COMPAT_ID), U16_TO_U8S_LE(0x0003),
+    'W', 'I', 'N', 'U', 'S', 'B', 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
+_Static_assert(sizeof(g_desc_ms_os_20) == MS_OS_20_DESC_LEN, "MS OS 2.0 blob tidak sesuai wTotalLength");
+
+const uint8_t *tud_descriptor_bos_cb(void) {
+    return g_desc_bos;
+}
+
+/* Hanya melayani request MS OS 2.0; semua request vendor lain -> STALL. */
+bool tud_vendor_control_xfer_cb(uint8_t rhport, uint8_t stage, tusb_control_request_t const *request) {
+    if (request->bRequest == HT306_VENDOR_CODE_MS_OS_20 &&
+        request->wIndex == MS_OS_20_DESCRIPTOR_INDEX &&
+        request->bmRequestType_bit.direction == TUSB_DIR_IN) {
+        if (stage == CONTROL_STAGE_SETUP) {
+            return tud_control_xfer(rhport, request, (void *)(uintptr_t)g_desc_ms_os_20, sizeof(g_desc_ms_os_20));
+        }
+        return true;
+    }
+    return false;
 }
 
 static const char * const g_string_desc_arr[] = {

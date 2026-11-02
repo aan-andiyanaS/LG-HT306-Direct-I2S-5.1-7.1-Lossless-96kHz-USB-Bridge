@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{"colors":{"error-container":"#93000a","on-tertiary-fixed":"#00210e","on-secondary":"#003063","primary-fixed-dim":"#ffb2b8","on-tertiary-container":"#54dd8b","status-warn":"#F5A623","surface":"#1C1C1E","primary":"#ffb2b8","status-error":"#FF5A5F","border":"#38383A","tertiary":"#57df8d","outline":"#a9898b","surface-container":"#201f1f","on-tertiary-fixed-variant":"#00522b","surface-dim":"#131313","on-background":"#e5e2e1","surface-container-low":"#1c1b1b","on-primary":"#67001d","on-primary-fixed-variant":"#91002d","on-secondary-container":"#d9e4ff","lg-red-tint":"#A5003426","lg-red-hover":"#C2174A","surface-container-highest":"#353534","on-surface-variant":"#e2bec0","error":"#ffb4ab","on-secondary-fixed-variant":"#00468c","surface-tint":"#ffb2b8","tertiary-container":"#005e32","inverse-on-surface":"#313030","status-ok":"#2FBF71","on-tertiary":"#00391c","surface-bright":"#393939","on-surface":"#e5e2e1","on-error-container":"#ffdad6","surface-variant":"#353534","on-error":"#690005","surface-container-high":"#2a2a2a","outline-variant":"#5a4042","on-secondary-fixed":"#001b3d","secondary":"#a9c7ff","lg-red-pressed":"#7D0027","inverse-surface":"#e5e2e1","primary-container":"#a50034","icon-gray":"#6B6B6B","surface-2":"#262628","secondary-fixed":"#d6e3ff","tertiary-fixed":"#75fca7","text-secondary":"#B8B8BC","secondary-fixed-dim":"#a9c7ff","on-primary-fixed":"#40000f","status-info":"#5B9DFF","text-primary":"#FFFFFF","tertiary-fixed-dim":"#57df8d","on-primary-container":"#ffafb5","background":"#131313","primary-fixed":"#ffdadb","secondary-container":"#0464c3","inverse-primary":"#b81840","surface-container-lowest":"#0e0e0e"},"borderRadius":{"DEFAULT":"0.25rem","lg":"0.5rem","xl":"0.75rem","full":"9999px"},"spacing":{"space-xl":"1.5rem","space-sm":"0.5rem","space-lg":"1rem","space-xs":"0.25rem","margin":"1.25rem","space-md":"0.75rem","gutter":"1rem"},"fontFamily":{"caption":["Plus Jakarta Sans"],"body-lg":["Plus Jakarta Sans"],"meter-num":["JetBrains Mono"],"headline-md":["Plus Jakarta Sans"],"body-sm":["Plus Jakarta Sans"],"code-lg":["JetBrains Mono"],"headline-lg":["Plus Jakarta Sans"],"code-sm":["JetBrains Mono"]},"fontSize":{"caption":["12px",{"lineHeight":"16px","fontWeight":"400"}],"body-lg":["16px",{"lineHeight":"24px","fontWeight":"400"}],"meter-num":["11px",{"lineHeight":"14px","letterSpacing":"0.02em","fontWeight":"600"}],"headline-md":["20px",{"lineHeight":"26px","letterSpacing":"-0.01em","fontWeight":"600"}],"body-sm":["14px",{"lineHeight":"20px","fontWeight":"400"}],"code-lg":["14px",{"lineHeight":"20px","fontWeight":"500"}],"headline-lg":["28px",{"lineHeight":"34px","letterSpacing":"-0.02em","fontWeight":"600"}],"code-sm":["12px",{"lineHeight":"16px","fontWeight":"400"}]}}}};</script></head><body class="bg-background font-body-sm text-on-surface select-none min-h-screen"><header class="fixed top-0 left-0 right-0 h-10 bg-surface-container-lowest z-50 flex items-center justify-between px-space-md border-b border-border select-none"><div class="flex items-center gap-space-md"><div class="flex items-center gap-space-xs text-primary-container"><span class="material-symbols-outlined text-[18px]">graphic_eq</span></div><div class="flex items-center gap-space-xs"><span class="font-code-sm text-code-sm text-text-primary font-medium tracking-tight">HT306 Audio Bridge</span><span class="font-code-sm text-code-sm text-icon-gray">|</span><span class="font-code-sm text-code-sm text-text-secondary">RP2350-Zero Direct-I2S</span></div></div><div class="flex items-center gap-space-md"><div class="flex items-center gap-space-xs px-space-sm py-0.5 rounded-full bg-surface-2 border border-border"><span class="w-2 h-2 rounded-full bg-status-ok animate-pulse"></span><span class="font-code-sm text-code-sm text-status-ok font-medium">Connected</span></div><div class="flex items-center gap-space-xs px-space-sm py-0.5 rounded-full bg-surface-2 border border-border cursor-pointer hover:bg-surface-variant transition-colors"><span class="font-code-sm text-code-sm text-text-secondary">Profile:</span><span class="font-code-sm text-code-sm text-text-primary font-medium">Movie</span><span class="material-symbols-outlined text-text-secondary text-[16px]">arrow_drop_down</span></div><div class="w-6 h-6 rounded-full bg-primary-container flex items-center justify-center"><span class="material-symbols-outlined text-text-primary text-[14px]">person</span></div><div class="flex items-center -mr-space-md ml-space-xs"><button class="w-10 h-10 flex items-center justify-center text-text-secondary hover:bg-surface-2 hover:text-text-primary transition-colors" type="button"><span class="text-xs leading-none">─</span></button><button class="w-10 h-10 flex items-center justify-center text-text-secondary hover:bg-surface-2 hover:text-text-primary transition-colors" type="button"><span class="text-xs leading-none">□</span></button><button class="w-10 h-10 flex items-center justify-center text-text-secondary hover:bg-status-error hover:text-text-primary transition-colors" type="button"><span class="text-xs leading-none">✕</span></button></div></div></header><aside class="fixed left-0 top-10 bottom-0 w-56 bg-surface-container-low border-r border-border z-40 flex flex-col justify-between py-space-md px-space-sm"><div class="flex flex-col gap-space-xs"><div class="px-space-md py-space-xs flex items-center justify-between"><span class="font-caption text-caption text-icon-gray uppercase tracking-wider font-semibold">Audio Engine</span><span class="font-meter-num text-meter-num text-tertiary px-1 py-0.5 rounded bg-surface-2">96kHz / 24b</span></div><nav class="flex flex-col gap-0.5 mt-space-xs" data-active-classes="bg-primary-container text-text-primary font-medium rounded-full shadow-sm"><a class="flex items-center justify-between px-space-md py-space-sm rounded-full text-text-secondary hover:bg-surface-2 hover:text-on-surface transition-colors font-body-sm text-body-sm" data-path="dashboard" href="#"><span>Dashboard</span></a><a class="flex items-center justify-between px-space-md py-space-sm rounded-full text-text-secondary hover:bg-surface-2 hover:text-on-surface transition-colors font-body-sm text-body-sm" data-path="mixer" href="#"><span>Mixer</span></a><a aria-current="page" class="flex items-center justify-between px-space-md py-space-sm transition-colors bg-primary-container text-text-primary font-medium rounded-full shadow-sm" data-path="routing" href="#"><span>Routing</span><span class="w-1.5 h-1.5 rounded-full bg-text-primary animate-pulse"></span></a><a class="flex items-center justify-between px-space-md py-space-sm rounded-full text-text-secondary hover:bg-surface-2 hover:text-on-surface transition-colors font-body-sm text-body-sm" data-path="profiles" href="#"><span>Profiles</span></a><a class="flex items-center justify-between px-space-md py-space-sm rounded-full text-text-secondary hover:bg-surface-2 hover:text-on-surface transition-colors font-body-sm text-body-sm" data-path="test" href="#"><span>Test</span></a><a class="flex items-center justify-between px-space-md py-space-sm rounded-full text-text-secondary hover:bg-surface-2 hover:text-on-surface transition-colors font-body-sm text-body-sm" data-path="log" href="#"><span>Log</span></a><a class="flex items-center justify-between px-space-md py-space-sm rounded-full text-text-secondary hover:bg-surface-2 hover:text-on-surface transition-colors font-body-sm text-body-sm" data-path="settings" href="#"><span>Settings</span></a></nav></div><div class="flex flex-col gap-space-xs px-space-sm pt-space-md border-t border-border"><div class="flex items-center justify-between text-text-secondary font-code-sm text-code-sm bg-surface-2 px-space-sm py-1 rounded"><span class="truncate text-text-secondary">WinUSB Bulk</span><span class="text-border">|</span><span class="text-tertiary-fixed font-medium">COM4</span></div><div class="flex items-center justify-between px-space-xs"><span class="font-meter-num text-meter-num text-icon-gray">FIRMWARE BRIDGE</span><span class="font-code-sm text-code-sm text-text-secondary">v1.3.0</span></div></div></aside><div class="pl-56"><main class="w-full pt-10 min-h-screen bg-background p-space-lg"><div class="flex flex-col w-full">
+<div class="relative overflow-hidden rounded-xl bg-surface-container-low p-space-lg mb-space-lg shadow-md">
+<div class="absolute -right-16 -top-16 w-80 h-80 rounded-full bg-primary-container opacity-10 blur-3xl pointer-events-none"></div>
+<div class="relative flex flex-col xl:flex-row xl:items-center justify-between gap-space-md z-10">
+<div class="flex flex-col gap-space-xs max-w-3xl">
+<div class="flex flex-wrap items-center gap-space-xs">
+<span class="font-headline-lg text-headline-lg text-text-primary tracking-tight">I2S Crosspoint Matrix &amp; Channel Mapping</span>
+<span class="px-space-xs py-0.5 rounded-full bg-surface-2 text-tertiary font-meter-num text-meter-num">RP2350 PIO I2S Bus</span>
+<span class="px-space-xs py-0.5 rounded-full bg-surface-2 text-text-secondary font-meter-num text-meter-num">6x Discrete Physical DAC Channels</span>
+</div>
+<p class="font-body-sm text-body-sm text-text-secondary">
+          Direct routing matrix between Windows WASAPI capture streams and LG HT306 physical DAC I2S lines (TAS5508 / PS9850). Correct swapped physical wiring without resoldering.
+        </p>
+</div>
+<div class="flex flex-wrap items-center gap-space-xs self-start xl:self-center">
+<button class="flex items-center gap-space-xs px-space-md py-1.5 rounded-full bg-surface-2 hover:bg-surface-variant text-text-primary font-body-sm text-body-sm transition-all shadow-sm active:scale-95" id="btn-quick-swap">
+<span class="material-symbols-outlined text-[16px] text-primary">swap_horiz</span>
+<span>Quick Swap SL ↔ SR</span>
+</button>
+<button class="flex items-center gap-space-xs px-space-md py-1.5 rounded-full bg-surface-2 hover:bg-surface-variant text-text-primary font-body-sm text-body-sm transition-all shadow-sm active:scale-95" id="btn-reset-straight">
+<span class="material-symbols-outlined text-[16px] text-tertiary">alt_route</span>
+<span>1:1 Straight Passthrough</span>
+</button>
+<button class="flex items-center gap-space-xs px-space-md py-1.5 rounded-full bg-surface-2 hover:bg-surface-variant text-text-secondary hover:text-text-primary font-body-sm text-body-sm transition-all shadow-sm active:scale-95" id="btn-factory-reset">
+<span class="material-symbols-outlined text-[16px]">restart_alt</span>
+<span>Reset to Factory Map</span>
+</button>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg mb-space-lg">
+<div class="lg:col-span-6 flex flex-col rounded-xl bg-surface p-space-lg shadow-sm">
+<div class="flex items-center justify-between pb-space-sm mb-space-md border-b-0">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-primary-container text-[18px]">tune</span>
+<span class="font-headline-md text-headline-md text-text-primary">Mode &amp; Synthesizer Engine</span>
+</div>
+<span class="font-caption text-caption text-text-secondary uppercase tracking-widest font-semibold">§5.2 Upmix/Downmix</span>
+</div>
+<div class="flex items-center justify-between px-space-md py-space-xs rounded-lg bg-surface-2 mb-space-md">
+<div class="flex items-center gap-space-xs">
+<span class="w-2 h-2 rounded-full bg-status-ok animate-pulse"></span>
+<span class="font-caption text-caption text-text-secondary">Detected Windows Stream:</span>
+<span class="font-code-sm text-code-sm text-text-primary font-medium">Windows 5.1 Surround (WASAPI Loopback)</span>
+</div>
+<span class="font-meter-num text-meter-num text-tertiary">32-bit Float / 96 kHz</span>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-space-xs mb-space-md" id="upmix-selector-group">
+<button class="upmix-pill flex flex-col items-start p-space-sm rounded-lg bg-primary-container/20 text-text-primary transition-all shadow-sm" data-mode="discrete">
+<div class="flex items-center justify-between w-full">
+<span class="font-code-lg text-code-lg font-medium">Direct 1:1 Discrete</span>
+<span class="w-2 h-2 rounded-full bg-primary-container"></span>
+</div>
+<span class="font-caption text-caption text-text-secondary mt-1">Bit-Perfect Passthrough. Untouched multichannel buffers.</span>
+</button>
+<button class="upmix-pill flex flex-col items-start p-space-sm rounded-lg bg-surface-2 hover:bg-surface-variant text-text-secondary hover:text-text-primary transition-all" data-mode="stereo-upmix">
+<div class="flex items-center justify-between w-full">
+<span class="font-code-lg text-code-lg font-medium">Stereo 2.0 → 5.1 Upmix</span>
+<span class="w-2 h-2 rounded-full bg-icon-gray"></span>
+</div>
+<span class="font-caption text-caption text-text-secondary mt-1">Matrix surround synthesizer for 2-channel legacy tracks.</span>
+</button>
+<button class="upmix-pill flex flex-col items-start p-space-sm rounded-lg bg-surface-2 hover:bg-surface-variant text-text-secondary hover:text-text-primary transition-all" data-mode="downmix">
+<div class="flex items-center justify-between w-full">
+<span class="font-code-lg text-code-lg font-medium">7.1 → 5.1 Downmix</span>
+<span class="w-2 h-2 rounded-full bg-icon-gray"></span>
+</div>
+<span class="font-caption text-caption text-text-secondary mt-1">Foldback surrounds into side channels via ITU-R profile.</span>
+</button>
+<button class="upmix-pill flex flex-col items-start p-space-sm rounded-lg bg-surface-2 hover:bg-surface-variant text-text-secondary hover:text-text-primary transition-all" data-mode="dual-mono">
+<div class="flex items-center justify-between w-full">
+<span class="font-code-lg text-code-lg font-medium">Dual-Mono Front Pair</span>
+<span class="w-2 h-2 rounded-full bg-icon-gray"></span>
+</div>
+<span class="font-caption text-caption text-text-secondary mt-1">Summed L+R centered phase alignment for voice checks.</span>
+</button>
+</div>
+<div class="mt-auto flex items-center justify-between p-space-sm rounded-lg bg-surface-container-high">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[16px] text-status-warn">straighten</span>
+<span class="font-caption text-caption text-text-secondary">Downmix Attenuation:</span>
+<span class="font-code-sm text-code-sm text-text-primary font-semibold">-3.0 dB ITU-R</span>
+</div>
+<span class="font-caption text-caption text-icon-gray">Center &amp; Surrounds scaled to prevent DAC ceiling clipping</span>
+</div>
+</div>
+<div class="lg:col-span-6 flex flex-col rounded-xl bg-surface p-space-lg shadow-sm">
+<div class="flex items-center justify-between pb-space-sm mb-space-md">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-secondary text-[18px]">memory</span>
+<span class="font-headline-md text-headline-md text-text-primary">Physical I2S Line Status &amp; Pinout</span>
+</div>
+<span class="font-meter-num text-meter-num text-tertiary bg-surface-2 px-space-xs py-0.5 rounded-full">PIO SM0-2 MUX OK</span>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-space-xs mb-space-sm">
+<div class="p-space-sm rounded-lg bg-surface-2 flex flex-col justify-between">
+<div class="flex items-center justify-between mb-1">
+<span class="font-caption text-caption text-icon-gray uppercase">Data Bus 0 (GP4)</span>
+<span class="w-1.5 h-1.5 rounded-full bg-status-ok"></span>
+</div>
+<div class="font-code-lg text-code-lg text-text-primary font-semibold">ADATA0: FL + FR</div>
+<span class="font-caption text-caption text-text-secondary mt-1">TAS5508 Pins 22 / 23 (Left/Right Front)</span>
+</div>
+<div class="p-space-sm rounded-lg bg-surface-2 flex flex-col justify-between">
+<div class="flex items-center justify-between mb-1">
+<span class="font-caption text-caption text-icon-gray uppercase">Data Bus 1 (GP5)</span>
+<span class="w-1.5 h-1.5 rounded-full bg-status-ok"></span>
+</div>
+<div class="font-code-lg text-code-lg text-text-primary font-semibold">ADATA1: C + LFE</div>
+<span class="font-caption text-caption text-text-secondary mt-1">TAS5508 Pins 24 / 25 (Center / Low-Freq Sub)</span>
+</div>
+<div class="p-space-sm rounded-lg bg-surface-2 flex flex-col justify-between">
+<div class="flex items-center justify-between mb-1">
+<span class="font-caption text-caption text-icon-gray uppercase">Data Bus 2 (GP6)</span>
+<span class="w-1.5 h-1.5 rounded-full bg-status-ok"></span>
+</div>
+<div class="font-code-lg text-code-lg text-text-primary font-semibold">ADATA2: SL + SR</div>
+<span class="font-caption text-caption text-text-secondary mt-1">TAS5508 Pins 26 / 27 (Surround Rear Left/Right)</span>
+</div>
+<div class="p-space-sm rounded-lg bg-surface-2 flex flex-col justify-between">
+<div class="flex items-center justify-between mb-1">
+<span class="font-caption text-caption text-icon-gray uppercase">Clock Gen (GP2 / GP3)</span>
+<span class="w-1.5 h-1.5 rounded-full bg-status-ok"></span>
+</div>
+<div class="font-code-lg text-code-lg text-text-primary font-semibold">6.144 MHz / 96k LRCK</div>
+<span class="font-caption text-caption text-text-secondary mt-1">64fs Frame Sync Lock (RP2350 PIO State)</span>
+</div>
+</div>
+<div class="mt-auto flex items-center justify-between p-space-sm rounded-lg bg-surface-container-high">
+<div class="flex items-center gap-space-xs">
+<div class="relative flex items-center justify-center w-3 h-3">
+<span class="w-3 h-3 rounded-full bg-tertiary-fixed opacity-30 animate-ping absolute"></span>
+<span class="w-2 h-2 rounded-full bg-status-ok relative"></span>
+</div>
+<span class="font-code-sm text-code-sm text-text-primary font-medium">All 3x I2S Data Lines MUXed to High &amp; Locked</span>
+</div>
+<span class="font-meter-num text-meter-num text-text-secondary">0 JITTER DROPS</span>
+</div>
+</div>
+</div>
+<div class="flex flex-col rounded-xl bg-surface p-space-lg shadow-md mb-space-lg">
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-space-sm pb-space-md">
+<div>
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-primary-container text-[20px]">grid_4x4</span>
+<h2 class="font-headline-md text-headline-md text-text-primary">6x6 Physical Crosspoint Matrix</h2>
+</div>
+<p class="font-body-sm text-body-sm text-text-secondary mt-0.5">Click any intersection to toggle routing path from host audio device directly into hardware DAC registers.</p>
+</div>
+<div class="flex items-center gap-space-xs px-space-md py-1.5 rounded-full bg-surface-2 self-start md:self-auto transition-colors" id="routing-badge">
+<span class="w-2 h-2 rounded-full bg-status-ok" id="routing-dot"></span>
+<span class="font-code-sm text-code-sm text-text-primary font-medium" id="routing-label">Normal 1:1 Routing Active</span>
+</div>
+</div>
+<div class="overflow-x-auto pb-space-sm">
+<table class="w-full border-collapse select-none min-w-[720px]">
+<thead>
+<tr>
+<th class="p-space-sm text-left align-bottom pb-space-md">
+<div class="flex flex-col">
+<span class="font-caption text-caption text-icon-gray uppercase">Inputs: Windows WASAPI</span>
+<span class="font-caption text-caption text-primary">Outputs: LG HT306 DAC ↴</span>
+</div>
+</th>
+<th class="p-space-sm text-center align-bottom pb-space-md">
+<div class="flex flex-col items-center gap-1">
+<div class="flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-status-ok animate-pulse"></span>
+<span class="font-code-lg text-code-lg text-text-primary font-bold">FL</span>
+</div>
+<span class="font-caption text-caption text-icon-gray">Front Left</span>
+<div class="flex items-center gap-1 mt-1">
+<button class="btn-phase px-1.5 py-0.5 rounded text-[10px] font-code-sm bg-surface-2 text-text-secondary hover:text-text-primary" data-phase-in="FL">0°</button>
+<button class="btn-test-tone p-1 rounded bg-surface-2 text-icon-gray hover:text-text-primary" data-test="FL" title="Test Tone">
+<span class="material-symbols-outlined text-[13px]">volume_up</span>
+</button>
+</div>
+</div>
+</th>
+<th class="p-space-sm text-center align-bottom pb-space-md">
+<div class="flex flex-col items-center gap-1">
+<div class="flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-status-ok animate-pulse"></span>
+<span class="font-code-lg text-code-lg text-text-primary font-bold">FR</span>
+</div>
+<span class="font-caption text-caption text-icon-gray">Front Right</span>
+<div class="flex items-center gap-1 mt-1">
+<button class="btn-phase px-1.5 py-0.5 rounded text-[10px] font-code-sm bg-surface-2 text-text-secondary hover:text-text-primary" data-phase-in="FR">0°</button>
+<button class="btn-test-tone p-1 rounded bg-surface-2 text-icon-gray hover:text-text-primary" data-test="FR" title="Test Tone">
+<span class="material-symbols-outlined text-[13px]">volume_up</span>
+</button>
+</div>
+</div>
+</th>
+<th class="p-space-sm text-center align-bottom pb-space-md">
+<div class="flex flex-col items-center gap-1">
+<div class="flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-status-ok animate-pulse"></span>
+<span class="font-code-lg text-code-lg text-text-primary font-bold">C</span>
+</div>
+<span class="font-caption text-caption text-icon-gray">Center</span>
+<div class="flex items-center gap-1 mt-1">
+<button class="btn-phase px-1.5 py-0.5 rounded text-[10px] font-code-sm bg-surface-2 text-text-secondary hover:text-text-primary" data-phase-in="C">0°</button>
+<button class="btn-test-tone p-1 rounded bg-surface-2 text-icon-gray hover:text-text-primary" data-test="C" title="Test Tone">
+<span class="material-symbols-outlined text-[13px]">volume_up</span>
+</button>
+</div>
+</div>
+</th>
+<th class="p-space-sm text-center align-bottom pb-space-md">
+<div class="flex flex-col items-center gap-1">
+<div class="flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-status-ok animate-pulse"></span>
+<span class="font-code-lg text-code-lg text-text-primary font-bold">LFE</span>
+</div>
+<span class="font-caption text-caption text-icon-gray">Subwoofer</span>
+<div class="flex items-center gap-1 mt-1">
+<button class="btn-phase px-1.5 py-0.5 rounded text-[10px] font-code-sm bg-surface-2 text-text-secondary hover:text-text-primary" data-phase-in="LFE">0°</button>
+<button class="btn-test-tone p-1 rounded bg-surface-2 text-icon-gray hover:text-text-primary" data-test="LFE" title="Test Tone">
+<span class="material-symbols-outlined text-[13px]">volume_up</span>
+</button>
+</div>
+</div>
+</th>
+<th class="p-space-sm text-center align-bottom pb-space-md">
+<div class="flex flex-col items-center gap-1">
+<div class="flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-status-ok animate-pulse"></span>
+<span class="font-code-lg text-code-lg text-text-primary font-bold">SL</span>
+</div>
+<span class="font-caption text-caption text-icon-gray">Surround L</span>
+<div class="flex items-center gap-1 mt-1">
+<button class="btn-phase px-1.5 py-0.5 rounded text-[10px] font-code-sm bg-surface-2 text-text-secondary hover:text-text-primary" data-phase-in="SL">0°</button>
+<button class="btn-test-tone p-1 rounded bg-surface-2 text-icon-gray hover:text-text-primary" data-test="SL" title="Test Tone">
+<span class="material-symbols-outlined text-[13px]">volume_up</span>
+</button>
+</div>
+</div>
+</th>
+<th class="p-space-sm text-center align-bottom pb-space-md">
+<div class="flex flex-col items-center gap-1">
+<div class="flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-status-ok animate-pulse"></span>
+<span class="font-code-lg text-code-lg text-text-primary font-bold">SR</span>
+</div>
+<span class="font-caption text-caption text-icon-gray">Surround R</span>
+<div class="flex items-center gap-1 mt-1">
+<button class="btn-phase px-1.5 py-0.5 rounded text-[10px] font-code-sm bg-surface-2 text-text-secondary hover:text-text-primary" data-phase-in="SR">0°</button>
+<button class="btn-test-tone p-1 rounded bg-surface-2 text-icon-gray hover:text-text-primary" data-test="SR" title="Test Tone">
+<span class="material-symbols-outlined text-[13px]">volume_up</span>
+</button>
+</div>
+</div>
+</th>
+</tr>
+</thead>
+<tbody id="matrix-tbody">
+<!-- Populated by JS for reactivity -->
+</tbody>
+</table>
+</div>
+<div class="flex flex-wrap items-center justify-between gap-space-sm pt-space-md text-text-secondary font-caption text-caption">
+<div class="flex items-center gap-space-md">
+<span class="flex items-center gap-1">
+<span class="w-3 h-3 rounded-full bg-primary-container inline-block"></span>
+<span>Active Crosspoint</span>
+</span>
+<span class="flex items-center gap-1">
+<span class="w-3 h-3 rounded-full bg-surface-2 inline-block"></span>
+<span>Disconnected</span>
+</span>
+<span class="flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-status-ok inline-block"></span>
+<span>WASAPI Activity</span>
+</span>
+</div>
+<div class="font-code-sm text-code-sm text-icon-gray">
+        Hardware Registers: <span class="text-tertiary">TAS5508 0x03 - 0x08</span>
+</div>
+</div>
+</div>
+<div class="flex flex-col gap-space-md rounded-xl bg-surface p-space-lg shadow-sm">
+<div class="flex flex-wrap items-center justify-between gap-space-md">
+<div class="flex flex-wrap items-center gap-space-xs">
+<span class="font-caption text-caption text-icon-gray uppercase font-semibold mr-1">Matrix Presets:</span>
+<button class="btn-preset px-space-md py-1 rounded-full bg-surface-container-high hover:bg-surface-variant text-text-primary font-body-sm text-body-sm transition-all shadow-sm" data-preset="standard">
+          Standard 5.1 Cinema
+        </button>
+<button class="btn-preset px-space-md py-1 rounded-full bg-surface-2 hover:bg-surface-variant text-text-secondary hover:text-text-primary font-body-sm text-body-sm transition-all" data-preset="swapped">
+          Swapped Rear Cables (SL ↔ SR)
+        </button>
+<button class="btn-preset px-space-md py-1 rounded-full bg-surface-2 hover:bg-surface-variant text-text-secondary hover:text-text-primary font-body-sm text-body-sm transition-all" data-preset="all-stereo">
+          Stereo Upmix All-Ch Stereo
+        </button>
+</div>
+<div class="flex items-center gap-space-xs">
+<button class="flex items-center gap-space-xs px-space-md py-1.5 rounded-full bg-surface-2 hover:bg-surface-variant text-text-primary font-body-sm text-body-sm transition-all shadow-sm active:scale-95" id="btn-save-custom">
+<span class="material-symbols-outlined text-[16px]">save</span>
+<span>Save Custom Route</span>
+</button>
+<button class="flex items-center gap-space-xs px-space-md py-1.5 rounded-full bg-surface-2 hover:bg-surface-variant text-text-primary font-body-sm text-body-sm transition-all shadow-sm active:scale-95" id="btn-export-json">
+<span class="material-symbols-outlined text-[16px]">code</span>
+<span>Export JSON</span>
+</button>
+<button class="flex items-center gap-space-xs px-space-lg py-1.5 rounded-full bg-primary-container hover:bg-lg-red-hover active:bg-lg-red-pressed text-text-primary font-body-sm text-body-sm font-semibold transition-all shadow-sm active:scale-95" id="btn-audio-sweep">
+<span class="material-symbols-outlined text-[18px]">play_circle</span>
+<span>Verify with 5.1 Audio Sweep</span>
+</button>
+</div>
+</div>
+<div class="flex flex-wrap items-center justify-between gap-space-xs pt-space-xs border-t-0 font-code-sm text-code-sm text-text-secondary">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-status-ok text-[16px]">check_circle</span>
+<span>Hardware Map Synced: Firmware EEPROM Updated</span>
+</div>
+<div class="flex items-center gap-space-xs">
+<span class="text-icon-gray">Buffer Invalidation:</span>
+<span class="font-meter-num text-meter-num text-tertiary">0 ms glitchless transition</span>
+</div>
+</div>
+</div>
+</div>
+<script>
+  (function initRoutingMatrix() {
+    const inputs = ['FL', 'FR', 'C', 'LFE', 'SL', 'SR'];
+    const outputs = [
+      { id: 'DAC1', label: 'DAC 1 [FL]', desc: 'Front Left Pin 22' },
+      { id: 'DAC2', label: 'DAC 2 [FR]', desc: 'Front Right Pin 23' },
+      { id: 'DAC3', label: 'DAC 3 [C]', desc: 'Center Pin 24' },
+      { id: 'DAC4', label: 'DAC 4 [LFE]', desc: 'Subwoofer Pin 25' },
+      { id: 'DAC5', label: 'DAC 5 [SL]', desc: 'Surround Left Pin 26' },
+      { id: 'DAC6', label: 'DAC 6 [SR]', desc: 'Surround Right Pin 27' }
+    ];
+
+    // Default straight mapping: DAC1->FL, DAC2->FR, DAC3->C, DAC4->LFE, DAC5->SL, DAC6->SR
+    let routeState = {
+      0: 0,
+      1: 1,
+      2: 2,
+      3: 3,
+      4: 4,
+      5: 5
+    };
+
+    const tbody = document.getElementById('matrix-tbody');
+    const badge = document.getElementById('routing-badge');
+    const dot = document.getElementById('routing-dot');
+    const label = document.getElementById('routing-label');
+
+    function renderMatrix() {
+      tbody.innerHTML = '';
+      outputs.forEach((out, outIdx) => {
+        const tr = document.createElement('tr');
+        tr.className = outIdx % 2 === 0 ? 'bg-surface/40 hover:bg-surface-2/40 transition-colors' : 'bg-surface-2/20 hover:bg-surface-2/40 transition-colors';
+
+        // Header for Output Row
+        let html = `
+          <td class="p-space-sm">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="font-code-lg text-code-lg text-text-primary font-semibold">${out.label}</span>
+                <span class="font-caption text-caption text-icon-gray hidden sm:inline">(${out.desc})</span>
+              </div>
+              <div class="flex items-center gap-1">
+                <button data-phase-out="${outIdx}" class="btn-phase px-1.5 py-0.5 rounded text-[10px] font-code-sm bg-surface-2 text-text-secondary hover:text-text-primary">0°</button>
+              </div>
+            </div>
+          </td>
+        `;
+
+        // 6 Columns for Inputs
+        inputs.forEach((inCh, inIdx) => {
+          const isActive = routeState[outIdx] === inIdx;
+          html += `
+            <td class="p-space-sm text-center">
+              <button 
+                data-out="${outIdx}" 
+                data-in="${inIdx}" 
+                class="matrix-node group relative inline-flex items-center justify-center w-8 h-8 rounded-full transition-all duration-150 ${
+                  isActive 
+                    ? 'bg-primary-container text-text-primary ring-2 ring-primary/40 shadow-sm' 
+                    : 'bg-surface-2 hover:bg-surface-variant text-icon-gray'
+                }"
+                title="Connect ${inputs[inIdx]} to ${out.label}">
+                <span class="w-2.5 h-2.5 rounded-full ${isActive ? 'bg-text-primary' : 'bg-icon-gray group-hover:bg-text-secondary'}"></span>
+              </button>
+            </td>
+          `;
+        });
+
+        tr.innerHTML = html;
+        tbody.appendChild(tr);
+      });
+
+      updateBadgeState();
+      attachMatrixListeners();
+    }
+
+    function updateBadgeState() {
+      // Check if standard 1:1
+      const isStraight = [0,1,2,3,4,5].every(i => routeState[i] === i);
+      // Check if SL <-> SR swapped
+      const isSwapped = routeState[0] === 0 && routeState[1] === 1 && routeState[2] === 2 && routeState[3] === 3 && routeState[4] === 5 && routeState[5] === 4;
+
+      if (isStraight) {
+        dot.className = 'w-2 h-2 rounded-full bg-status-ok';
+        label.innerText = 'Normal 1:1 Routing Active';
+        badge.className = 'flex items-center gap-space-xs px-space-md py-1.5 rounded-full bg-surface-2 self-start md:self-auto';
+      } else if (isSwapped) {
+        dot.className = 'w-2 h-2 rounded-full bg-status-warn';
+        label.innerText = 'Wire Swap Compensation Active: SL ↔ SR';
+        badge.className = 'flex items-center gap-space-xs px-space-md py-1.5 rounded-full bg-surface-container-high self-start md:self-auto ring-1 ring-status-warn/40';
+      } else {
+        dot.className = 'w-2 h-2 rounded-full bg-primary';
+        label.innerText = 'Custom Crosspoint Matrix Active';
+        badge.className = 'flex items-center gap-space-xs px-space-md py-1.5 rounded-full bg-surface-container-high self-start md:self-auto';
+      }
+    }
+
+    function attachMatrixListeners() {
+      document.querySelectorAll('.matrix-node').forEach(node => {
+        node.addEventListener('click', (e) => {
+          const btn = e.currentTarget;
+          const outIdx = parseInt(btn.getAttribute('data-out'), 10);
+          const inIdx = parseInt(btn.getAttribute('data-in'), 10);
+          routeState[outIdx] = inIdx;
+          renderMatrix();
+        });
+      });
+    }
+
+    // Top action bar handlers
+    document.getElementById('btn-quick-swap').addEventListener('click', () => {
+      const currentSL = routeState[4];
+      const currentSR = routeState[5];
+      routeState[4] = currentSR;
+      routeState[5] = currentSL;
+      renderMatrix();
+    });
+
+    document.getElementById('btn-reset-straight').addEventListener('click', () => {
+      routeState = { 0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5 };
+      renderMatrix();
+    });
+
+    document.getElementById('btn-factory-reset').addEventListener('click', () => {
+      routeState = { 0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5 };
+      renderMatrix();
+    });
+
+    // Preset handlers
+    document.querySelectorAll('.btn-preset').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const preset = btn.getAttribute('data-preset');
+        if (preset === 'standard') {
+          routeState = { 0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5 };
+        } else if (preset === 'swapped') {
+          routeState = { 0: 0, 1: 1, 2: 2, 3: 3, 4: 5, 5: 4 };
+        } else if (preset === 'all-stereo') {
+          // FL->FL, FR->FR, C->FL, LFE->FR, SL->FL, SR->FR
+          routeState = { 0: 0, 1: 1, 2: 0, 3: 1, 4: 0, 5: 1 };
+        }
+        renderMatrix();
+      });
+    });
+
+    // Phase Inversion buttons toggle
+    document.addEventListener('click', (e) => {
+      const btnPhase = e.target.closest('.btn-phase');
+      if (btnPhase) {
+        if (btnPhase.innerText === '0°') {
+          btnPhase.innerText = '180°';
+          btnPhase.classList.add('bg-primary-container', 'text-text-primary');
+          btnPhase.classList.remove('bg-surface-2', 'text-text-secondary');
+        } else {
+          btnPhase.innerText = '0°';
+          btnPhase.classList.remove('bg-primary-container', 'text-text-primary');
+          btnPhase.classList.add('bg-surface-2', 'text-text-secondary');
+        }
+      }
+    });
+
+    // Audio test tone feedback
+    document.addEventListener('click', (e) => {
+      const btnTest = e.target.closest('.btn-test-tone');
+      if (btnTest) {
+        const origColor = btnTest.className;
+        btnTest.classList.add('text-status-ok');
+        setTimeout(() => {
+          btnTest.className = origColor;
+        }, 800);
+      }
+    });
+
+    // Mode Selector pills
+    document.querySelectorAll('.upmix-pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        document.querySelectorAll('.upmix-pill').forEach(p => {
+          p.classList.remove('bg-primary-container/20', 'text-text-primary');
+          p.classList.add('bg-surface-2', 'text-text-secondary');
+          const dot = p.querySelector('span.w-2.h-2');
+          if (dot) {
+            dot.className = 'w-2 h-2 rounded-full bg-icon-gray';
+          }
+        });
+        pill.classList.remove('bg-surface-2', 'text-text-secondary');
+        pill.classList.add('bg-primary-container/20', 'text-text-primary');
+        const activeDot = pill.querySelector('span.w-2.h-2');
+        if (activeDot) {
+          activeDot.className = 'w-2 h-2 rounded-full bg-primary-container';
+        }
+      });
+    });
+
+    // Init
+    renderMatrix();
+  })();
+</script></main></div></body></html>

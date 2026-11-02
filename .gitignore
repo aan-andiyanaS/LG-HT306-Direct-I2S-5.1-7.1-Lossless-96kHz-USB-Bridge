@@ -37,3 +37,9 @@ scratch/
 # Large Service Manuals & Temporary Extractions
 *.pdf
 *_compress/
+
+# Python venv & caches
+.venv/
+**/.venv/
+.pytest_cache/
+*.egg-info/
