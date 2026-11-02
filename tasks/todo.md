@@ -37,3 +37,8 @@
   - Acceptance: Mengaktifkan USB CDC ACM Interface 0/1 (`COM4`) bersamaan dengan Vendor Bulk Interface 2 melalui IAD descriptor, memperbaiki dependensi DTR pada `tud_cdc_connected()`, menambahkan detak jantung periodik 1 detik, echo respon interaktif serial, perbaikan header `pico.h`, integrasi konfigurasi Pico VS Code Extension (`pico-vscode.cmake`), dan berhasil kompilasi file tunggal `ht306_rp2350_zero.uf2`.
   - Verify: Serial Monitor VS Code pada COM4 menampilkan banner boot dan heartbeat real-time setiap 1 detik.
   - Files: `firmware/include/tusb_config.h`, `firmware/include/ht306_usb.h`, `firmware/src/usb_descriptors.c`, `firmware/src/main.c`, `firmware/src/lossless_codec.c`, `firmware/CMakeLists.txt`
+
+- [x] **Slice 9: Implementasi Native USB Audio Class 2.0 (UAC2) Desktop Speaker untuk Deteksi Soundcard Windows**
+  - Acceptance: Mengimplementasikan UAC2 Desktop Speaker (`usbaudio2.sys` bawaan Windows 10/11) dengan feedback isokronus, mendukung sample rate 44.1k/48k/88.2k/96kHz (16/24-bit), nama perangkat `Speakers (LG HT306 Home Theater)`, otomatis mengalirkan sampel audio PCM Windows ke PIO0 4-Lane I2S secara real-time, dan port CDC Serial Monitor tetap aktif berdampingan (PID `0x4308`).
+  - Verify: Kompilasi sukses ke `ht306_rp2350_zero.uf2` dan tercatat pada GitHub Issue #9 & PR #8.
+  - Files: `firmware/include/usb_descriptors.h`, `firmware/include/tusb_config.h`, `firmware/src/usb_descriptors.c`
