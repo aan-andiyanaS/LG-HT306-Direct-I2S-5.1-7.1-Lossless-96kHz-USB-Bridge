@@ -47,3 +47,15 @@
   - Acceptance: Menambahkan Alternate Setting 2 untuk resolusi 24-bit Studio Master PCM (32-bit slot container), mendukung auto-detect resolusi di `tud_audio_set_itf_cb()`, pemetaan direct lossless pass-through bit-perfect (tanpa audio mixing kotor), serta algoritma *Fractional PIO PLL Clock-Drift Tracking* ($\pm 0.02\%$ dynamic adjustment) pada ISR DMA I2S untuk sinkronisasi zero-click/zero-pop jangka panjang (PID `0x430B`).
   - Verify: Kompilasi sukses ke `ht306_rp2350_zero.uf2` (72.192 byte) dan lulus `tests/verify_end_to_end.py`.
   - Files: `firmware/include/usb_descriptors.h`, `firmware/include/tusb_config.h`, `firmware/src/usb_descriptors.c`, `firmware/src/i2s_engine.c`
+
+- [x] **Slice 11: Audit Bug Menyeluruh, Ponytail Optimization & Clean-Code Refactoring**
+  - Acceptance:
+    1. Memperbaiki attenuasi volume hardware slider Windows via Q16 linear gain precalculation (`db_to_linear_gain_q16` & `scale_sample_q16`) saat menerima event Feature Unit `0x02`.
+    2. Menambahkan channel boundary guard (`< 3U`) pada Feature Unit GET/SET requests dan buffer guard pada vendor stream reassembler untuk mencegah buffer overflow.
+    3. Mengeliminasi saturasi memory bus crossbar 150 MHz dengan menambahkan `sleep_us(50)` pada loop idle Core 1.
+    4. Mengoptimalkan ISR DMA dengan caching `g_nominal_clkdiv` untuk zero runtime float division di interrupt.
+    5. Menghapus dead code `ht306_usb_receive_raw_48k_pcm24` dan buffer `g_core0_raw48k_i2s32` (menghemat 1.152 byte SRAM).
+    6. Menerapkan Clean-Code & Ponytail: Modularisasi `stream_uac2_pcm16_frames()` dan `stream_uac2_pcm24_frames()` dengan direct bit-perfect pass-through.
+    7. Menambahkan logging stream audio aktif real-time di CDC serial monitor via `ht306_i2s_get_stats()`.
+  - Verify: Kompilasi sukses ke `ht306_rp2350_zero.uf2`, 100% lulus `tests/verify_end_to_end.py`, commit `04d9edb` ter-push ke `feat/cdc-serial-monitor-heartbeat` dan tercatat pada GitHub Issue #9.
+  - Files: `firmware/include/ht306_usb.h`, `firmware/include/i2s_engine.h`, `firmware/src/i2s_engine.c`, `firmware/src/main.c`, `firmware/src/usb_descriptors.c`
