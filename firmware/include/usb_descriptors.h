@@ -20,7 +20,8 @@ enum {
 
 /**
  * Panjang total deskriptor UAC2 Stereo Adaptive Desktop Speaker.
- * Tidak memerlukan endpoint feedback isokronus (menghindari kernel spinlock usbaudio2.sys pada Windows).
+ * Mendukung Dual-Resolution Audiophile (Alt 1: 16-bit PCM, Alt 2: 24-bit Studio Master PCM)
+ * Tanpa endpoint feedback isokronus (mencegah kernel spinlock usbaudio2.sys pada Windows).
  */
 #define TUD_AUDIO_SPEAKER_STEREO_ADAPTIVE_DESC_LEN (TUD_AUDIO_DESC_IAD_LEN\
   + TUD_AUDIO_DESC_STD_AC_LEN\
@@ -29,14 +30,22 @@ enum {
   + TUD_AUDIO_DESC_INPUT_TERM_LEN\
   + TUD_AUDIO_DESC_OUTPUT_TERM_LEN\
   + TUD_AUDIO_DESC_FEATURE_UNIT_TWO_CHANNEL_LEN\
+  /* Alt 0: Zero Bandwidth */\
   + TUD_AUDIO_DESC_STD_AS_INT_LEN\
+  /* Alt 1: 16-bit PCM (DVD Quality) */\
+  + TUD_AUDIO_DESC_STD_AS_INT_LEN\
+  + TUD_AUDIO_DESC_CS_AS_INT_LEN\
+  + TUD_AUDIO_DESC_TYPE_I_FORMAT_LEN\
+  + TUD_AUDIO_DESC_STD_AS_ISO_EP_LEN\
+  + TUD_AUDIO_DESC_CS_AS_ISO_EP_LEN\
+  /* Alt 2: 24-bit PCM (Studio Master Quality) */\
   + TUD_AUDIO_DESC_STD_AS_INT_LEN\
   + TUD_AUDIO_DESC_CS_AS_INT_LEN\
   + TUD_AUDIO_DESC_TYPE_I_FORMAT_LEN\
   + TUD_AUDIO_DESC_STD_AS_ISO_EP_LEN\
   + TUD_AUDIO_DESC_CS_AS_ISO_EP_LEN)
 
-#define TUD_AUDIO_SPEAKER_STEREO_ADAPTIVE_DESCRIPTOR(_itfnum, _stridx, _nBytesPerSample, _nBitsUsedPerSample, _epout, _epoutsize) \
+#define TUD_AUDIO_SPEAKER_STEREO_ADAPTIVE_DESCRIPTOR(_itfnum, _stridx, _epout, _epoutsize_16, _epoutsize_24) \
   /* Standard Interface Association Descriptor (IAD) */\
   TUD_AUDIO_DESC_IAD(/*_firstitf*/ _itfnum, /*_nitfs*/ 0x02, /*_stridx*/ 0x00),\
   /* Standard AC Interface Descriptor(4.7.1) */\
@@ -53,15 +62,25 @@ enum {
   TUD_AUDIO_DESC_OUTPUT_TERM(/*_termid*/ UAC2_ENTITY_OUTPUT_TERMINAL, /*_termtype*/ AUDIO_TERM_TYPE_OUT_GENERIC_SPEAKER, /*_assocTerm*/ 0x00, /*_srcid*/ UAC2_ENTITY_FEATURE_UNIT, /*_clkid*/ UAC2_ENTITY_CLOCK, /*_ctrl*/ 0x0000, /*_stridx*/ 0x00),\
   /* Standard AS Interface Descriptor(4.9.1) Alt 0 */\
   TUD_AUDIO_DESC_STD_AS_INT(/*_itfnum*/ (uint8_t)((_itfnum) + 1), /*_altset*/ 0x00, /*_nEPs*/ 0x00, /*_stridx*/ 0x00),\
-  /* Standard AS Interface Descriptor(4.9.1) Alt 1 (1 Endpoint - OUT only, TANPA Endpoint Feedback) */\
+  /* Standard AS Interface Descriptor(4.9.1) Alt 1 (16-bit PCM Streaming) */\
   TUD_AUDIO_DESC_STD_AS_INT(/*_itfnum*/ (uint8_t)((_itfnum) + 1), /*_altset*/ 0x01, /*_nEPs*/ 0x01, /*_stridx*/ 0x00),\
-  /* Class-Specific AS Interface Descriptor(4.9.2) */\
+  /* Class-Specific AS Interface Descriptor(4.9.2) Alt 1 */\
   TUD_AUDIO_DESC_CS_AS_INT(/*_termid*/ UAC2_ENTITY_INPUT_TERMINAL, /*_ctrl*/ AUDIO_CTRL_NONE, /*_formattype*/ AUDIO_FORMAT_TYPE_I, /*_formats*/ AUDIO_DATA_FORMAT_TYPE_I_PCM, /*_nchannelsphysical*/ 0x02, /*_channelcfg*/ AUDIO_CHANNEL_CONFIG_NON_PREDEFINED, /*_stridx*/ 0x00),\
-  /* Type I Format Type Descriptor */\
-  TUD_AUDIO_DESC_TYPE_I_FORMAT(_nBytesPerSample, _nBitsUsedPerSample),\
-  /* Standard AS Isochronous Audio Data Endpoint Descriptor */\
-  TUD_AUDIO_DESC_STD_AS_ISO_EP(/*_ep*/ _epout, /*_attr*/ (uint8_t)(TUSB_XFER_ISOCHRONOUS | TUSB_ISO_EP_ATT_ADAPTIVE | TUSB_ISO_EP_ATT_DATA), /*_maxEPsize*/ _epoutsize, /*_interval*/ 0x01),\
-  /* Class-Specific AS Isochronous Audio Data Endpoint Descriptor */\
+  /* Type I Format Type Descriptor Alt 1 (16-bit) */\
+  TUD_AUDIO_DESC_TYPE_I_FORMAT(/*_subslotsize*/ 2, /*_bitresolution*/ 16),\
+  /* Standard AS Isochronous Audio Data Endpoint Descriptor Alt 1 */\
+  TUD_AUDIO_DESC_STD_AS_ISO_EP(/*_ep*/ _epout, /*_attr*/ (uint8_t)(TUSB_XFER_ISOCHRONOUS | TUSB_ISO_EP_ATT_ADAPTIVE | TUSB_ISO_EP_ATT_DATA), /*_maxEPsize*/ _epoutsize_16, /*_interval*/ 0x01),\
+  /* Class-Specific AS Isochronous Audio Data Endpoint Descriptor Alt 1 */\
+  TUD_AUDIO_DESC_CS_AS_ISO_EP(/*_attr*/ AUDIO_CS_AS_ISO_DATA_EP_ATT_NON_MAX_PACKETS_OK, /*_ctrl*/ AUDIO_CTRL_NONE, /*_lockdelayunit*/ AUDIO_CS_AS_ISO_DATA_EP_LOCK_DELAY_UNIT_MILLISEC, /*_lockdelay*/ 0x0001),\
+  /* Standard AS Interface Descriptor(4.9.1) Alt 2 (24-bit Studio Master Streaming) */\
+  TUD_AUDIO_DESC_STD_AS_INT(/*_itfnum*/ (uint8_t)((_itfnum) + 1), /*_altset*/ 0x02, /*_nEPs*/ 0x01, /*_stridx*/ 0x00),\
+  /* Class-Specific AS Interface Descriptor(4.9.2) Alt 2 */\
+  TUD_AUDIO_DESC_CS_AS_INT(/*_termid*/ UAC2_ENTITY_INPUT_TERMINAL, /*_ctrl*/ AUDIO_CTRL_NONE, /*_formattype*/ AUDIO_FORMAT_TYPE_I, /*_formats*/ AUDIO_DATA_FORMAT_TYPE_I_PCM, /*_nchannelsphysical*/ 0x02, /*_channelcfg*/ AUDIO_CHANNEL_CONFIG_NON_PREDEFINED, /*_stridx*/ 0x00),\
+  /* Type I Format Type Descriptor Alt 2 (24-bit in 32-bit slot) */\
+  TUD_AUDIO_DESC_TYPE_I_FORMAT(/*_subslotsize*/ 4, /*_bitresolution*/ 24),\
+  /* Standard AS Isochronous Audio Data Endpoint Descriptor Alt 2 */\
+  TUD_AUDIO_DESC_STD_AS_ISO_EP(/*_ep*/ _epout, /*_attr*/ (uint8_t)(TUSB_XFER_ISOCHRONOUS | TUSB_ISO_EP_ATT_ADAPTIVE | TUSB_ISO_EP_ATT_DATA), /*_maxEPsize*/ _epoutsize_24, /*_interval*/ 0x01),\
+  /* Class-Specific AS Isochronous Audio Data Endpoint Descriptor Alt 2 */\
   TUD_AUDIO_DESC_CS_AS_ISO_EP(/*_attr*/ AUDIO_CS_AS_ISO_DATA_EP_ATT_NON_MAX_PACKETS_OK, /*_ctrl*/ AUDIO_CTRL_NONE, /*_lockdelayunit*/ AUDIO_CS_AS_ISO_DATA_EP_LOCK_DELAY_UNIT_MILLISEC, /*_lockdelay*/ 0x0001)
 
 #endif /* USB_DESCRIPTORS_H */

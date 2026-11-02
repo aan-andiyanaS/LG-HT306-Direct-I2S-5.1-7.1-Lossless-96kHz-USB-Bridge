@@ -42,3 +42,8 @@
   - Acceptance: Mengimplementasikan UAC2 Desktop Speaker (`usbaudio2.sys` bawaan Windows 10/11) dengan mode **Isochronous Adaptive** (tanpa endpoint feedback eksplisit untuk mencegah kernel spinlock/lag Windows), mendukung sample rate 44.1k/48k/96kHz 16-bit PCM, nama perangkat `Speakers (LG HT306 Home Theater)`, otomatis mengalirkan sampel audio PCM Windows ke PIO0 4-Lane I2S secara real-time, dan port CDC Serial Monitor tetap aktif berdampingan (PID `0x430A`).
   - Verify: Kompilasi sukses ke `ht306_rp2350_zero.uf2` dan tercatat pada GitHub Issue #9 & PR #8.
   - Files: `firmware/include/usb_descriptors.h`, `firmware/include/tusb_config.h`, `firmware/src/usb_descriptors.c`
+
+- [x] **Slice 10: Upgrade Standar Industri Audiophile — Dual Resolution 16/24-Bit 96 kHz & Fractional PIO Drift Tracking**
+  - Acceptance: Menambahkan Alternate Setting 2 untuk resolusi 24-bit Studio Master PCM (32-bit slot container), mendukung auto-detect resolusi di `tud_audio_set_itf_cb()`, pemetaan direct lossless pass-through bit-perfect (tanpa audio mixing kotor), serta algoritma *Fractional PIO PLL Clock-Drift Tracking* ($\pm 0.02\%$ dynamic adjustment) pada ISR DMA I2S untuk sinkronisasi zero-click/zero-pop jangka panjang (PID `0x430B`).
+  - Verify: Kompilasi sukses ke `ht306_rp2350_zero.uf2` (72.192 byte) dan lulus `tests/verify_end_to_end.py`.
+  - Files: `firmware/include/usb_descriptors.h`, `firmware/include/tusb_config.h`, `firmware/src/usb_descriptors.c`, `firmware/src/i2s_engine.c`

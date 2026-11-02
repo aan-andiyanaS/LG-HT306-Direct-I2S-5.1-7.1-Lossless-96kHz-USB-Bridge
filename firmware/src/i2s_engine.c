@@ -123,14 +123,33 @@ static void __not_in_flash_func(ht306_dma_irq_handler)(void) {
 
     g_i2s_stats.blocks_transmitted++;
     uint32_t local_read = g_read_total_frames;
+    uint32_t buffered = (uint32_t)(g_write_total_frames - local_read);
 
-    if ((uint32_t)(g_write_total_frames - local_read) >= HT306_DMA_BLOCK_FRAMES) {
+    if (buffered >= HT306_DMA_BLOCK_FRAMES) {
         HT306_MEMORY_BARRIER();
         uint32_t ring_idx = local_read % HT306_RING_BUFFER_FRAMES;
         const uint32_t *src = &g_pio_ring_buffer[ring_idx * HT306_I2S_WORDS_PER_FRAME];
         dma_channel_set_read_addr((uint)active_chan, src, false);
         HT306_MEMORY_BARRIER();
         g_read_total_frames = local_read + HT306_DMA_BLOCK_FRAMES;
+
+        /* Fractional PIO PLL Clock-Drift Tracking (setiap 64 blok = ~32 ms @ 96 kHz)
+         * Menjaga watermark ring buffer di ~50% secara kontinyu tanpa pop/click */
+        if ((g_i2s_stats.blocks_transmitted & 0x3FU) == 0U && g_i2s_stats.current_sample_rate > 0U) {
+            uint32_t sys_hz = clock_get_hz(clk_sys);
+            float nominal_clkdiv = (float)sys_hz / ((float)g_i2s_stats.current_sample_rate * 128.0f);
+
+            if (buffered > 512U) {
+                /* Host sedikit lebih cepat (+ppm): percepat PIO sebesar -0.02% */
+                pio_sm_set_clkdiv(g_pio_instance, g_pio_sm, nominal_clkdiv * 0.9998f);
+            } else if (buffered < 256U) {
+                /* Host sedikit lebih lambat (-ppm): perlambat PIO sebesar +0.02% */
+                pio_sm_set_clkdiv(g_pio_instance, g_pio_sm, nominal_clkdiv * 1.0002f);
+            } else {
+                /* Watermark optimal: gunakan divider nominal */
+                pio_sm_set_clkdiv(g_pio_instance, g_pio_sm, nominal_clkdiv);
+            }
+        }
     } else {
         dma_channel_set_read_addr((uint)active_chan, g_silence_block, false);
         g_i2s_stats.underrun_count++;

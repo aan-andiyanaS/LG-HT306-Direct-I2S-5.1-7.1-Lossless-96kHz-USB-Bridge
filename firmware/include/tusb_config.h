@@ -36,7 +36,7 @@ extern "C" {
 #define CFG_TUD_CDC_TX_BUFSIZE      512U
 #define CFG_TUD_CDC_EP_BUFSIZE      64U
 
-/* Konfigurasi UAC2 Adaptive Desktop Speaker (Plug & Play Windows 10/11 Tanpa Lag) */
+/* Konfigurasi UAC2 Adaptive Desktop Speaker Dual-Resolution (16-bit & 24-bit 96 kHz) */
 #define CFG_TUD_AUDIO_FUNC_1_DESC_LEN          TUD_AUDIO_SPEAKER_STEREO_ADAPTIVE_DESC_LEN
 #define CFG_TUD_AUDIO_ENABLE_EP_OUT            1U
 #define CFG_TUD_AUDIO_ENABLE_EP_IN             0U
@@ -44,10 +44,17 @@ extern "C" {
 
 #define CFG_TUD_AUDIO_FUNC_1_MAX_SAMPLE_RATE   96000U
 #define CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_RX     2U
-#define CFG_TUD_AUDIO_FUNC_1_N_BYTES_PER_SAMPLE_RX 2U
-#define CFG_TUD_AUDIO_FUNC_1_RESOLUTION_RX     16U
 
-#define CFG_TUD_AUDIO_FUNC_1_EP_OUT_SZ_MAX     TUD_AUDIO_EP_SIZE(CFG_TUD_AUDIO_FUNC_1_MAX_SAMPLE_RATE, CFG_TUD_AUDIO_FUNC_1_N_BYTES_PER_SAMPLE_RX, CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_RX)
+/* Format 1: 16-bit PCM (Alt Setting 1) */
+#define CFG_TUD_AUDIO_FUNC_1_FORMAT_1_N_BYTES_PER_SAMPLE_RX 2U
+#define CFG_TUD_AUDIO_FUNC_1_FORMAT_1_RESOLUTION_RX         16U
+
+/* Format 2: 24-bit PCM dalam 32-bit slot (Alt Setting 2 - Studio Master) */
+#define CFG_TUD_AUDIO_FUNC_1_FORMAT_2_N_BYTES_PER_SAMPLE_RX 4U
+#define CFG_TUD_AUDIO_FUNC_1_FORMAT_2_RESOLUTION_RX         24U
+
+/* Ukuran maksimum buffer endpoint (diambil dari format terbesar: 24-bit in 32-bit slot @ 96 kHz) */
+#define CFG_TUD_AUDIO_FUNC_1_EP_OUT_SZ_MAX     TUD_AUDIO_EP_SIZE(CFG_TUD_AUDIO_FUNC_1_MAX_SAMPLE_RATE, CFG_TUD_AUDIO_FUNC_1_FORMAT_2_N_BYTES_PER_SAMPLE_RX, CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_RX)
 #define CFG_TUD_AUDIO_FUNC_1_EP_OUT_SW_BUF_SZ  (4U * CFG_TUD_AUDIO_FUNC_1_EP_OUT_SZ_MAX)
 
 #define CFG_TUD_AUDIO_FUNC_1_N_AS_INT          1U
