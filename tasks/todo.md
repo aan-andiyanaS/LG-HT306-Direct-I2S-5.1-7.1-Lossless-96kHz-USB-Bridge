@@ -52,6 +52,11 @@
     3. Kompilasi firmware sukses menghasilkan `ht306_rp2350_zero.uf2` (69.120 Byte) dengan status 100% lulus bit-perfect pada `tests/verify_end_to_end.py`.
   - Files: `firmware/CMakeLists.txt`, `firmware/include/tusb_config.h`, `firmware/include/ht306_usb.h`, `firmware/include/i2s_engine.h`, `firmware/pico_sdk_import.cmake`, `firmware/src/i2s_engine.c`, `firmware/src/lossless_codec.c`, `firmware/src/main.c`, `firmware/src/usb_descriptors.c`, `.gitignore`
 
-- [ ] **Slice 10: Pembuatan Aplikasi PC Companion (HT306 Audio Bridge) untuk Windows Audio Loopback & Virtual Device Sink**
-  - Acceptance: Membangun aplikasi PC Companion yang menangkap audio Windows via WASAPI Loopback / Virtual Device Sink, mengemasnya secara real-time ke format Lossless Delta-Rice 96 kHz 24-bit 5.1, dan mengirimkannya ke RP2350-Zero melalui WinUSB Bulk Pipe tanpa menyentuh kernel subsystem audio Windows.
+- [x] **Slice 10: Dukungan Native 32-bit Lossless Codec (5.1 Surround 96 kHz True Studio Master)**
+  - Acceptance: Menambahkan dukungan resolusi 32-bit (`HT306_FLAG_BITDEPTH_32`) pada encoder dan decoder Delta-Rice di `lossless_codec.h` dan `lossless_codec.c`. Sinyal 32-bit penuh dialirkan langsung tanpa bit-truncation ke slot 32-bit I2S Pulsus PS9850 di LG HT306.
+  - Verify: Lulus verifikasi `[TEST 1A]` (24-bit) dan `[TEST 1B]` (32-bit) dengan 0 bit error dari 115.200 sampel pada `tests/verify_end_to_end.py`. Kompilasi firmware `ht306_rp2350_zero.uf2` sukses (70.144 Byte).
+  - Files: `firmware/include/lossless_codec.h`, `firmware/src/lossless_codec.c`, `tests/verify_end_to_end.py`
+
+- [ ] **Slice 11: Pembuatan Aplikasi PC Companion (HT306 Audio Bridge) untuk Windows Audio Loopback & Virtual Device Sink**
+  - Acceptance: Membangun aplikasi PC Companion yang menangkap audio Windows via WASAPI Loopback / Virtual Device Sink, mengemasnya secara real-time ke format Lossless Delta-Rice 96 kHz 24-bit/32-bit 5.1, dan mengirimkannya ke RP2350-Zero melalui WinUSB Bulk Pipe tanpa menyentuh kernel subsystem audio Windows.
   - Files: `pc_streamer/`
