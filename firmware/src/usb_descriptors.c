@@ -16,20 +16,20 @@
 #endif
 
 #define HT306_USB_VID                 0x2E8AU
-#define HT306_USB_PID                 0x430CU  /* PID baru untuk UAC2 Dual-Resolution 16/24-bit 96kHz + Digital Vol */
+#define HT306_USB_PID                 0x4320U  /* PID baru untuk UAC2 Asynchronous with Explicit Feedback (Anti-Freeze Windows) */
 #define HT306_USB_BCD                 0x0200U
 
-/* Alokasi Endpoint USB (Audio Adaptive Out + CDC ACM Serial) */
+/* Alokasi Endpoint USB (Audio Asynchronous Out + Explicit Feedback In + CDC ACM Serial) */
 #define EPNUM_AUDIO_OUT               0x01U
+#define EPNUM_AUDIO_FB                0x81U
 #define EPNUM_CDC_CMD                 0x82U
-#define EPNUM_CDC_DATA_OUT            0x03U
+#define EPNUM_CDC_DATA_OUT            0x02U
 #define EPNUM_CDC_DATA_IN             0x83U
 
 /* Status Audio UAC2 */
 static const uint32_t g_sample_rates[] = {44100, 48000, 96000};
 #define N_SAMPLE_RATES (sizeof(g_sample_rates) / sizeof(g_sample_rates[0]))
 static uint32_t         g_current_audio_sample_rate = 96000;
-static volatile uint8_t g_current_resolution        = 16U; /* 16-bit (Alt 1) atau 24-bit (Alt 2) */
 static int8_t           g_audio_mute[3]             = {0, 0, 0};
 static int16_t          g_audio_volume[3]           = {0, 0, 0};
 static volatile uint32_t g_gain_linear_l             = 65536U;
@@ -152,19 +152,22 @@ const uint8_t *tud_descriptor_device_cb(void) {
     return (const uint8_t *)&g_desc_device;
 }
 
-#define CONFIG_TOTAL_LEN  (TUD_CONFIG_DESC_LEN + TUD_AUDIO_SPEAKER_STEREO_ADAPTIVE_DESC_LEN + TUD_CDC_DESC_LEN)
+#define CONFIG_TOTAL_LEN  (TUD_CONFIG_DESC_LEN + TUD_AUDIO_SPEAKER_STEREO_FB_DESC_LEN + TUD_CDC_DESC_LEN)
 
 static const uint8_t g_desc_configuration[] = {
     /* Konfigurasi Utama */
     TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, CONFIG_TOTAL_LEN, 0x00, 250),
 
-    /* UAC2 Adaptive Desktop Speaker Dual-Resolution (Alt 1: 16-bit, Alt 2: 24-bit Studio Master) */
-    TUD_AUDIO_SPEAKER_STEREO_ADAPTIVE_DESCRIPTOR(
+    /* UAC2 Asynchronous Desktop Speaker with Explicit Feedback (16-bit PCM 44.1k/48k/96kHz) */
+    TUD_AUDIO_SPEAKER_STEREO_FB_DESCRIPTOR(
         ITF_NUM_AUDIO_CONTROL,
         5,
+        CFG_TUD_AUDIO_FUNC_1_N_BYTES_PER_SAMPLE_RX,
+        CFG_TUD_AUDIO_FUNC_1_RESOLUTION_RX,
         EPNUM_AUDIO_OUT,
-        TUD_AUDIO_EP_SIZE(CFG_TUD_AUDIO_FUNC_1_MAX_SAMPLE_RATE, CFG_TUD_AUDIO_FUNC_1_FORMAT_1_N_BYTES_PER_SAMPLE_RX, CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_RX),
-        TUD_AUDIO_EP_SIZE(CFG_TUD_AUDIO_FUNC_1_MAX_SAMPLE_RATE, CFG_TUD_AUDIO_FUNC_1_FORMAT_2_N_BYTES_PER_SAMPLE_RX, CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_RX)
+        CFG_TUD_AUDIO_FUNC_1_EP_OUT_SZ_MAX,
+        EPNUM_AUDIO_FB,
+        4
     ),
 
     /* CDC ACM Serial Monitor */
@@ -330,18 +333,16 @@ bool tud_audio_set_itf_close_EP_cb(uint8_t rhport, tusb_control_request_t const 
     return true;
 }
 
+void tud_audio_feedback_params_cb(uint8_t func_id, uint8_t alt_itf, audio_feedback_params_t* feedback_param) {
+    (void)func_id;
+    (void)alt_itf;
+    feedback_param->method = AUDIO_FEEDBACK_METHOD_FIFO_COUNT;
+    feedback_param->sample_freq = g_current_audio_sample_rate;
+}
+
 bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const * p_request) {
     (void)rhport;
-    uint8_t const itf = tu_u16_low(tu_le16toh(p_request->wIndex));
-    uint8_t const alt = tu_u16_low(tu_le16toh(p_request->wValue));
-
-    if (ITF_NUM_AUDIO_STREAMING == itf) {
-        if (alt == 1) {
-            g_current_resolution = 16U;
-        } else if (alt == 2) {
-            g_current_resolution = 24U;
-        }
-    }
+    (void)p_request;
     return true;
 }
 
@@ -379,7 +380,7 @@ static void stream_uac2_pcm16_frames(uint32_t avail) {
     }
 
     uint32_t frames = n / 4U;
-    int32_t samples_6ch[64 * 6];
+    static int32_t s_samples_6ch[64 * 6]; /* Alokasi static di SRAM mencegah Core 0 stack overflow */
 
     for (uint32_t i = 0U; i < frames; ++i) {
         /* Bit-shift 16-bit PCM ke bit 31..16 (MSB-aligned) */
@@ -387,67 +388,25 @@ static void stream_uac2_pcm16_frames(uint32_t avail) {
         int32_t r = (int32_t)pcm16[i * 2U + 1U] << 16U;
 
         /* Hardware Digital Volume Attenuation (Q16 Fixed-Point) */
-        samples_6ch[i * 6U + 0U] = scale_sample_q16(l, g_gain_linear_l);
-        samples_6ch[i * 6U + 1U] = scale_sample_q16(r, g_gain_linear_r);
+        s_samples_6ch[i * 6U + 0U] = scale_sample_q16(l, g_gain_linear_l);
+        s_samples_6ch[i * 6U + 1U] = scale_sample_q16(r, g_gain_linear_r);
 
         /* Direct I2S Lossless Pass-Through (Kanal 2..5 tetap 0 tanpa mixing) */
-        samples_6ch[i * 6U + 2U] = 0;
-        samples_6ch[i * 6U + 3U] = 0;
-        samples_6ch[i * 6U + 4U] = 0;
-        samples_6ch[i * 6U + 5U] = 0;
+        s_samples_6ch[i * 6U + 2U] = 0;
+        s_samples_6ch[i * 6U + 3U] = 0;
+        s_samples_6ch[i * 6U + 4U] = 0;
+        s_samples_6ch[i * 6U + 5U] = 0;
     }
 
-    ht306_i2s_write_frames_6ch(samples_6ch, frames);
-}
-
-static void stream_uac2_pcm24_frames(uint32_t avail) {
-    int32_t pcm32[64 * 2];
-    uint32_t bytes_to_read = (avail > sizeof(pcm32)) ? (uint32_t)sizeof(pcm32) : avail;
-    bytes_to_read &= ~7U; /* Align 8 Byte (2ch x 4B) */
-
-    uint32_t n = tud_audio_read(pcm32, (uint16_t)bytes_to_read);
-    if (n < 8U) {
-        return;
-    }
-
-    uint32_t frames = n / 8U;
-    int32_t samples_6ch[64 * 6];
-
-    for (uint32_t i = 0U; i < frames; ++i) {
-        /* UAC2 24-bit dalam 32-bit slot sudah MSB-aligned (bit 31..8) */
-        int32_t l = pcm32[i * 2U + 0U];
-        int32_t r = pcm32[i * 2U + 1U];
-
-        /* Hardware Digital Volume Attenuation (Q16 Fixed-Point) */
-        samples_6ch[i * 6U + 0U] = scale_sample_q16(l, g_gain_linear_l);
-        samples_6ch[i * 6U + 1U] = scale_sample_q16(r, g_gain_linear_r);
-
-        /* Direct I2S Lossless Pass-Through (Kanal 2..5 tetap 0 tanpa mixing) */
-        samples_6ch[i * 6U + 2U] = 0;
-        samples_6ch[i * 6U + 3U] = 0;
-        samples_6ch[i * 6U + 4U] = 0;
-        samples_6ch[i * 6U + 5U] = 0;
-    }
-
-    ht306_i2s_write_frames_6ch(samples_6ch, frames);
+    ht306_i2s_write_frames_6ch(s_samples_6ch, frames);
 }
 
 void HT306_USB_RAM_FUNC(ht306_usb_task)(void) {
     tud_task();
 
     uint32_t avail = tud_audio_available();
-    if (avail == 0U) {
-        return;
-    }
-
-    if (g_current_resolution == 24U) {
-        if (avail >= 8U) {
-            stream_uac2_pcm24_frames(avail);
-        }
-    } else {
-        if (avail >= 4U) {
-            stream_uac2_pcm16_frames(avail);
-        }
+    if (avail >= 4U) {
+        stream_uac2_pcm16_frames(avail);
     }
 }
 
