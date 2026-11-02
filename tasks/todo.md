@@ -39,6 +39,6 @@
   - Files: `firmware/include/tusb_config.h`, `firmware/include/ht306_usb.h`, `firmware/src/usb_descriptors.c`, `firmware/src/main.c`, `firmware/src/lossless_codec.c`, `firmware/CMakeLists.txt`
 
 - [x] **Slice 9: Implementasi Native USB Audio Class 2.0 (UAC2) Desktop Speaker untuk Deteksi Soundcard Windows**
-  - Acceptance: Mengimplementasikan UAC2 Desktop Speaker (`usbaudio2.sys` bawaan Windows 10/11) dengan feedback isokronus, mendukung sample rate 44.1k/48k/88.2k/96kHz (16/24-bit), nama perangkat `Speakers (LG HT306 Home Theater)`, otomatis mengalirkan sampel audio PCM Windows ke PIO0 4-Lane I2S secara real-time, dan port CDC Serial Monitor tetap aktif berdampingan (PID `0x4308`).
+  - Acceptance: Mengimplementasikan UAC2 Desktop Speaker (`usbaudio2.sys` bawaan Windows 10/11) dengan mode **Isochronous Adaptive** (tanpa endpoint feedback eksplisit untuk mencegah kernel spinlock/lag Windows), mendukung sample rate 44.1k/48k/96kHz 16-bit PCM, nama perangkat `Speakers (LG HT306 Home Theater)`, otomatis mengalirkan sampel audio PCM Windows ke PIO0 4-Lane I2S secara real-time, dan port CDC Serial Monitor tetap aktif berdampingan (PID `0x430A`).
   - Verify: Kompilasi sukses ke `ht306_rp2350_zero.uf2` dan tercatat pada GitHub Issue #9 & PR #8.
   - Files: `firmware/include/usb_descriptors.h`, `firmware/include/tusb_config.h`, `firmware/src/usb_descriptors.c`
