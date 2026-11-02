@@ -59,7 +59,13 @@ void HT306_USB_RAM_FUNC(ht306_usb_process_vendor_stream)(const uint8_t *buf, uin
         }
 
         if (g_rx_accum_pos >= sizeof(g_rx_accum_buf)) {
-            g_rx_accum_pos = 0U;
+            /* Guard buffer overflow: jika byte saat ini adalah awal sync baru, simpan */
+            if (b == (uint8_t)(HT306_SYNC_WORD & 0xFFU)) {
+                g_rx_accum_buf[0] = b;
+                g_rx_accum_pos = 1U;
+            } else {
+                g_rx_accum_pos = 0U;
+            }
             g_rx_target_len = 0U;
             continue;
         }
@@ -69,8 +75,18 @@ void HT306_USB_RAM_FUNC(ht306_usb_process_vendor_stream)(const uint8_t *buf, uin
         if (g_rx_accum_pos == 4U) {
             g_rx_target_len = (uint16_t)g_rx_accum_buf[2] | ((uint16_t)g_rx_accum_buf[3] << 8U);
             if (g_rx_target_len < min_pkt_len || g_rx_target_len > HT306_MAX_PACKET_BYTES) {
-                /* Jika byte [2..3] ternyata adalah sync_word baru (0xA55A), pertahankan posisi 2 */
-                g_rx_accum_pos  = (g_rx_target_len == HT306_SYNC_WORD) ? 2U : 0U;
+                if (g_rx_target_len == HT306_SYNC_WORD) {
+                    /* Byte [2..3] adalah sync_word pembuka paket baru -> geser ke [0..1] */
+                    g_rx_accum_buf[0] = (uint8_t)(HT306_SYNC_WORD & 0xFFU);
+                    g_rx_accum_buf[1] = (uint8_t)(HT306_SYNC_WORD >> 8U);
+                    g_rx_accum_pos = 2U;
+                } else if (b == (uint8_t)(HT306_SYNC_WORD & 0xFFU)) {
+                    /* Byte terakhir [3] adalah awal sync_word baru */
+                    g_rx_accum_buf[0] = b;
+                    g_rx_accum_pos = 1U;
+                } else {
+                    g_rx_accum_pos = 0U;
+                }
                 g_rx_target_len = 0U;
             }
             continue;

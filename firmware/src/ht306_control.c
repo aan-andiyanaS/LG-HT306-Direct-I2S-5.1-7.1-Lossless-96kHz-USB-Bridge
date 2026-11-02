@@ -3,9 +3,53 @@
 #if defined(PICO_BUILD) || defined(PICO_RP2350) || defined(PICO_RP2040)
 #include "pico/stdlib.h"
 #include "hardware/gpio.h"
+#include "hardware/sync.h"
+#include "hardware/structs/sio.h"
 #endif
 
-static HT306_StatusLed_t g_current_led = HT306_STATUS_STANDBY_BLUE;
+// Inisialisasi sentinel (0xFF) agar pemanggilan pertama saat boot selalu menyalakan LED fisik
+static HT306_StatusLed_t g_current_led = (HT306_StatusLed_t)0xFF;
+
+#if defined(PICO_BUILD) || defined(PICO_RP2350) || defined(PICO_RP2040)
+static inline void delay_cycles(uint32_t count) {
+    __asm volatile (
+        "1: subs %0, %0, #1 \n"
+        "   bne 1b          \n"
+        : "+r" (count)
+        :
+        : "cc"
+    );
+}
+
+/**
+ * Pengirim sinyal 800 kHz protokol WS2812 (GRB format) untuk LED RGB GP16 RP2350-Zero.
+ * Menggunakan direct register atomic SIO dengan pemblokiran interupsi singkat (30 us).
+ */
+static void ws2812_write_grb(uint8_t g, uint8_t r, uint8_t b) {
+    uint32_t data = ((uint32_t)g << 16U) | ((uint32_t)r << 8U) | (uint32_t)b;
+    const uint32_t pin_mask = 1U << HT306_PIN_WS2812_LED;
+
+    uint32_t ints = save_and_disable_interrupts();
+
+    for (int bit = 23; bit >= 0; --bit) {
+        if ((data >> bit) & 1U) {
+            // Bit 1: ~700 ns HIGH, ~600 ns LOW
+            sio_hw->gpio_set = pin_mask;
+            delay_cycles(35); // ~700 ns @ 150MHz
+            sio_hw->gpio_clr = pin_mask;
+            delay_cycles(30); // ~600 ns @ 150MHz
+        } else {
+            // Bit 0: ~350 ns HIGH, ~800 ns LOW
+            sio_hw->gpio_set = pin_mask;
+            delay_cycles(17); // ~350 ns @ 150MHz
+            sio_hw->gpio_clr = pin_mask;
+            delay_cycles(40); // ~800 ns @ 150MHz
+        }
+    }
+
+    restore_interrupts(ints);
+}
+#endif
 
 void ht306_control_init(void) {
 #if defined(PICO_BUILD) || defined(PICO_RP2350) || defined(PICO_RP2040)
@@ -34,8 +78,28 @@ void ht306_control_set_pc_mode(bool pc_mode_active) {
 }
 
 void ht306_control_set_status_led(HT306_StatusLed_t status) {
+    if (g_current_led == status) {
+        return;
+    }
     g_current_led = status;
-    (void)g_current_led;
+#if defined(PICO_BUILD) || defined(PICO_RP2350) || defined(PICO_RP2040)
+    switch (status) {
+        case HT306_STATUS_STANDBY_BLUE:
+            ws2812_write_grb(0U, 0U, 32U);   // Biru
+            break;
+        case HT306_STATUS_MODE_48K_GREEN:
+            ws2812_write_grb(32U, 0U, 0U);   // Hijau
+            break;
+        case HT306_STATUS_MODE_96K_PURPLE:
+            ws2812_write_grb(0U, 32U, 32U);  // Ungu / Magenta
+            break;
+        case HT306_STATUS_ERROR_RED:
+            ws2812_write_grb(0U, 32U, 0U);   // Merah
+            break;
+        default:
+            break;
+    }
+#endif
 }
 
 #if defined(PICO_BUILD) || defined(PICO_RP2350) || defined(PICO_RP2040)

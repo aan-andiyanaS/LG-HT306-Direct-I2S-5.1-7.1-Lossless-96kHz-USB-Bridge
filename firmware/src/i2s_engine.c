@@ -36,13 +36,13 @@ static HT306_I2SStats_t g_i2s_stats = {
 };
 
 #if defined(PICO_BUILD) || defined(PICO_RP2350) || defined(PICO_RP2040)
-static int   g_dma_chan_a = -1;
-static int   g_dma_chan_b = -1;
-static PIO   g_pio_instance = pio0;
-static uint  g_pio_sm = 0U;
-static uint  g_pio_offset = 0U;
-static bool  g_pio_program_loaded = false;
-static float g_nominal_clkdiv = 0.0f;
+static int              g_dma_chan_a = -1;
+static int              g_dma_chan_b = -1;
+static PIO              g_pio_instance = pio0;
+static uint             g_pio_sm = 0U;
+static uint             g_pio_offset = 0U;
+static bool             g_pio_program_loaded = false;
+static volatile float   g_nominal_clkdiv = 0.0f;
 #endif
 
 static inline uint32_t spsc_get_buffered_frames(void) {
@@ -82,15 +82,17 @@ size_t HT306_I2S_RAM_FUNC(ht306_i2s_write_frames_6ch)(
         return 0U;
     }
 
-    size_t written = 0U;
     uint32_t local_write = g_write_total_frames;
+    uint32_t buffered = (uint32_t)(local_write - g_read_total_frames);
+
+    /* Atomic All-or-Nothing check: tolak seluruh subframe jika buffer tidak mencukupi
+     * guna mencegah pembagian subframe yang merusak keselarasan boundary frame I2S */
+    if ((buffered + num_frames) > HT306_RING_BUFFER_FRAMES) {
+        g_i2s_stats.overrun_count++;
+        return 0U;
+    }
 
     for (size_t n = 0U; n < num_frames; ++n) {
-        if ((uint32_t)(local_write - g_read_total_frames) >= HT306_RING_BUFFER_FRAMES) {
-            g_i2s_stats.overrun_count++;
-            break;
-        }
-
         const int32_t *f = &samples_6ch_i2s32[n * 6U];
         uint32_t *dst = &g_pio_ring_buffer[(local_write % HT306_RING_BUFFER_FRAMES) * HT306_I2S_WORDS_PER_FRAME];
 
@@ -99,12 +101,11 @@ size_t HT306_I2S_RAM_FUNC(ht306_i2s_write_frames_6ch)(
         ht306_interleave_4lanes_to_pio_words((uint32_t)f[1], (uint32_t)f[5], (uint32_t)f[3], 0U, &dst[4]);
 
         local_write++;
-        written++;
     }
 
     HT306_MEMORY_BARRIER();
     g_write_total_frames = local_write;
-    return written;
+    return num_frames;
 }
 
 #if defined(PICO_BUILD) || defined(PICO_RP2350) || defined(PICO_RP2040)
@@ -125,11 +126,15 @@ static void __not_in_flash_func(ht306_dma_irq_handler)(void) {
     g_i2s_stats.blocks_transmitted++;
     uint32_t local_read = g_read_total_frames;
     uint32_t buffered = (uint32_t)(g_write_total_frames - local_read);
+    const uint32_t transfer_words = HT306_DMA_BLOCK_FRAMES * HT306_I2S_WORDS_PER_FRAME;
 
     if (buffered >= HT306_DMA_BLOCK_FRAMES) {
         HT306_MEMORY_BARRIER();
         uint32_t ring_idx = local_read % HT306_RING_BUFFER_FRAMES;
         const uint32_t *src = &g_pio_ring_buffer[ring_idx * HT306_I2S_WORDS_PER_FRAME];
+
+        /* RP2350/RP2040: Reload trans_count sebelum channel dipicu kembali oleh chaining partner */
+        dma_channel_set_trans_count((uint)active_chan, transfer_words, false);
         dma_channel_set_read_addr((uint)active_chan, src, false);
         HT306_MEMORY_BARRIER();
         g_read_total_frames = local_read + HT306_DMA_BLOCK_FRAMES;
@@ -149,8 +154,15 @@ static void __not_in_flash_func(ht306_dma_irq_handler)(void) {
             }
         }
     } else {
+        dma_channel_set_trans_count((uint)active_chan, transfer_words, false);
         dma_channel_set_read_addr((uint)active_chan, g_silence_block, false);
         g_i2s_stats.underrun_count++;
+    }
+
+    /* Ketahanan DMA: Jika partner channel berhenti karena underrun/stalling, picu ulang transfer */
+    int partner_chan = (active_chan == g_dma_chan_a) ? g_dma_chan_b : g_dma_chan_a;
+    if (!dma_channel_is_busy((uint)partner_chan)) {
+        dma_channel_start((uint)partner_chan);
     }
 }
 #endif

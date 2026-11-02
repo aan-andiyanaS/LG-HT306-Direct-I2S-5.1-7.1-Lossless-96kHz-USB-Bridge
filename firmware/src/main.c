@@ -42,7 +42,6 @@ void HT306_MAIN_RAM_FUNC(ht306_core1_lossless_worker)(void) {
             HT306_MAIN_DMB();
             uint32_t slot_idx = r % HT306_PACKET_QUEUE_DEPTH;
             const HT306_PacketSlot_t *slot = &g_packet_queue[slot_idx];
-            uint8_t pkt_flags = slot->data[5];
             uint8_t frames_decoded = 0U;
 
             HT306_CodecStatus_t status = ht306_lossless_decode_frame(
@@ -57,6 +56,7 @@ void HT306_MAIN_RAM_FUNC(ht306_core1_lossless_worker)(void) {
             g_pkt_read_count = r + 1U;
 
             if (status == HT306_CODEC_OK && frames_decoded > 0U) {
+                uint8_t pkt_flags = slot->data[5];
                 bool is_96k = (pkt_flags & HT306_FLAG_RATE_96KHZ) != 0U;
                 ht306_i2s_set_sample_rate(is_96k ? HT306_SAMPLE_RATE_96000 : HT306_SAMPLE_RATE_48000);
                 ht306_i2s_write_frames_6ch(g_core1_decoded_i2s32, frames_decoded);
@@ -67,8 +67,8 @@ void HT306_MAIN_RAM_FUNC(ht306_core1_lossless_worker)(void) {
         }
 #if defined(PICO_BUILD) || defined(PICO_RP2350) || defined(PICO_RP2040)
         else {
-            /* Mencegah Core 1 membanjiri bus AHB SRAM crossbar saat antrian kosong */
-            sleep_us(50);
+            /* Cortex-M Wait-For-Event: Nol latency saat bangun via __sev(), menghemat daya dan bus SRAM */
+            __wfe();
         }
 #else
         else {
@@ -96,6 +96,12 @@ bool HT306_MAIN_RAM_FUNC(ht306_usb_enqueue_lossless_packet)(const uint8_t *usb_d
 
     HT306_MAIN_DMB();
     g_pkt_write_count = w + 1U;
+
+#if defined(PICO_BUILD) || defined(PICO_RP2350) || defined(PICO_RP2040)
+    /* Signal Event: Langsung bangunkan Core 1 dalam 1 siklus CPU tanpa latency polling */
+    __sev();
+#endif
+
     return true;
 }
 

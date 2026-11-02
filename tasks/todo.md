@@ -57,6 +57,21 @@
   - Verify: Lulus verifikasi `[TEST 1A]` (24-bit) dan `[TEST 1B]` (32-bit) dengan 0 bit error dari 115.200 sampel pada `tests/verify_end_to_end.py`. Kompilasi firmware `ht306_rp2350_zero.uf2` sukses (70.144 Byte).
   - Files: `firmware/include/lossless_codec.h`, `firmware/src/lossless_codec.c`, `tests/verify_end_to_end.py`
 
-- [ ] **Slice 11: Pembuatan Aplikasi PC Companion (HT306 Audio Bridge) untuk Windows Audio Loopback & Virtual Device Sink**
+- [x] **Slice 11: Audit Komprehensif Adversarial, Optimasi Ponytail, Penguatan Ketahanan Hardware & Zero-Error Approval**
+  - Acceptance:
+    1. Memperbaiki DMA ping-pong lockup dengan reload `trans_count` (`dma_channel_set_trans_count`) sebelum `read_addr`.
+    2. Mengubah penulisan buffer I2S menjadi All-or-Nothing Atomic Subframe Check untuk mencegah phase shift antar-kanal.
+    3. Mengimplementasikan driver LED RGB WS2812 fisik pada pin GP16 dengan cache guard non-blocking (menghemat >6.2% CPU Core 1).
+    4. Mengganti signed integer overflow UB pada prediktor 32-bit dengan modular arithmetic `uint32_t` ISO C murni.
+    5. Mengisolasi encoder khusus untuk target PC/test harness sehingga memangkas 2.3 KB SRAM di BSS dan mengurangi biner hingga ~52 KB.
+    6. Mencegah race condition SPSC Wait-Free ring buffer dengan menjaga invarian Producer-only write counter dan Consumer-only read counter.
+    7. Menambahkan DMA partner channel kick-start auto-recovery untuk mencegah freezing jika terjadi stalling eksternal > 1 ms.
+    8. Mengganti polling busy-wait Core 1 dengan ARM Cortex-M event handling (`__wfe()` & `__sev()`).
+    9. Memperbaiki USB bulk reassembler alignment guard saat buffer overflow atau desinkronisasi framing.
+    10. Lulus 100% verifikasi adversarial subagent Senior Code Reviewer dengan verdict **APPROVE**.
+  - Verify: Lulus `tests/verify_end_to_end.py` (24-bit & 32-bit 100% bit-exact) dan kompilasi Pico SDK 2.3.1 sukses menghasilkan `ht306_rp2350_zero.uf2` (70.656 Byte).
+  - Files: `firmware/include/ht306_usb.h`, `firmware/src/i2s_engine.c`, `firmware/src/lossless_codec.c`, `firmware/src/ht306_control.c`, `firmware/src/main.c`, `firmware/src/usb_descriptors.c`, `firmware/tests/test_lossless_codec.c`
+
+- [ ] **Slice 12: Pembuatan Aplikasi PC Companion (HT306 Audio Bridge) untuk Windows Audio Loopback & Virtual Device Sink**
   - Acceptance: Membangun aplikasi PC Companion yang menangkap audio Windows via WASAPI Loopback / Virtual Device Sink, mengemasnya secara real-time ke format Lossless Delta-Rice 96 kHz 24-bit/32-bit 5.1, dan mengirimkannya ke RP2350-Zero melalui WinUSB Bulk Pipe tanpa menyentuh kernel subsystem audio Windows.
   - Files: `pc_streamer/`

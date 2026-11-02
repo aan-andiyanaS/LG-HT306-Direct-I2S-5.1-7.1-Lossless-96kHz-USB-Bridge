@@ -8,42 +8,52 @@
 #define HT306_RAM_FUNC(fn) fn
 #endif
 
+#if !defined(PICO_BUILD) || defined(HT306_ENABLE_EMBEDDED_ENCODER)
+/* Buffer statis di SRAM untuk ZigZag encoding (hanya dikompilasi pada PC host / unit test) */
+static uint32_t s_zz_buf[HT306_MAX_SUBFRAME_SAMPLES][HT306_NUM_CHANNELS];
+
 typedef struct {
     uint8_t *buf;
     size_t   cap;
     size_t   pos;
     uint64_t acc;
-    uint8_t  bits;
+    uint8_t  avail;
     bool     overflow;
 } BitWriter_t;
 
-static inline void bw_put(BitWriter_t *bw, uint32_t val, uint8_t nbits) {
+static inline void bw_put(BitWriter_t *bw, uint32_t bits, uint8_t nbits) {
+    if (nbits == 0U) {
+        return;
+    }
     uint64_t mask = (nbits >= 32U) ? 0xFFFFFFFFULL : ((1ULL << nbits) - 1ULL);
-    bw->acc |= ((uint64_t)val & mask) << bw->bits;
-    bw->bits = (uint8_t)(bw->bits + nbits);
-    while (bw->bits >= 8U) {
+    bw->acc |= ((uint64_t)(bits & mask)) << bw->avail;
+    bw->avail = (uint8_t)(bw->avail + nbits);
+
+    while (bw->avail >= 8U) {
         if (bw->pos < bw->cap) {
-            bw->buf[bw->pos++] = (uint8_t)(bw->acc & 0xFFULL);
+            bw->buf[bw->pos++] = (uint8_t)(bw->acc & 0xFFU);
+            bw->acc >>= 8U;
+            bw->avail = (uint8_t)(bw->avail - 8U);
         } else {
             bw->overflow = true;
+            return;
         }
-        bw->acc >>= 8U;
-        bw->bits = (uint8_t)(bw->bits - 8U);
     }
 }
 
 static inline size_t bw_flush(BitWriter_t *bw) {
-    if (bw->bits > 0U) {
+    if (bw->avail > 0U && !bw->overflow) {
         if (bw->pos < bw->cap) {
-            bw->buf[bw->pos++] = (uint8_t)(bw->acc & 0xFFULL);
+            bw->buf[bw->pos++] = (uint8_t)(bw->acc & 0xFFU);
+            bw->acc = 0ULL;
+            bw->avail = 0U;
         } else {
             bw->overflow = true;
         }
-        bw->acc = 0ULL;
-        bw->bits = 0U;
     }
     return bw->pos;
 }
+#endif
 
 typedef struct {
     const uint8_t *buf;
@@ -101,13 +111,17 @@ static inline int32_t predict_order4_24(uint8_t n, int32_t p1, int32_t p2, int32
     return sext24((int32_t)pred);
 }
 
-// ponytail: native 32-bit modular arithmetic FLAC Order-4 predictor
+// ponytail: native 32-bit modular arithmetic FLAC Order-4 predictor (UB-free & single-cycle ALU)
 static inline int32_t predict_order4_32(uint8_t n, int32_t p1, int32_t p2, int32_t p3, int32_t p4) {
-    int64_t pred = (n == 1U) ? (int64_t)p1
-                 : (n == 2U) ? (2LL * p1 - p2)
-                 : (n == 3U) ? (3LL * p1 - 3LL * p2 + p3)
-                             : (4LL * p1 - 6LL * p2 + 4LL * p3 - p4);
-    return (int32_t)pred;
+    uint32_t u1 = (uint32_t)p1;
+    uint32_t u2 = (uint32_t)p2;
+    uint32_t u3 = (uint32_t)p3;
+    uint32_t u4 = (uint32_t)p4;
+    uint32_t upred = (n == 1U) ? u1
+                   : (n == 2U) ? (2U * u1 - u2)
+                   : (n == 3U) ? (3U * u1 - 3U * u2 + u3)
+                               : (4U * u1 - 6U * u2 + 4U * u3 - u4);
+    return (int32_t)upred;
 }
 
 // ponytail: single-cycle CLZ replaces while-loop log2 estimation
@@ -131,6 +145,7 @@ uint8_t HT306_RAM_FUNC(ht306_crc8)(const uint8_t *data, size_t len) {
     return crc;
 }
 
+#if !defined(PICO_BUILD) || defined(HT306_ENABLE_EMBEDDED_ENCODER)
 HT306_CodecStatus_t ht306_lossless_encode_frame_flags(
     const int32_t *pcm_in,
     uint8_t num_frames,
@@ -162,7 +177,6 @@ HT306_CodecStatus_t ht306_lossless_encode_frame_flags(
         .num_frames = num_frames
     };
 
-    uint32_t zz_buf[HT306_MAX_SUBFRAME_SAMPLES][HT306_NUM_CHANNELS];
     uint64_t sum_zz[HT306_NUM_CHANNELS] = {0};
     int32_t  p1[HT306_NUM_CHANNELS], p2[HT306_NUM_CHANNELS], p3[HT306_NUM_CHANNELS], p4[HT306_NUM_CHANNELS];
     uint8_t *payload = packet_out + hdr_sz;
@@ -188,12 +202,13 @@ HT306_CodecStatus_t ht306_lossless_encode_frame_flags(
             int32_t s = is_32bit ? row[ch] : sext24(row[ch]);
             int32_t res;
             if (is_32bit) {
-                res = (int32_t)(s - predict_order4_32(n, p1[ch], p2[ch], p3[ch], p4[ch]));
+                int32_t pred = predict_order4_32(n, p1[ch], p2[ch], p3[ch], p4[ch]);
+                res = (int32_t)((uint32_t)s - (uint32_t)pred);
             } else {
                 res = sext24(s - predict_order4_24(n, p1[ch], p2[ch], p3[ch], p4[ch]));
             }
             uint32_t zz = zz_enc(res);
-            zz_buf[n][ch] = zz;
+            s_zz_buf[n][ch] = zz;
             if (n >= 3U || num_frames <= 3U) {
                 sum_zz[ch] += zz;
             }
@@ -215,7 +230,7 @@ HT306_CodecStatus_t ht306_lossless_encode_frame_flags(
             uint8_t base_k = hdr.rice_k[ch];
             uint8_t k = (n < 3U && base_k <= 16U) ? (uint8_t)(base_k + 6U) : base_k;
             if (k > max_k) k = max_k;
-            uint32_t zz = zz_buf[n][ch];
+            uint32_t zz = s_zz_buf[n][ch];
             uint32_t q = zz >> k;
 
             if (q < HT306_RICE_ESCAPE_QUOTIENT) {
@@ -260,6 +275,34 @@ HT306_CodecStatus_t ht306_lossless_encode_frame(
         packet_len_out
     );
 }
+#else
+HT306_CodecStatus_t ht306_lossless_encode_frame_flags(
+    const int32_t *pcm_in,
+    uint8_t num_frames,
+    uint8_t sequence,
+    uint8_t flags,
+    uint8_t *packet_out,
+    size_t packet_out_cap,
+    size_t *packet_len_out)
+{
+    (void)pcm_in; (void)num_frames; (void)sequence; (void)flags;
+    (void)packet_out; (void)packet_out_cap; (void)packet_len_out;
+    return HT306_CODEC_ERR_INVALID_ARG;
+}
+
+HT306_CodecStatus_t ht306_lossless_encode_frame(
+    const int32_t *pcm_in,
+    uint8_t num_frames,
+    uint8_t sequence,
+    uint8_t *packet_out,
+    size_t packet_out_cap,
+    size_t *packet_len_out)
+{
+    (void)pcm_in; (void)num_frames; (void)sequence;
+    (void)packet_out; (void)packet_out_cap; (void)packet_len_out;
+    return HT306_CODEC_ERR_INVALID_ARG;
+}
+#endif
 
 HT306_CodecStatus_t HT306_RAM_FUNC(ht306_lossless_decode_frame)(
     const uint8_t *packet_in,
@@ -350,7 +393,8 @@ HT306_CodecStatus_t HT306_RAM_FUNC(ht306_lossless_decode_frame)(
 
             int32_t s;
             if (is_32bit) {
-                s = (int32_t)(predict_order4_32(n, p1[ch], p2[ch], p3[ch], p4[ch]) + zz_dec(zz));
+                int32_t pred = predict_order4_32(n, p1[ch], p2[ch], p3[ch], p4[ch]);
+                s = (int32_t)((uint32_t)pred + (uint32_t)zz_dec(zz));
             } else {
                 s = sext24(predict_order4_24(n, p1[ch], p2[ch], p3[ch], p4[ch]) + zz_dec(zz));
             }
