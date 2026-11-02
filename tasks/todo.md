@@ -59,3 +59,13 @@
     7. Menambahkan logging stream audio aktif real-time di CDC serial monitor via `ht306_i2s_get_stats()`.
   - Verify: Kompilasi sukses ke `ht306_rp2350_zero.uf2`, 100% lulus `tests/verify_end_to_end.py`, commit `04d9edb` ter-push ke `feat/cdc-serial-monitor-heartbeat` dan tercatat pada GitHub Issue #9.
   - Files: `firmware/include/ht306_usb.h`, `firmware/include/i2s_engine.h`, `firmware/src/i2s_engine.c`, `firmware/src/main.c`, `firmware/src/usb_descriptors.c`
+
+- [x] **Slice 12: Resolusi Tuntas Freeze / Lag PC Pasca Flash Firmware — Explicit Feedback Endpoint (UAC2 Asynchronous) & Static Buffer Allocation**
+  - Acceptance:
+    1. Mengimplementasikan UAC2 Asynchronous with Explicit Feedback (`TUD_AUDIO_SPEAKER_STEREO_FB_DESCRIPTOR`) dengan EP 0x01 (OUT) dan EP 0x81 (Feedback IN 4-Byte 16.16) untuk menghentikan kernel DPC hyper-polling IRP spinlock pada driver Windows `usbaudio2.sys`.
+    2. Mengimplementasikan `tud_audio_feedback_params_cb()` dengan metode `AUDIO_FEEDBACK_METHOD_FIFO_COUNT` bawaan TinyUSB audio driver.
+    3. Memindahkan alokasi buffer audio `samples_6ch` dari call stack Core 0 ke static memory SRAM (`s_samples_6ch`) untuk mencegah overflow batas stack 2 KB Core 0.
+    4. Memperbarui USB PID ke `0x4320U` (`HT306_USB_PID`) untuk melewati cache registry Windows lama yang korup.
+    5. Menjaga prinsip bit-perfect lossless pass-through murni tanpa upmixing / audio mixing.
+  - Verify: Kompilasi sukses ke `ht306_rp2350_zero.uf2` (81.920 Byte), lulus 100% `tests/verify_end_to_end.py`, commit `47db13f` dipush ke remote branch `feat/cdc-serial-monitor-heartbeat`, dan update terbit di GitHub Issue #10.
+  - Files: `firmware/include/tusb_config.h`, `firmware/include/usb_descriptors.h`, `firmware/src/usb_descriptors.c`
