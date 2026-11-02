@@ -250,29 +250,42 @@ Rules:
 | **Data** (bulk endpoint) | Audio stream |
 | **Control** (CDC serial) | Commands, status, heartbeat, firmware version |
 
-### 7.3 Audio Packet
+### 7.3 Audio Packet Structure (Firmware-Synchronized)
+The PC Streamer packetizes audio to match the `HT306_LosslessHeader_t` packed C struct (14 bytes) in `firmware/include/lossless_codec.h`:
+
 ```text
-| SYNC(2) | SEQ(2) | FLAGS(1) | RATE(1) | CONT(1) | VALID(1) | CH(1) | LEN(2) | PAYLOAD(n) | CRC16(2) |
+┌──────────────┬──────────────┬──────────┬──────────┬───────────┬──────────────┬──────────────┬──────────────────┬─────────────────┐
+│ SYNC (2B)    │ PKT_LEN (2B) │ SEQ (1B) │ FLAGS(1B)│ FRAMES(1B)│ RICE_K (6B)  │ CRC-8 (1B)   │ ANCHOR (18/24B)  │ RESIDUALS (~nB) │
+│ 0xA55A       │ Total length │ 0..255   │ Bitfield │ 48 frame  │ k per ch     │ Payload CRC  │ Initial samples  │ Bitstream       │
+└──────────────┴──────────────┴──────────┴──────────┴───────────┴──────────────┴──────────────┴──────────────────┴─────────────────┘
 ```
-- `RATE`: enum 44.1 / 48 / 88.2 / 96 kHz.
-- `CONT`: container bits (16 / 24 / 32). `VALID`: significant bits (≤ `CONT`).
-- `CH`: 2 or 6.
-- `FLAGS`: bit0 compressed, bit1 mute, bit2 end of stream, bit3 bit-perfect.
-- `SEQ` lets the firmware detect lost packets and report them.
 
-### 7.4 Control Commands
-| Command | Purpose |
-|---------|---------|
-| `HELLO` | Handshake, returns firmware version |
-| `CAPS` | Returns supported rates, depths, channel counts, compression support |
-| `FORMAT <rate> <cont> <valid> <ch>` | Set stream format |
-| `PING` / `PONG` | Heartbeat every 1 s |
-| `STAT` | Uptime, buffer fill, underrun count, lost packets |
-| `MUTE <0\|1>` | Hardware mute |
-| `TEST <ch>` | Test pulse on a channel |
-| `BOOTSEL` | Enter UF2 mode for firmware update |
+- **SYNC (Bytes 0..1):** `0xA55A` (Little-endian: `0x5A`, `0xA5`).
+- **PKT_LEN (Bytes 2..3):** Total byte length of the entire packet (Header 14B + Payload). Read directly by Core 0 64-byte USB reassembler.
+- **SEQ (Byte 4):** Sequence counter `0..255` for packet loss and out-of-order detection.
+- **FLAGS (Byte 5):**
+  - `Bit 0 (1U << 0)`: `HT306_FLAG_RATE_96KHZ` (`1` = 96 kHz, `0` = 48 kHz). Self-describing: firmware switches PIO clock divider automatically!
+  - `Bit 1 (1U << 1)`: `HT306_FLAG_BITDEPTH_24` (`1` = 24-bit container, Anchor = 18 bytes).
+  - `Bit 3 (1U << 3)`: `HT306_FLAG_BITDEPTH_32` (`1` = True 32-bit Studio Master, Anchor = 24 bytes).
+- **FRAMES (Byte 6):** Subframe sample count = `48` (0.5 ms at 96 kHz, 1.0 ms at 48 kHz).
+- **RICE_K (Bytes 7..12):** Optimal Golomb-Rice parameter $k$ for each of the 6 channels (FL, FR, C, LFE, SL, SR).
+- **CRC-8 (Byte 13):** Checksum calculated over the payload using polynomial $x^8 + x^2 + x + 1$ (`0x07`).
+- **ANCHOR:** Raw PCM anchor samples for FLAC order-4 prediction initial state (18 bytes for 24-bit, 24 bytes for 32-bit).
+- **RESIDUALS:** Packed variable-length Golomb-Rice bitstream residuals.
 
-Heartbeat timeout of 3 s moves the state to **Disconnected** and starts auto-reconnect.
+### 7.4 Control & Telemetry Channel (CDC ACM / COM Port)
+The secondary channel on CDC ACM (`COM4`, 115200 baud) provides non-blocking telemetry and diagnostics without interfering with the high-throughput bulk audio pipe:
+- **Boot Greeting Banner:** Sent on COM open, displaying firmware build date, pinout, and ready state.
+- **Heartbeat & Telemetry (1 Hz):**
+  ```text
+  [HT306] Detak Jantung #X | Uptime: Y detik | I2S Engine: SIAP (96kHz) | GP8 MUX: HIGH
+  ```
+- **Active Streaming Telemetry:**
+  ```text
+  [STREAM] Audio Aktif | 96000 Hz | Total Frames: Z
+  ```
+- **Interactive Query:** PC app sends any byte / query to trigger an immediate status reflection from firmware.
+- **Remote / Hardware Control (Optional extensions):** Sending hex command triggers open-drain NEC remocon pulses on GP9 or GP8 MUX toggling.
 
 ---
 
@@ -568,10 +581,17 @@ Release criteria: 24 h soak with zero underruns, p95 latency ≤ 5 ms, 100 plug/
 
 ---
 
-## 18. Open Questions
-1. If Phase 0 shows Full-Speed USB cannot sustain 5.1 · 96 kHz, do we use compression only, or change the transport hardware?
-2. USB CDC/bulk custom protocol or USB Audio Class 2.0 (driverless, but harder for 6 ch / 96 kHz on RP2350)?
-3. Does the HT306 I2S input need an MCLK, and which slot width and justification does it expect?
-4. Python/PySide6 or Rust for the final stack (decide after jitter tests)?
-5. Is firmware developed in this repository?
-6. Are 7.1 → 5.1 downmix and stereo → 5.1 upmix part of v1.0 or v1.1?
+## 18. Resolved Architecture Decisions (ADR Alignment)
+
+1. **Full-Speed USB Bandwidth for 5.1 · 96 kHz:**
+   - **Resolved & Proven:** The Delta-Rice FLAC Order-4 lossless codec reduces 24-bit 96 kHz from 1.728 KB/s to **~716 KB/s** (41.4%), well below the safe USB limit of 1.000 KB/s. True 32-bit Studio Master runs at ~1.246 KB/s or Smart 32-bit (~716 KB/s). Verified 100% bit-exact with 0 bit errors.
+2. **Transport Protocol Selection (UAC2 vs Vendor Bulk):**
+   - **Resolved (ADR-001):** UAC2 is completely retired due to fatal Windows `usbaudio2.sys` kernel freezes. We use **WinUSB Vendor Bulk (EP 0x03 OUT)** for audio stream + **CDC ACM (COM4)** for telemetry/control.
+3. **MCLK & I2S Format Requirements:**
+   - **Resolved:** IC602 Pulsus PS9850 on the LG HT306 mainboard has its own onboard 12.288 MHz crystal oscillator and 192 kHz ASRC. RP2350 only generates 6 pins: BCK (GP2), LRCK (GP3), and ADATA0..3 (GP4..GP7). Data justification: standard I2S with 32-bit MSB-aligned slots.
+4. **Technology Stack:**
+   - **Resolved:** **Python 3.12 + PySide6 (Qt) + `pyaudiowpatch` (WASAPI Loopback) + `pyusb`/`libusb` (WinUSB Bulk Transport)**. Meets all MVP goals with rapid iteration, rich UI components, and native user-space performance.
+5. **Repository Layout:**
+   - **Resolved:** Monorepo architecture (`firmware/` for RP2350 C firmware, `pc_streamer/` for Windows companion app, `docs/` for specs).
+6. **Downmix & Upmix Scope:**
+   - **Resolved:** Core focus is 100% direct lossless pass-through (Bit-Perfect). Stereo → 5.1 upmix and 7.1 → 5.1 downmix are optional DSP features in the UI and are disabled by default in Bit-Perfect mode.
