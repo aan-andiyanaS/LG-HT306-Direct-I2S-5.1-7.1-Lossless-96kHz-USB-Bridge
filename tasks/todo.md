@@ -81,3 +81,23 @@
     4. **Dukungan Microsoft OS 2.0 WinUSB Descriptors**: Menambahkan BOS & MS OS 2.0 descriptors di firmware agar Windows 10/11 otomatis memasang `winusb.sys` tanpa perlu Zadig manual.
     5. **Test Suite Komprehensif**: Sebanyak 64 unit test unit & integration di `pc_streamer/tests/` lulus 100% (termasuk verifikasi isolasi RAM subprocess < 45 MB). Ditambahkan hardware test harness di `pc_streamer/tests_hw/`.
   - Files: `pc_streamer/ht306bridge/`, `pc_streamer/tests/`, `pc_streamer/tests_hw/`, `firmware/src/usb_descriptors.c`
+
+- [x] **Slice 13: Perbaikan Tampilan 7-Halaman UI & Resolusi Deteksi Hardware RP2350-Zero pada Windows 11**
+  - Acceptance:
+    1. Menyelesaikan masalah "kenapa hanya ada 2 page":
+       - Mendiagnosis dan memperbaiki tag nesting HTML: Menghapus 5 ekstra tag `</div>` penutup pada `tab-mixer`, `tab-routing`, `tab-profiles`, `tab-test`, dan `tab-settings` yang sebelumnya menutup kontainer `<main>` secara prematur.
+       - Mengubah tag inner `<section>` di dalam `tab-test` menjadi `<div>` untuk mencegah browser menutup outer section lebih awal.
+       - Menstandarkan seluruh 7 tab menjadi wrapper `<div id="tab-..." class="tab-panel...">` yang terbukti berada rapi di dalam `html > body > div.pl-56 > main`.
+       - Diverifikasi otomatis dengan Playwright MCP: Ke-7 tab (Dashboard, Mixer, Routing, Profiles, Test, Log, Settings) berhasil diklik dan merender seluruh kontrol interaktifnya secara sempurna.
+    2. Menyelesaikan masalah "RP2350 tidak terdeteksi":
+       - Mendiagnosis pembatasan libusb Endpoint 0 pada Windows composite parent driver (`usbccgp.sys`) yang menyebabkan `util.get_string` gagal dengan permission issue (`mfr=None, prod=None, sn=None`).
+       - Menambahkan fallback PnP di `discovery.py`: jika string USB tidak dapat diakses via Endpoint 0, serial number diambil dari Windows PnP registry cache (`list_ports.comports()`).
+       - Menoleransi `PermissionError: Access is denied` pada handshake serial jika `COM4` sedang dimonitor oleh VS Code Serial Monitor, sehingga streaming audio tidak terblokir.
+       - Menambahkan `MS_OS_20_FEATURE_REG_PROPERTY` dengan GUID `{CDB3B5AD-293B-4663-AA36-1AAE46463776}` ke Microsoft OS 2.0 Descriptors di `firmware/src/usb_descriptors.c` agar Windows membuat symlink antarmuka device path untuk WinUSB.
+       - Menambahkan perintah bootloader `reset_usb_boot()` pada serial CDC monitor untuk kemudahan reboot ke BOOTSEL mode via software.
+       - Kompilasi ulang firmware sukses menghasilkan `firmware/build/ht306_rp2350_zero.uf2` (71.168 Byte).
+       - Menghapus panggilan ilegal `dev.set_configuration()` pada Windows di `transport.py`.
+    3. Verifikasi Penuh:
+       - 64/64 Unit Test lulus 100% (`pytest pc_streamer/tests -v`).
+       - Hardware Test nyata terverifikasi lulus (`pytest pc_streamer/tests_hw --hardware`): RP2350-Zero fisik terdeteksi seketika pada `COM4` dengan VID/PID `0x2E8A:0x4306` dan serial `HT306-RP2350Z-96K`.
+  - Files: `pc_streamer/ht306bridge/discovery.py`, `pc_streamer/ht306bridge/transport.py`, `pc_streamer/ht306bridge/web/index.html`, `firmware/src/usb_descriptors.c`, `firmware/src/main.c`, `firmware/build/ht306_rp2350_zero.uf2`

@@ -7,6 +7,7 @@
 #if defined(PICO_BUILD) || defined(PICO_RP2350) || defined(PICO_RP2040)
 #include "pico/stdlib.h"
 #include "pico/multicore.h"
+#include "pico/bootrom.h"
 #include "hardware/sync.h"
 #include "tusb.h"
 #define HT306_MAIN_RAM_FUNC(fn) __not_in_flash_func(fn)
@@ -160,7 +161,11 @@ int main(void) {
             if (tud_cdc_available() > 0U) {
                 char rx_buf[64];
                 uint32_t n = tud_cdc_read(rx_buf, sizeof(rx_buf));
-                (void)n;
+                if (n > 0U && (rx_buf[0] == 'B' || rx_buf[0] == 'b')) {
+                    ht306_usb_log("\r\n[BOOT] Rebooting into BOOTSEL mode...\r\n");
+                    sleep_ms(50);
+                    reset_usb_boot(0, 0);
+                }
                 ht306_usb_log("\r\n>>> [HT306 STATUS] Core 0 (USB) & Core 1 (DSP) AKTIF | I2S 96kHz SIAP | MUX GP8: HIGH <<<\r\n\r\n");
             }
 

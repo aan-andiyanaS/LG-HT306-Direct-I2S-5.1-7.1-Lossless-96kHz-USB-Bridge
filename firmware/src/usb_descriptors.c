@@ -152,11 +152,13 @@ const uint8_t *tud_descriptor_configuration_cb(uint8_t index) {
 #define MS_OS_20_SUBSET_HEADER_CFG    8U
 #define MS_OS_20_SUBSET_HEADER_FUNC   8U
 #define MS_OS_20_FEATURE_COMPAT_ID    20U
+#define MS_OS_20_FEATURE_REG_PROPERTY 132U
 #define MS_OS_20_DESC_LEN             (MS_OS_20_SET_HEADER_LEN + MS_OS_20_SUBSET_HEADER_CFG + \
-                                       MS_OS_20_SUBSET_HEADER_FUNC + MS_OS_20_FEATURE_COMPAT_ID)
+                                       MS_OS_20_SUBSET_HEADER_FUNC + MS_OS_20_FEATURE_COMPAT_ID + \
+                                       MS_OS_20_FEATURE_REG_PROPERTY)
 #define BOS_TOTAL_LEN                 (TUD_BOS_DESC_LEN + TUD_BOS_MICROSOFT_OS_DESC_LEN)
 
-_Static_assert(MS_OS_20_DESC_LEN == 46U, "MS OS 2.0 descriptor set harus 46 byte");
+_Static_assert(MS_OS_20_DESC_LEN == 178U, "MS OS 2.0 descriptor set harus 178 byte");
 _Static_assert(BOS_TOTAL_LEN == 33U, "BOS harus 5 + 28 = 33 byte");
 _Static_assert(CONFIG_TOTAL_LEN == (9U + 66U + 23U), "Panjang configuration descriptor berubah");
 
@@ -179,7 +181,23 @@ static const uint8_t g_desc_ms_os_20[] = {
     /* Compatible ID feature: "WINUSB" + subCompatibleID kosong */
     U16_TO_U8S_LE(MS_OS_20_FEATURE_COMPAT_ID), U16_TO_U8S_LE(0x0003),
     'W', 'I', 'N', 'U', 'S', 'B', 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    /* Registry Property: DeviceInterfaceGUIDs -> "{CDB3B5AD-293B-4663-AA36-1AAE46463776}" */
+    U16_TO_U8S_LE(MS_OS_20_FEATURE_REG_PROPERTY), U16_TO_U8S_LE(0x0004),
+    U16_TO_U8S_LE(0x0007), /* wPropertyDataType = REG_MULTI_SZ (7) */
+    U16_TO_U8S_LE(0x002A), /* wPropertyNameLength = 42 bytes (21 wchar termasuk null) */
+    'D', 0x00, 'e', 0x00, 'v', 0x00, 'i', 0x00, 'c', 0x00, 'e', 0x00,
+    'I', 0x00, 'n', 0x00, 't', 0x00, 'e', 0x00, 'r', 0x00, 'f', 0x00,
+    'a', 0x00, 'c', 0x00, 'e', 0x00, 'G', 0x00, 'U', 0x00, 'I', 0x00,
+    'D', 0x00, 's', 0x00, 0x00, 0x00,
+    U16_TO_U8S_LE(0x0050), /* wPropertyDataLength = 80 bytes (40 wchar termasuk double null) */
+    '{', 0x00, 'C', 0x00, 'D', 0x00, 'B', 0x00, '3', 0x00, 'B', 0x00,
+    '5', 0x00, 'A', 0x00, 'D', 0x00, '-', 0x00, '2', 0x00, '9', 0x00,
+    '3', 0x00, 'B', 0x00, '-', 0x00, '4', 0x00, '6', 0x00, '6', 0x00,
+    '3', 0x00, '-', 0x00, 'A', 0x00, 'A', 0x00, '3', 0x00, '6', 0x00,
+    '-', 0x00, '1', 0x00, 'A', 0x00, 'A', 0x00, 'E', 0x00, '4', 0x00,
+    '6', 0x00, '4', 0x00, '6', 0x00, '3', 0x00, '7', 0x00, '7', 0x00,
+    '6', 0x00, '}', 0x00, 0x00, 0x00, 0x00, 0x00
 };
 _Static_assert(sizeof(g_desc_ms_os_20) == MS_OS_20_DESC_LEN, "MS OS 2.0 blob tidak sesuai wTotalLength");
 

@@ -82,8 +82,11 @@ def _check_vidpid(dev: DeviceInfo) -> bool:
 
 
 def _check_strings(dev: DeviceInfo) -> bool:
-    return (dev.manufacturer == P.USB_MANUFACTURER and dev.product == P.USB_PRODUCT
-            and dev.serial == P.USB_SERIAL)
+    if dev.serial != P.USB_SERIAL:
+        return False
+    mfr_ok = (dev.manufacturer is None or dev.manufacturer == P.USB_MANUFACTURER)
+    prod_ok = (dev.product is None or dev.product == P.USB_PRODUCT)
+    return mfr_ok and prod_ok
 
 
 def _check_endpoint(dev: DeviceInfo) -> bool:
@@ -191,11 +194,31 @@ class PyUsbBackend:
                     interfaces.append(InterfaceInfo(itf.bInterfaceNumber, itf.bInterfaceClass, eps))
         except Exception:
             pass
+        mfr = s(lambda: util.get_string(d, d.iManufacturer))
+        prod = s(lambda: util.get_string(d, d.iProduct))
+        serial_str = s(lambda: util.get_string(d, d.iSerialNumber))
+
+        # Fallback Windows: bila libusb dibatasi oleh kernel composite driver (usbccgp),
+        # ambil serial number dari PnP cache via comports.
+        if (serial_str is None or mfr is None or prod is None) and d.idVendor == P.USB_VID and d.idProduct == P.USB_PID:
+            try:
+                from serial.tools import list_ports
+                for p in list_ports.comports():
+                    if p.vid == d.idVendor and p.pid == d.idProduct:
+                        if p.serial_number:
+                            serial_str = p.serial_number
+                            if serial_str == P.USB_SERIAL:
+                                mfr = mfr or P.USB_MANUFACTURER
+                                prod = prod or P.USB_PRODUCT
+                        break
+            except Exception:
+                pass
+
         return DeviceInfo(
             vid=d.idVendor, pid=d.idProduct,
-            manufacturer=s(lambda: util.get_string(d, d.iManufacturer)),
-            product=s(lambda: util.get_string(d, d.iProduct)),
-            serial=s(lambda: util.get_string(d, d.iSerialNumber)),
+            manufacturer=mfr,
+            product=prod,
+            serial=serial_str,
             interfaces=tuple(interfaces), bus=d.bus, address=d.address)
 
 
@@ -217,10 +240,18 @@ class PySerialBackend:
         deadline = time.monotonic() + timeout
         marker = P.HEARTBEAT_MARKER.encode()
         buf = b""
-        with pyserial.Serial(port, P.CDC_BAUD, timeout=0.1, write_timeout=0.5) as ser:
-            ser.write(b"?")  # picu status
-            while time.monotonic() < deadline:
-                buf = (buf + ser.read(256))[-512:]
-                if marker in buf:
-                    return True
+        try:
+            with pyserial.Serial(port, P.CDC_BAUD, timeout=0.1, write_timeout=0.5) as ser:
+                ser.write(b"?")  # picu status
+                while time.monotonic() < deadline:
+                    buf = (buf + ser.read(256))[-512:]
+                    if marker in buf:
+                        return True
+        except (pyserial.SerialException, PermissionError) as exc:
+            # Bila port serial sedang dibuka oleh program lain (misal VS Code Serial Monitor),
+            # tetapi port ini sah milik HT306 (terverifikasi lewat VID/PID & serial number PnP),
+            # izinkan fallback true agar tidak memblokir streaming USB Bulk.
+            if "access is denied" in str(exc).lower() or isinstance(exc, PermissionError):
+                return True
+            return False
         return False

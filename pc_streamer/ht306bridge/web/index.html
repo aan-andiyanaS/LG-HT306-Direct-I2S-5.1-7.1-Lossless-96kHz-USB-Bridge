@@ -214,7 +214,7 @@
   <!-- Main Viewport Container -->
   <div class="pl-56">
     <main class="w-full pt-10 min-h-screen bg-background p-space-lg">
-      <section id="tab-dashboard" class="tab-panel">
+      <div id="tab-dashboard" class="tab-panel">
         <div class="flex flex-col gap-space-lg w-full max-w-[1400px] mx-auto pb-space-xl">
 <!-- Top Hardware Status Card -->
 <div class="bg-surface rounded-xl p-space-lg shadow-xl relative overflow-hidden">
@@ -634,8 +634,8 @@
 </div>
 </div>
 </div>
-      </section>
-      <section id="tab-mixer" class="tab-panel hidden">
+      </div>
+      <div id="tab-mixer" class="tab-panel hidden">
         <!-- Top Section: Header & Mode Control -->
 <div class="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-space-md bg-surface p-space-lg rounded-xl shadow-md">
 <div class="flex flex-col gap-0.5">
@@ -1111,9 +1111,8 @@
 <span class="font-meter-num text-meter-num text-icon-gray">0 Underruns / 0 Overruns</span>
 </div>
 </div>
-</div>
-      </section>
-      <section id="tab-routing" class="tab-panel hidden">
+      </div>
+      <div id="tab-routing" class="tab-panel hidden">
         <div class="relative overflow-hidden rounded-xl bg-surface-container-low p-space-lg mb-space-lg shadow-md">
 <div class="absolute -right-16 -top-16 w-80 h-80 rounded-full bg-primary-container opacity-10 blur-3xl pointer-events-none"></div>
 <div class="relative flex flex-col xl:flex-row xl:items-center justify-between gap-space-md z-10">
@@ -1434,9 +1433,8 @@
 </div>
 </div>
 </div>
-</div>
-      </section>
-      <section id="tab-profiles" class="tab-panel hidden">
+      </div>
+      <div id="tab-profiles" class="tab-panel hidden">
         <!-- 1. Header & Global Actions Bar -->
 <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-md pb-space-lg">
 <div class="flex flex-col gap-0.5">
@@ -2201,11 +2199,10 @@
 </div>
 </div>
 </div>
-</div>
-      </section>
-      <section id="tab-test" class="tab-panel hidden">
+      </div>
+      <div id="tab-test" class="tab-panel hidden">
         <!-- Top Hero Header Bar -->
-<section class="flex flex-col md:flex-row items-start md:items-center justify-between pb-space-lg gap-space-md">
+<div class="flex flex-col md:flex-row items-start md:items-center justify-between pb-space-lg gap-space-md">
 <div class="flex flex-col gap-1">
 <div class="flex items-center gap-space-sm">
 <span class="px-2 py-0.5 rounded-full bg-surface-2 font-code-sm text-code-sm text-primary font-semibold tracking-wider">
@@ -2238,9 +2235,9 @@
 <span>Mute All</span>
 </button>
 </div>
-</section>
+</div>
 <!-- Section 2: Sweep & Signal Generator Controller Bar -->
-<section class="bg-surface rounded-xl p-space-lg mb-space-lg flex flex-col gap-space-md">
+<div class="bg-surface rounded-xl p-space-lg mb-space-lg flex flex-col gap-space-md">
 <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-space-md">
 <!-- Signal Pattern Selector Chips -->
 <div class="flex flex-col gap-1.5 w-full lg:w-auto">
@@ -2358,7 +2355,7 @@
 </div>
 </div>
 </div>
-</section>
+</div>
 <!-- Section 3 & 4: Centerpiece Grid (Soundstage Visualizer & Verification Checklist) -->
 <div class="grid grid-cols-1 xl:grid-cols-12 gap-space-lg mb-space-lg">
 <!-- Left Hero: Interactive 5.1 Surround Soundstage Visualizer (7 Cols) -->
@@ -2694,7 +2691,7 @@
 </div>
 </div>
 <!-- Section 5: Real-Time FFT / RTA Spectrum & Hardware Diagnostics -->
-<section class="bg-surface rounded-xl p-space-lg flex flex-col gap-space-md">
+<div class="bg-surface rounded-xl p-space-lg flex flex-col gap-space-md">
 <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-space-xs">
 <div class="flex items-center gap-space-sm">
 <span class="material-symbols-outlined text-tertiary text-[20px]">equalizer</span>
@@ -2797,10 +2794,9 @@
 <span class="font-meter-num text-[11px] text-icon-gray">Isolated RP2350 PIO lines</span>
 </div>
 </div>
-</section>
 </div>
-      </section>
-      <section id="tab-log" class="tab-panel hidden">
+      </div>
+      <div id="tab-log" class="tab-panel hidden">
         <!-- Top Section: Header & Control Bar -->
 <header class="flex flex-col gap-space-md bg-surface p-space-lg rounded-xl shadow-md">
 <div class="flex flex-col md:flex-row md:items-center justify-between gap-space-md">
@@ -3214,8 +3210,8 @@
 </div>
 </div>
 </section>
-      </section>
-      <section id="tab-settings" class="tab-panel hidden">
+      </div>
+      <div id="tab-settings" class="tab-panel hidden">
         <!-- Interactive Toast Feedback Banner -->
 <div class="fixed bottom-6 right-8 bg-surface border border-status-ok/40 px-space-md py-space-sm rounded-lg shadow-xl flex items-center gap-space-sm z-50 transform translate-y-20 opacity-0 pointer-events-none transition-all duration-300" id="saveToast">
 <span class="w-2.5 h-2.5 rounded-full bg-status-ok animate-pulse"></span>
@@ -3597,8 +3593,7 @@
 </section>
 </div>
 </div>
-</div>
-      </section>
+      </div>
 
     </main>
   </div>

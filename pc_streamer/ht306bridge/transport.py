@@ -210,7 +210,12 @@ class PyUsbTransportBackend:
                             address=device.address)
         if dev is None:
             raise UsbDisconnected("perangkat hilang")
-        dev.set_configuration()
+        import sys
+        if sys.platform != "win32":
+            try:
+                dev.set_configuration()
+            except Exception:
+                pass
         usb.util.claim_interface(dev, P.VENDOR_INTERFACE)
         return _PyUsbHandle(dev, usb)
 
