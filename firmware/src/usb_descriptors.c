@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <math.h>
 
 #if defined(PICO_BUILD) || defined(PICO_RP2350) || defined(PICO_RP2040)
 #include "tusb.h"
@@ -15,7 +16,7 @@
 #endif
 
 #define HT306_USB_VID                 0x2E8AU
-#define HT306_USB_PID                 0x430BU  /* PID baru untuk UAC2 Dual-Resolution 16/24-bit 96kHz */
+#define HT306_USB_PID                 0x430CU  /* PID baru untuk UAC2 Dual-Resolution 16/24-bit 96kHz + Digital Vol */
 #define HT306_USB_BCD                 0x0200U
 
 /* Alokasi Endpoint USB (Audio Adaptive Out + CDC ACM Serial) */
@@ -31,6 +32,43 @@ static uint32_t         g_current_audio_sample_rate = 96000;
 static volatile uint8_t g_current_resolution        = 16U; /* 16-bit (Alt 1) atau 24-bit (Alt 2) */
 static int8_t           g_audio_mute[3]             = {0, 0, 0};
 static int16_t          g_audio_volume[3]           = {0, 0, 0};
+static volatile uint32_t g_gain_linear_l             = 65536U;
+static volatile uint32_t g_gain_linear_r             = 65536U;
+
+static inline uint32_t db_to_linear_gain_q16(int16_t vol_q8_8) {
+    if (vol_q8_8 <= -12800) {
+        return 0U; /* Silence below -50 dB */
+    }
+    if (vol_q8_8 >= 0) {
+        return 65536U; /* 0 dB = Unity Gain (1.0 in Q16) */
+    }
+    /* ponytail: powf hanya dihitung saat user menggeser slider volume di OS */
+    float db = (float)vol_q8_8 / 256.0f;
+    float gain = powf(10.0f, db / 20.0f);
+    if (gain <= 0.0f) return 0U;
+    if (gain >= 1.0f) return 65536U;
+    return (uint32_t)(gain * 65536.0f);
+}
+
+static void update_linear_gains(void) {
+    if (g_audio_mute[0] != 0 || g_audio_mute[1] != 0) {
+        g_gain_linear_l = 0U;
+    } else {
+        int32_t total_l = (int32_t)g_audio_volume[0] + (int32_t)g_audio_volume[1];
+        if (total_l < -12800) total_l = -12800;
+        if (total_l > 0) total_l = 0;
+        g_gain_linear_l = db_to_linear_gain_q16((int16_t)total_l);
+    }
+
+    if (g_audio_mute[0] != 0 || g_audio_mute[2] != 0) {
+        g_gain_linear_r = 0U;
+    } else {
+        int32_t total_r = (int32_t)g_audio_volume[0] + (int32_t)g_audio_volume[2];
+        if (total_r < -12800) total_r = -12800;
+        if (total_r > 0) total_r = 0;
+        g_gain_linear_r = db_to_linear_gain_q16((int16_t)total_r);
+    }
+}
 
 /**
  * Mesin Perakitan Paket Stream USB (Reassembler untuk potongan 64-Byte pada USB Bulk Endpoint).
@@ -62,6 +100,12 @@ void HT306_USB_RAM_FUNC(ht306_usb_process_vendor_stream)(const uint8_t *buf, uin
             } else {
                 g_rx_accum_pos = 0U;
             }
+            continue;
+        }
+
+        if (g_rx_accum_pos >= sizeof(g_rx_accum_buf)) {
+            g_rx_accum_pos = 0U;
+            g_rx_target_len = 0U;
             continue;
         }
 
@@ -215,6 +259,9 @@ static bool tud_audio_clock_set_request(uint8_t rhport, audio_control_request_t 
 
 static bool tud_audio_feature_unit_get_request(uint8_t rhport, audio_control_request_t const *request) {
     TU_ASSERT(request->bEntityID == UAC2_ENTITY_FEATURE_UNIT);
+    if (request->bChannelNumber >= 3U) {
+        return false;
+    }
 
     if (request->bControlSelector == AUDIO_FU_CTRL_MUTE && request->bRequest == AUDIO_CS_REQ_CUR) {
         audio_control_cur_1_t mute1 = { .bCur = g_audio_mute[request->bChannelNumber] };
@@ -242,14 +289,19 @@ static bool tud_audio_feature_unit_set_request(uint8_t rhport, audio_control_req
     (void)rhport;
     TU_ASSERT(request->bEntityID == UAC2_ENTITY_FEATURE_UNIT);
     TU_VERIFY(request->bRequest == AUDIO_CS_REQ_CUR);
+    if (request->bChannelNumber >= 3U) {
+        return false;
+    }
 
     if (request->bControlSelector == AUDIO_FU_CTRL_MUTE) {
         TU_VERIFY(request->wLength == sizeof(audio_control_cur_1_t));
         g_audio_mute[request->bChannelNumber] = ((audio_control_cur_1_t const *)buf)->bCur;
+        update_linear_gains();
         return true;
     } else if (request->bControlSelector == AUDIO_FU_CTRL_VOLUME) {
         TU_VERIFY(request->wLength == sizeof(audio_control_cur_2_t));
-        g_audio_volume[request->bChannelNumber] = ((audio_control_cur_2_t const *)buf)->bCur;
+        g_audio_volume[request->bChannelNumber] = (int16_t)tu_le16toh((uint16_t)((audio_control_cur_2_t const *)buf)->bCur);
+        update_linear_gains();
         return true;
     }
     return false;
@@ -310,73 +362,91 @@ bool tud_audio_get_req_ep_cb(uint8_t rhport, tusb_control_request_t const * p_re
  * Loop Utama USB & Audio Streaming Task (Direct Pass-Through Lossless)
  * ==================================================================== */
 
+static inline int32_t scale_sample_q16(int32_t sample, uint32_t gain_q16) {
+    if (gain_q16 == 0U) return 0;
+    if (gain_q16 >= 65536U) return sample;
+    return (int32_t)(((int64_t)sample * (int64_t)gain_q16) >> 16);
+}
+
+static void stream_uac2_pcm16_frames(uint32_t avail) {
+    int16_t pcm16[64 * 2];
+    uint32_t bytes_to_read = (avail > sizeof(pcm16)) ? (uint32_t)sizeof(pcm16) : avail;
+    bytes_to_read &= ~3U; /* Align 4 Byte (2ch x 2B) */
+
+    uint32_t n = tud_audio_read(pcm16, (uint16_t)bytes_to_read);
+    if (n < 4U) {
+        return;
+    }
+
+    uint32_t frames = n / 4U;
+    int32_t samples_6ch[64 * 6];
+
+    for (uint32_t i = 0U; i < frames; ++i) {
+        /* Bit-shift 16-bit PCM ke bit 31..16 (MSB-aligned) */
+        int32_t l = (int32_t)pcm16[i * 2U + 0U] << 16U;
+        int32_t r = (int32_t)pcm16[i * 2U + 1U] << 16U;
+
+        /* Hardware Digital Volume Attenuation (Q16 Fixed-Point) */
+        samples_6ch[i * 6U + 0U] = scale_sample_q16(l, g_gain_linear_l);
+        samples_6ch[i * 6U + 1U] = scale_sample_q16(r, g_gain_linear_r);
+
+        /* Direct I2S Lossless Pass-Through (Kanal 2..5 tetap 0 tanpa mixing) */
+        samples_6ch[i * 6U + 2U] = 0;
+        samples_6ch[i * 6U + 3U] = 0;
+        samples_6ch[i * 6U + 4U] = 0;
+        samples_6ch[i * 6U + 5U] = 0;
+    }
+
+    ht306_i2s_write_frames_6ch(samples_6ch, frames);
+}
+
+static void stream_uac2_pcm24_frames(uint32_t avail) {
+    int32_t pcm32[64 * 2];
+    uint32_t bytes_to_read = (avail > sizeof(pcm32)) ? (uint32_t)sizeof(pcm32) : avail;
+    bytes_to_read &= ~7U; /* Align 8 Byte (2ch x 4B) */
+
+    uint32_t n = tud_audio_read(pcm32, (uint16_t)bytes_to_read);
+    if (n < 8U) {
+        return;
+    }
+
+    uint32_t frames = n / 8U;
+    int32_t samples_6ch[64 * 6];
+
+    for (uint32_t i = 0U; i < frames; ++i) {
+        /* UAC2 24-bit dalam 32-bit slot sudah MSB-aligned (bit 31..8) */
+        int32_t l = pcm32[i * 2U + 0U];
+        int32_t r = pcm32[i * 2U + 1U];
+
+        /* Hardware Digital Volume Attenuation (Q16 Fixed-Point) */
+        samples_6ch[i * 6U + 0U] = scale_sample_q16(l, g_gain_linear_l);
+        samples_6ch[i * 6U + 1U] = scale_sample_q16(r, g_gain_linear_r);
+
+        /* Direct I2S Lossless Pass-Through (Kanal 2..5 tetap 0 tanpa mixing) */
+        samples_6ch[i * 6U + 2U] = 0;
+        samples_6ch[i * 6U + 3U] = 0;
+        samples_6ch[i * 6U + 4U] = 0;
+        samples_6ch[i * 6U + 5U] = 0;
+    }
+
+    ht306_i2s_write_frames_6ch(samples_6ch, frames);
+}
+
 void HT306_USB_RAM_FUNC(ht306_usb_task)(void) {
     tud_task();
 
-    /* Mengalirkan sampel audio PCM dari Windows UAC2 ke Engine PIO0 I2S */
     uint32_t avail = tud_audio_available();
     if (avail == 0U) {
         return;
     }
 
-    bool is_mute = (g_audio_mute[0] != 0 || g_audio_mute[1] != 0 || g_audio_mute[2] != 0);
-
     if (g_current_resolution == 24U) {
-        /* Format 2: 24-bit PCM dalam 32-bit container (4 Byte per kanal, 8 Byte per frame stereo) */
         if (avail >= 8U) {
-            int32_t pcm32[64 * 2];
-            uint32_t bytes_to_read = avail > sizeof(pcm32) ? (uint32_t)sizeof(pcm32) : avail;
-            bytes_to_read &= ~7U; /* Align 8 Byte */
-
-            uint32_t n = tud_audio_read(pcm32, (uint16_t)bytes_to_read);
-            if (n >= 8U) {
-                uint32_t frames = n / 8U;
-                int32_t samples_6ch[64 * 6];
-
-                for (uint32_t i = 0U; i < frames; ++i) {
-                    /* UAC2 24-bit dalam slot 32-bit left-justified (MSB-aligned di bit 31..8) */
-                    int32_t l = is_mute ? 0 : pcm32[i * 2U + 0U];
-                    int32_t r = is_mute ? 0 : pcm32[i * 2U + 1U];
-
-                    /* Direct I2S Lossless Pass-Through (Kanal 2..5 tetap 0 tanpa mixing) */
-                    samples_6ch[i * 6U + 0U] = l;
-                    samples_6ch[i * 6U + 1U] = r;
-                    samples_6ch[i * 6U + 2U] = 0;
-                    samples_6ch[i * 6U + 3U] = 0;
-                    samples_6ch[i * 6U + 4U] = 0;
-                    samples_6ch[i * 6U + 5U] = 0;
-                }
-
-                ht306_i2s_write_frames_6ch(samples_6ch, frames);
-            }
+            stream_uac2_pcm24_frames(avail);
         }
     } else {
-        /* Format 1: 16-bit PCM (2 Byte per kanal, 4 Byte per frame stereo) */
         if (avail >= 4U) {
-            int16_t pcm16[64 * 2];
-            uint32_t bytes_to_read = avail > sizeof(pcm16) ? (uint32_t)sizeof(pcm16) : avail;
-            bytes_to_read &= ~3U; /* Align 4 Byte */
-
-            uint32_t n = tud_audio_read(pcm16, (uint16_t)bytes_to_read);
-            if (n >= 4U) {
-                uint32_t frames = n / 4U;
-                int32_t samples_6ch[64 * 6];
-
-                for (uint32_t i = 0U; i < frames; ++i) {
-                    int32_t l = is_mute ? 0 : ((int32_t)pcm16[i * 2U + 0U] << 16U);
-                    int32_t r = is_mute ? 0 : ((int32_t)pcm16[i * 2U + 1U] << 16U);
-
-                    /* Direct I2S Lossless Pass-Through (Kanal 2..5 tetap 0 tanpa mixing) */
-                    samples_6ch[i * 6U + 0U] = l;
-                    samples_6ch[i * 6U + 1U] = r;
-                    samples_6ch[i * 6U + 2U] = 0;
-                    samples_6ch[i * 6U + 3U] = 0;
-                    samples_6ch[i * 6U + 4U] = 0;
-                    samples_6ch[i * 6U + 5U] = 0;
-                }
-
-                ht306_i2s_write_frames_6ch(samples_6ch, frames);
-            }
+            stream_uac2_pcm16_frames(avail);
         }
     }
 }

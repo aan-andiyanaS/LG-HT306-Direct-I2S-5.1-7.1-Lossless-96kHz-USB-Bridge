@@ -32,10 +32,6 @@ static volatile uint32_t  g_pkt_read_count  = 0U;
 
 /* Buffer statis di SRAM (mencegah Stack Overflow pada Core 1 yang hanya memiliki 2 KB stack) */
 static int32_t g_core1_decoded_i2s32[HT306_MAX_SUBFRAME_SAMPLES * HT306_NUM_CHANNELS];
-static int32_t g_core0_raw48k_i2s32[HT306_DMA_BLOCK_FRAMES * HT306_NUM_CHANNELS];
-
-static volatile uint32_t g_total_frames_decoded = 0U;
-static volatile bool     g_stream_active = false;
 
 void HT306_MAIN_RAM_FUNC(ht306_core1_lossless_worker)(void) {
     while (true) {
@@ -65,15 +61,14 @@ void HT306_MAIN_RAM_FUNC(ht306_core1_lossless_worker)(void) {
                 ht306_i2s_set_sample_rate(is_96k ? HT306_SAMPLE_RATE_96000 : HT306_SAMPLE_RATE_48000);
                 ht306_i2s_write_frames_6ch(g_core1_decoded_i2s32, frames_decoded);
                 ht306_control_set_status_led(is_96k ? HT306_STATUS_MODE_96K_PURPLE : HT306_STATUS_MODE_48K_GREEN);
-                g_total_frames_decoded += frames_decoded;
-                g_stream_active = true;
             } else {
                 ht306_control_set_status_led(HT306_STATUS_ERROR_RED);
             }
         }
 #if defined(PICO_BUILD) || defined(PICO_RP2350) || defined(PICO_RP2040)
         else {
-            tight_loop_contents();
+            /* Mencegah Core 1 membanjiri bus AHB SRAM crossbar saat antrian kosong */
+            sleep_us(50);
         }
 #else
         else {
@@ -102,29 +97,6 @@ bool HT306_MAIN_RAM_FUNC(ht306_usb_enqueue_lossless_packet)(const uint8_t *usb_d
     HT306_MAIN_DMB();
     g_pkt_write_count = w + 1U;
     return true;
-}
-
-void HT306_MAIN_RAM_FUNC(ht306_usb_receive_raw_48k_pcm24)(
-    const int32_t *raw_6ch_pcm24,
-    size_t num_frames)
-{
-    if (raw_6ch_pcm24 == NULL || num_frames == 0U) {
-        return;
-    }
-    if (num_frames > HT306_DMA_BLOCK_FRAMES) {
-        num_frames = HT306_DMA_BLOCK_FRAMES;
-    }
-
-    size_t total_samples = num_frames * HT306_NUM_CHANNELS;
-    for (size_t i = 0U; i < total_samples; ++i) {
-        g_core0_raw48k_i2s32[i] = (int32_t)((uint32_t)raw_6ch_pcm24[i] << 8U);
-    }
-
-    ht306_i2s_set_sample_rate(HT306_SAMPLE_RATE_48000);
-    ht306_i2s_write_frames_6ch(g_core0_raw48k_i2s32, num_frames);
-    ht306_control_set_status_led(HT306_STATUS_MODE_48K_GREEN);
-    g_total_frames_decoded += (uint32_t)num_frames;
-    g_stream_active = true;
 }
 
 #if defined(PICO_BUILD) || defined(PICO_RP2350) || defined(PICO_RP2040)
@@ -196,10 +168,13 @@ int main(void) {
             }
 
             /* Log progres frame saat ada stream aktif setiap kelipatan ~100 ms pada 96kHz */
-            uint32_t current_frames = g_total_frames_decoded;
-            if (current_frames - last_log_frames >= 9600U) {
-                ht306_usb_log_printf("[STREAM] 5.1 Audio Aktif | Total Frames: %lu\r\n", (unsigned long)current_frames);
-                last_log_frames = current_frames;
+            HT306_I2SStats_t stats;
+            ht306_i2s_get_stats(&stats);
+            if (stats.total_written_frames - last_log_frames >= 9600U) {
+                ht306_usb_log_printf("[STREAM] Audio Aktif | %lu Hz | Total Frames: %lu\r\n",
+                                     (unsigned long)stats.current_sample_rate,
+                                     (unsigned long)stats.total_written_frames);
+                last_log_frames = stats.total_written_frames;
             }
         }
     }
