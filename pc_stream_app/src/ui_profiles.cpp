@@ -39,9 +39,11 @@ void Profiles::Render(AppState& state) {
 
     // 2. Active Profile Summary Banner
     Theme::BeginCard("ActiveBannerCard");
+    ImGuiWindowFlags no_scroll = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
+
     ImGui::PushStyleColor(ImGuiCol_ChildBg, Color::Surface2);
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 999.0f);
-    ImGui::BeginChild("ProfileActivePill", ImVec2(210.0f, 22.0f), false);
+    ImGui::BeginChild("ProfileActivePill", ImVec2(205.0f, 22.0f), false, no_scroll);
     ImGui::SetCursorPos(ImVec2(8.0f, 2.0f));
     ImGui::TextColored(Color::StatusOk, "● PROFILE BROADCAST ACTIVE");
     ImGui::EndChild();
@@ -51,7 +53,7 @@ void Profiles::Render(AppState& state) {
     ImGui::SameLine();
     ImGui::PushStyleColor(ImGuiCol_ChildBg, Color::PrimaryContainer);
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 999.0f);
-    ImGui::BeginChild("EnginePresetPill", ImVec2(190.0f, 22.0f), false);
+    ImGui::BeginChild("EnginePresetPill", ImVec2(185.0f, 22.0f), false, no_scroll);
     ImGui::SetCursorPos(ImVec2(8.0f, 2.0f));
     ImGui::TextColored(Color::TextPrimary, "CURRENT ENGINE PRESET");
     ImGui::EndChild();
@@ -72,25 +74,25 @@ void Profiles::Render(AppState& state) {
     ImGui::PushStyleColor(ImGuiCol_ChildBg, Color::Surface2);
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 4.0f);
 
-    auto DrawSummaryPill = [](const char* id, const char* k, const char* v, const ImVec4& v_col, float w) {
-        ImGui::BeginChild(id, ImVec2(w, 24.0f), false);
-        ImGui::SetCursorPos(ImVec2(6.0f, 3.0f));
+    auto DrawSummaryPill = [no_scroll](const char* id, const char* k, const char* v, const ImVec4& v_col, float w) {
+        ImGui::BeginChild(id, ImVec2(w, 22.0f), false, no_scroll);
+        ImGui::SetCursorPos(ImVec2(6.0f, 2.0f));
         ImGui::TextColored(Color::IconGray, "%s", k);
         ImGui::SameLine();
         ImGui::TextColored(v_col, "%s", v);
         ImGui::EndChild();
     };
 
-    DrawSummaryPill("Pill1", "Mode:", state.settings.desktop_os_linked ? "Desktop OS-Linked" : "Bit-Perfect", Color::StatusInfo, 175.0f);
+    DrawSummaryPill("Pill1", "Mode:", state.settings.desktop_os_linked ? "Desktop OS" : "Bit-Perfect", Color::StatusInfo, 160.0f);
     ImGui::SameLine();
-    DrawSummaryPill("Pill2", "Upmix:", "ITU-R 5.1 Matrix", Color::Tertiary, 170.0f);
+    DrawSummaryPill("Pill2", "Upmix:", "ITU-R 5.1 Matrix", Color::Tertiary, 165.0f);
     ImGui::SameLine();
     char d_buf[32]; std::snprintf(d_buf, sizeof(d_buf), "%d ms", state.settings.lip_sync_delay_ms);
-    DrawSummaryPill("Pill3", "Lip-Sync:", d_buf, Color::StatusWarn, 120.0f);
+    DrawSummaryPill("Pill3", "Lip-Sync:", d_buf, Color::StatusWarn, 115.0f);
     ImGui::SameLine();
-    DrawSummaryPill("Pill4", "Center Clarity:", "+1.5 dB", Color::TextPrimary, 150.0f);
+    DrawSummaryPill("Pill4", "Clarity:", "+1.5 dB", Color::TextPrimary, 120.0f);
     ImGui::SameLine();
-    DrawSummaryPill("Pill5", "Sub LPF:", "120 Hz Active", Color::StatusInfo, 140.0f);
+    DrawSummaryPill("Pill5", "Sub LPF:", "120 Hz Active", Color::StatusInfo, 135.0f);
 
     ImGui::PopStyleVar();
     ImGui::PopStyleColor();
@@ -111,7 +113,7 @@ void Profiles::Render(AppState& state) {
 
     float total_w = ImGui::GetContentRegionAvail().x;
     float card_w = (total_w - ImGui::GetStyle().ItemSpacing.x * 3) / 4.0f;
-    float card_h = 190.0f;
+    float card_h = 175.0f;
 
     for (size_t p = 0; p < state.profiles.size(); ++p) {
         auto& item = state.profiles[p];
@@ -125,11 +127,11 @@ void Profiles::Render(AppState& state) {
             ImGui::PushStyleColor(ImGuiCol_Border, Color::Border);
         }
         ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 8.0f);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 10.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8.0f, 8.0f));
 
         char c_id[32];
         std::snprintf(c_id, sizeof(c_id), "ProfCard_%d", (int)p);
-        ImGui::BeginChild(c_id, ImVec2(card_w, card_h), true, ImGuiWindowFlags_AlwaysUseWindowPadding);
+        ImGui::BeginChild(c_id, ImVec2(card_w, card_h), true, ImGuiWindowFlags_AlwaysUseWindowPadding | no_scroll);
 
         ImGui::TextColored(Color::TextPrimary, "%s", item.name.c_str());
         ImGui::TextColored(Color::TextSecondary, "%s", item.description.c_str());
@@ -140,10 +142,10 @@ void Profiles::Render(AppState& state) {
         ImGui::Spacing();
         if (is_active) {
             ImGui::PushStyleColor(ImGuiCol_Button, Color::StatusOk);
-            ImGui::Button("● Active Preset", ImVec2(card_w - 20.0f, 26.0f));
+            ImGui::Button("● Active Preset", ImVec2(card_w - 16.0f, 24.0f));
             ImGui::PopStyleColor();
         } else {
-            if (ImGui::Button("Activate Profile", ImVec2(card_w - 20.0f, 26.0f))) {
+            if (ImGui::Button("Activate Profile", ImVec2(card_w - 16.0f, 24.0f))) {
                 state.settings.active_profile = item.name;
                 state.settings.lip_sync_delay_ms = item.lipsync_ms;
             }

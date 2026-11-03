@@ -13,7 +13,8 @@ void Settings::Render(AppState& state) {
     Theme::BeginCard("SettingsHeroCard");
     ImGui::PushStyleColor(ImGuiCol_ChildBg, Color::Surface2);
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 4.0f);
-    ImGui::BeginChild("SettingsRevBadge", ImVec2(120.0f, 22.0f), false);
+    const ImGuiWindowFlags no_scroll = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
+    ImGui::BeginChild("SettingsRevBadge", ImVec2(120.0f, 22.0f), false, no_scroll);
     ImGui::SetCursorPos(ImVec2(6.0f, 2.0f));
     ImGui::TextColored(Color::TextSecondary, "v1.3.0-RC4");
     ImGui::EndChild();
@@ -58,7 +59,7 @@ void Settings::Render(AppState& state) {
     float col_w = (total_w - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
 
     // LEFT: Audio Engine & Buffer Latency
-    Theme::BeginCard("AudioEngineSettingsCard", ImVec2(col_w, 360.0f));
+    Theme::BeginCard("AudioEngineSettingsCard", ImVec2(col_w, 380.0f));
     ImGui::TextColored(Color::PrimaryContainer, "%s", ICON_MD_TUNE);
     ImGui::SameLine();
     ImGui::TextColored(Color::TextPrimary, "Audio Engine & Buffer Latency");
@@ -131,7 +132,7 @@ void Settings::Render(AppState& state) {
     ImGui::SameLine();
 
     // RIGHT: USB Hardware Link & Virtual Audio Device
-    Theme::BeginCard("HardwareLinkSettingsCard", ImVec2(col_w, 360.0f));
+    Theme::BeginCard("HardwareLinkSettingsCard", ImVec2(col_w, 380.0f));
     ImGui::TextColored(Color::StatusInfo, "%s", ICON_MD_USB);
     ImGui::SameLine();
     ImGui::TextColored(Color::TextPrimary, "Hardware Link & Driver Device");

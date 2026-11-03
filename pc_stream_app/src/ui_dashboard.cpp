@@ -17,13 +17,15 @@ void Dashboard::Render(AppState& state) {
     float left_w = total_w * 0.58f;
     float right_w = total_w - left_w - ImGui::GetStyle().ItemSpacing.x;
 
-    ImGui::BeginChild("MidLeft", ImVec2(left_w, 315.0f), false);
+    ImGuiWindowFlags no_scroll = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
+
+    ImGui::BeginChild("MidLeft", ImVec2(left_w, 290.0f), false, no_scroll);
     RenderTelemetryCard(state);
     ImGui::EndChild();
 
     ImGui::SameLine();
 
-    ImGui::BeginChild("MidRight", ImVec2(right_w, 315.0f), false);
+    ImGui::BeginChild("MidRight", ImVec2(right_w, 290.0f), false, no_scroll);
     RenderControlsCard(state);
     ImGui::EndChild();
 
@@ -38,15 +40,17 @@ void Dashboard::RenderHeader(AppState& state) {
 void Dashboard::RenderHardwareCard(AppState& state) {
     Theme::BeginCard("HwCard");
 
+    ImGuiWindowFlags pill_flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
+
     // Row 1: Header + Badges
     ImGui::PushStyleColor(ImGuiCol_ChildBg, Color::Surface2);
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 999.0f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 4.0f));
-    ImGui::BeginChild("HwStatusPill", ImVec2(145.0f, 26.0f), false);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8.0f, 3.0f));
+    ImGui::BeginChild("HwStatusPill", ImVec2(135.0f, 22.0f), false, pill_flags);
     ImDrawList* dl = ImGui::GetWindowDrawList();
     ImVec2 cp = ImGui::GetCursorScreenPos();
-    dl->AddCircleFilled(ImVec2(cp.x + 8.0f, cp.y + 9.0f), 4.5f, Color::ToU32(Color::StatusOk));
-    ImGui::SetCursorPosX(22.0f);
+    dl->AddCircleFilled(ImVec2(cp.x + 8.0f, cp.y + 8.0f), 4.0f, Color::ToU32(Color::StatusOk));
+    ImGui::SetCursorPosX(20.0f);
     ImGui::TextColored(Color::StatusOk, "● CONNECTED");
     ImGui::EndChild();
     ImGui::PopStyleVar(2);
@@ -90,7 +94,7 @@ void Dashboard::RenderHardwareCard(AppState& state) {
 }
 
 void Dashboard::RenderTelemetryCard(AppState& state) {
-    Theme::BeginCard("StreamEngineCard", ImVec2(0, 315.0f));
+    Theme::BeginCard("StreamEngineCard", ImVec2(0, 290.0f));
 
     ImGui::TextColored(Color::PrimaryContainer, "%s", ICON_MD_TUNE);
     ImGui::SameLine();
@@ -122,27 +126,28 @@ void Dashboard::RenderTelemetryCard(AppState& state) {
 
     // Tile 1: Sample Rate
     char lbl1[64]; std::snprintf(lbl1, sizeof(lbl1), "%s Sample Rate", ICON_MD_SPEED);
-    Theme::StatTile(lbl1, "96.0 kHz", "Master Bit-Clock: 6.144 MHz", Color::TextPrimary, sub_w);
+    Theme::StatTile(lbl1, "96.0 kHz", "Bit-Clock: 6.144 MHz", Color::TextPrimary, sub_w);
     ImGui::SameLine();
 
     // Tile 2: Bit Depth
     char lbl2[64]; std::snprintf(lbl2, sizeof(lbl2), "%s Bit Depth", ICON_MD_MEMORY);
-    Theme::StatTile(lbl2, "32-bit Container", "24-bit Valid High Precision Audio", Color::TextPrimary, sub_w);
+    Theme::StatTile(lbl2, "32-bit Container", "24-bit Valid High Precision", Color::TextPrimary, sub_w);
 
     // Tile 3: Channel Topology
     char lbl3[64]; std::snprintf(lbl3, sizeof(lbl3), "%s Channel Topology", ICON_MD_SURROUND_SOUND);
-    Theme::StatTile(lbl3, "5.1 Surround", "6 Discrete I2S Channels (3x Data)", Color::TextPrimary, sub_w);
+    Theme::StatTile(lbl3, "5.1 Surround", "6 Discrete I2S Channels", Color::TextPrimary, sub_w);
     ImGui::SameLine();
 
     // Tile 4: Lossless Transport
     char lbl4[64]; std::snprintf(lbl4, sizeof(lbl4), "%s Lossless Transport", ICON_MD_COMPRESS);
-    Theme::StatTile(lbl4, "Delta-Rice FLAC Order-4", "~58% Bandwidth Reduction", Color::Tertiary, sub_w);
+    Theme::StatTile(lbl4, "Delta-Rice FLAC Order-4", "~58% Reduction", Color::Tertiary, sub_w);
 
     ImGui::Spacing();
     // Capture device bar
     ImGui::PushStyleColor(ImGuiCol_ChildBg, Color::Surface2);
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 6.0f);
-    ImGui::BeginChild("CapDevBar", ImVec2(0, 32.0f), true);
+    ImGuiWindowFlags cap_flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
+    ImGui::BeginChild("CapDevBar", ImVec2(0, 28.0f), true, cap_flags);
     ImGui::TextColored(Color::StatusOk, "%s", ICON_MD_SPEAKER);
     ImGui::SameLine();
     ImGui::TextColored(Color::TextSecondary, "Capture Device:");
@@ -152,7 +157,7 @@ void Dashboard::RenderTelemetryCard(AppState& state) {
     } else {
         ImGui::TextColored(Color::TextPrimary, "WASAPI Loopback (Default Output Device)");
     }
-    ImGui::SameLine(ImGui::GetContentRegionAvail().x - 120.0f);
+    ImGui::SameLine(ImGui::GetContentRegionAvail().x - 110.0f);
     ImGui::TextColored(Color::StatusOk, "SHARED 0dBFS");
     ImGui::EndChild();
     ImGui::PopStyleVar();
@@ -162,7 +167,7 @@ void Dashboard::RenderTelemetryCard(AppState& state) {
 }
 
 void Dashboard::RenderControlsCard(AppState& state) {
-    Theme::BeginCard("LinkBudgetCard", ImVec2(0, 315.0f));
+    Theme::BeginCard("LinkBudgetCard", ImVec2(0, 290.0f));
 
     ImGui::TextColored(Color::StatusInfo, "%s", ICON_MD_EQUALIZER);
     ImGui::SameLine();
@@ -267,11 +272,14 @@ void Dashboard::RenderVuMetersCard(AppState& state) {
     for (int i = 0; i < 6; ++i) {
         ImGui::PushStyleColor(ImGuiCol_ChildBg, Color::Surface2);
         ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 6.0f);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8.0f, 6.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8.0f, 4.0f));
 
         char strip_id[32];
         std::snprintf(strip_id, sizeof(strip_id), "Strip_%d", i);
-        ImGui::BeginChild(strip_id, ImVec2(0, 36.0f), true, ImGuiWindowFlags_AlwaysUseWindowPadding);
+        ImGuiWindowFlags strip_flags = ImGuiWindowFlags_AlwaysUseWindowPadding | 
+                                      ImGuiWindowFlags_NoScrollbar | 
+                                      ImGuiWindowFlags_NoScrollWithMouse;
+        ImGui::BeginChild(strip_id, ImVec2(0, 32.0f), true, strip_flags);
 
         // Tag + Name
         ImGui::TextColored(Color::TextPrimary, "%s", chs[i].tag);
@@ -281,8 +289,8 @@ void Dashboard::RenderVuMetersCard(AppState& state) {
         // Meter Bar
         ImGui::SameLine(160.0f);
         ImVec2 bar_p = ImGui::GetCursorScreenPos();
-        float bar_w = ImGui::GetContentRegionAvail().x - 100.0f;
-        float bar_h = 18.0f;
+        float bar_w = ImGui::GetContentRegionAvail().x - 90.0f;
+        float bar_h = 16.0f;
 
         // Background track
         dl->AddRectFilled(bar_p, ImVec2(bar_p.x + bar_w, bar_p.y + bar_h), Color::ToU32(Color::SurfaceDim), 3.0f);

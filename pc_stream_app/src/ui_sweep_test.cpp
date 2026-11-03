@@ -20,16 +20,16 @@ static void DrawRoomCanvas(AppState& state, float canvas_w, float canvas_h) {
 
     // Center coordinates
     float cx = canvas_pos.x + canvas_w * 0.5f;
-    float cy = canvas_pos.y + canvas_h * 0.52f;
+    float cy = canvas_pos.y + canvas_h * 0.48f;
 
     // Room boundaries (dashed or subtle grid)
-    draw_list->AddCircle(ImVec2(cx, cy), 140.0f, Color::ToU32(Color::WithAlpha(Color::Border, 0.4f)), 48, 1.0f);
-    draw_list->AddCircle(ImVec2(cx, cy), 220.0f, Color::ToU32(Color::WithAlpha(Color::Border, 0.25f)), 64, 1.0f);
+    draw_list->AddCircle(ImVec2(cx, cy), 110.0f, Color::ToU32(Color::WithAlpha(Color::Border, 0.4f)), 48, 1.0f);
+    draw_list->AddCircle(ImVec2(cx, cy), 180.0f, Color::ToU32(Color::WithAlpha(Color::Border, 0.25f)), 64, 1.0f);
 
     // 2. Sweet-Spot Listener
-    draw_list->AddCircleFilled(ImVec2(cx, cy + 25.0f), 18.0f, Color::ToU32(Color::SurfaceContainerLowest));
-    draw_list->AddCircle(ImVec2(cx, cy + 25.0f), 18.0f, Color::ToU32(Color::PrimaryContainer), 0, 2.0f);
-    draw_list->AddText(ImVec2(cx - 26.0f, cy + 50.0f), Color::ToU32(Color::TextSecondary), "Listener (Sweet Spot)");
+    draw_list->AddCircleFilled(ImVec2(cx, cy + 20.0f), 16.0f, Color::ToU32(Color::SurfaceContainerLowest));
+    draw_list->AddCircle(ImVec2(cx, cy + 20.0f), 16.0f, Color::ToU32(Color::PrimaryContainer), 0, 2.0f);
+    draw_list->AddText(ImVec2(cx - 24.0f, cy + 42.0f), Color::ToU32(Color::TextSecondary), "Listener (Sweet Spot)");
 
     // 3. 6 Speaker Placements
     struct SpeakerCoord {
@@ -41,12 +41,12 @@ static void DrawRoomCanvas(AppState& state, float canvas_w, float canvas_h) {
     };
 
     SpeakerCoord speakers[6] = {
-        { 0, "FL",  "Front Left",   cx - 220.0f, cy - 110.0f },
-        { 2, "C",   "Center Voice", cx,          cy - 145.0f },
-        { 1, "FR",  "Front Right",  cx + 220.0f, cy - 110.0f },
-        { 5, "SR",  "Surround R",   cx + 240.0f, cy + 90.0f  },
-        { 4, "SL",  "Surround L",   cx - 240.0f, cy + 90.0f  },
-        { 3, "LFE", "Sub 120Hz",    cx - 85.0f,  cy - 60.0f  }
+        { 0, "FL",  "Front Left",   cx - 190.0f, cy - 80.0f },
+        { 2, "C",   "Center Voice", cx,          cy - 100.0f },
+        { 1, "FR",  "Front Right",  cx + 190.0f, cy - 80.0f },
+        { 5, "SR",  "Surround R",   cx + 200.0f, cy + 60.0f  },
+        { 4, "SL",  "Surround L",   cx - 200.0f, cy + 60.0f  },
+        { 3, "LFE", "Sub 120Hz",    cx - 70.0f,  cy - 40.0f  }
     };
 
     int active_ch = state.sweep_active_channel.load();
@@ -111,13 +111,15 @@ static void DrawRoomCanvas(AppState& state, float canvas_w, float canvas_h) {
 }
 
 void SweepTest::RenderPage(AppState& state) {
+    ImGuiWindowFlags no_scroll = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
+
     // 1. Top Hero Header Bar
     Theme::BeginCard("SweepHeroCard");
 
     ImGui::PushStyleColor(ImGuiCol_ChildBg, Color::Surface2);
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 999.0f);
-    ImGui::BeginChild("SeqEnginePill", ImVec2(280.0f, 24.0f), false);
-    ImGui::SetCursorPos(ImVec2(10.0f, 3.0f));
+    ImGui::BeginChild("SeqEnginePill", ImVec2(280.0f, 22.0f), false, no_scroll);
+    ImGui::SetCursorPos(ImVec2(10.0f, 2.0f));
     ImGui::TextColored(Color::TextPrimary, "ACOUSTIC VERIFICATION / SEQUENCE ENGINE");
     ImGui::EndChild();
     ImGui::PopStyleVar();
@@ -126,8 +128,8 @@ void SweepTest::RenderPage(AppState& state) {
     ImGui::SameLine();
     ImGui::PushStyleColor(ImGuiCol_ChildBg, Color::Surface2);
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 999.0f);
-    ImGui::BeginChild("JitterPill", ImVec2(160.0f, 24.0f), false);
-    ImGui::SetCursorPos(ImVec2(10.0f, 3.0f));
+    ImGui::BeginChild("JitterPill", ImVec2(150.0f, 22.0f), false, no_scroll);
+    ImGui::SetCursorPos(ImVec2(10.0f, 2.0f));
     ImGui::TextColored(Color::StatusOk, "● DA-I2S LOW-JITTER");
     ImGui::EndChild();
     ImGui::PopStyleVar();
@@ -148,7 +150,7 @@ void SweepTest::RenderPage(AppState& state) {
         ImGui::PushStyleColor(ImGuiCol_Button, Color::PrimaryContainer);
         char btn_lbl[64];
         std::snprintf(btn_lbl, sizeof(btn_lbl), "%s  Pause Sweep", ICON_MD_PAUSE);
-        if (ImGui::Button(btn_lbl, ImVec2(180.0f, 32.0f))) {
+        if (ImGui::Button(btn_lbl, ImVec2(160.0f, 28.0f))) {
             state.sweep_running.store(false);
         }
         ImGui::PopStyleColor();
@@ -156,7 +158,7 @@ void SweepTest::RenderPage(AppState& state) {
         ImGui::PushStyleColor(ImGuiCol_Button, Color::PrimaryContainer);
         char btn_lbl[64];
         std::snprintf(btn_lbl, sizeof(btn_lbl), "%s  Start 5.1 Auto-Sweep", ICON_MD_PLAY_ARROW);
-        if (ImGui::Button(btn_lbl, ImVec2(210.0f, 32.0f))) {
+        if (ImGui::Button(btn_lbl, ImVec2(190.0f, 28.0f))) {
             state.sweep_running.store(true);
             if (state.sweep_active_channel.load() < 0) state.sweep_active_channel.store(0);
         }
@@ -164,13 +166,13 @@ void SweepTest::RenderPage(AppState& state) {
     }
 
     ImGui::SameLine();
-    if (ImGui::Button("Abort Test", ImVec2(120.0f, 32.0f))) {
+    if (ImGui::Button("Abort Test", ImVec2(110.0f, 28.0f))) {
         state.sweep_running.store(false);
         state.sweep_active_channel.store(-1);
     }
 
     ImGui::SameLine();
-    if (ImGui::Button("Mute All", ImVec2(110.0f, 32.0f))) {
+    if (ImGui::Button("Mute All", ImVec2(100.0f, 28.0f))) {
         state.settings.mute_master = true;
     }
     ImGui::PopStyleVar();
@@ -215,20 +217,20 @@ void SweepTest::RenderPage(AppState& state) {
     // Calibrated Level Stepper
     ImGui::TextColored(Color::IconGray, "CALIBRATED TEST OUTPUT:");
     ImGui::SameLine();
-    if (ImGui::Button("-1.0##dbfs", ImVec2(35.0f, 24.0f))) state.test_level_dbfs = (std::max)(-60.0f, state.test_level_dbfs - 1.0f);
+    if (ImGui::Button("-1.0##dbfs", ImVec2(35.0f, 22.0f))) state.test_level_dbfs = (std::max)(-60.0f, state.test_level_dbfs - 1.0f);
     ImGui::SameLine();
 
     ImGui::PushStyleColor(ImGuiCol_ChildBg, Color::Surface2);
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 4.0f);
-    ImGui::BeginChild("DbfsPill", ImVec2(100.0f, 24.0f), false);
-    ImGui::SetCursorPos(ImVec2(12.0f, 3.0f));
+    ImGui::BeginChild("DbfsPill", ImVec2(95.0f, 22.0f), false, no_scroll);
+    ImGui::SetCursorPos(ImVec2(10.0f, 2.0f));
     ImGui::TextColored(Color::Tertiary, "%.1f dBFS", state.test_level_dbfs);
     ImGui::EndChild();
     ImGui::PopStyleVar();
     ImGui::PopStyleColor();
 
     ImGui::SameLine();
-    if (ImGui::Button("+1.0##dbfs", ImVec2(35.0f, 24.0f))) state.test_level_dbfs = (std::min)(-12.0f, state.test_level_dbfs + 1.0f);
+    if (ImGui::Button("+1.0##dbfs", ImVec2(35.0f, 22.0f))) state.test_level_dbfs = (std::min)(-12.0f, state.test_level_dbfs + 1.0f);
 
     ImGui::SameLine();
     ImGui::TextColored(Color::StatusWarn, "Safety Limiter @ -12 dBFS (EBU R128 Reference)");
@@ -247,7 +249,7 @@ void SweepTest::RenderPage(AppState& state) {
 
     ImGui::Spacing();
     float canvas_w = ImGui::GetContentRegionAvail().x;
-    float canvas_h = 360.0f;
+    float canvas_h = 280.0f;
     DrawRoomCanvas(state, canvas_w, canvas_h);
     Theme::EndCard();
 }

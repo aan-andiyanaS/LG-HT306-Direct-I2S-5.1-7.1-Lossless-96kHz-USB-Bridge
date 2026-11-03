@@ -56,9 +56,12 @@ public:
     static void BeginCard(const char* id, const ImVec2& size = ImVec2(0, 0)) {
         ImGui::PushStyleColor(ImGuiCol_ChildBg, Color::Surface);
         ImGui::PushStyleColor(ImGuiCol_Border, Color::Border);
-        ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 12.0f);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16.0f, 16.0f));
-        ImGui::BeginChild(id, size, ImGuiChildFlags_Border | ImGuiChildFlags_AutoResizeY, ImGuiWindowFlags_AlwaysUseWindowPadding);
+        ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 10.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(14.0f, 12.0f));
+        ImGuiWindowFlags flags = ImGuiWindowFlags_AlwaysUseWindowPadding | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
+        ImGuiChildFlags cflags = ImGuiChildFlags_Border;
+        if (size.y <= 0.0f) cflags |= ImGuiChildFlags_AutoResizeY;
+        ImGui::BeginChild(id, size, cflags, flags);
     }
 
     static void EndCard() {

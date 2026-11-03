@@ -26,16 +26,20 @@ static const NavItemDef kNavItems[] = {
 void Sidebar::Render(AppState& state, float width) {
     ImGui::PushStyleColor(ImGuiCol_ChildBg, Color::SurfaceContainerLow);
     ImGui::PushStyleColor(ImGuiCol_Border, Color::Border);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 14.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 10.0f));
 
-    ImGui::BeginChild("SidebarNav", ImVec2(width, 0), true, ImGuiWindowFlags_AlwaysUseWindowPadding);
+    ImGuiWindowFlags side_flags = ImGuiWindowFlags_AlwaysUseWindowPadding | 
+                                 ImGuiWindowFlags_NoScrollbar | 
+                                 ImGuiWindowFlags_NoScrollWithMouse;
+
+    ImGui::BeginChild("SidebarNav", ImVec2(width, 0), true, side_flags);
 
     // 1. Top Section Badge (Matches HTML: AUDIO ENGINE / 96kHz / 24b)
     ImGui::TextColored(Color::IconGray, "AUDIO ENGINE");
     ImGui::SameLine(width - 92.0f);
     ImGui::PushStyleColor(ImGuiCol_ChildBg, Color::Surface2);
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 4.0f);
-    ImGui::BeginChild("HeaderRatePill", ImVec2(76.0f, 20.0f), false);
+    ImGui::BeginChild("HeaderRatePill", ImVec2(76.0f, 20.0f), false, side_flags);
     ImGui::SetCursorPos(ImVec2(6.0f, 2.0f));
     ImGui::TextColored(Color::Tertiary, "96k / 32b");
     ImGui::EndChild();
@@ -110,7 +114,7 @@ void Sidebar::Render(AppState& state, float width) {
     // 4. Footer: WinUSB Bulk | COM4 chip
     ImGui::PushStyleColor(ImGuiCol_ChildBg, Color::Surface2);
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 4.0f);
-    ImGui::BeginChild("FooterPill", ImVec2(btn_w, 24.0f), false);
+    ImGui::BeginChild("FooterPill", ImVec2(btn_w, 24.0f), false, side_flags);
     ImGui::SetCursorPos(ImVec2(6.0f, 4.0f));
     ImGui::TextColored(Color::TextSecondary, "WinUSB Bulk");
     ImGui::SameLine();

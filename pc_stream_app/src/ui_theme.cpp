@@ -16,9 +16,9 @@ void Theme::Apply(float dpi_scale) {
 
     // Spacing & Padding
     style.WindowPadding     = ImVec2(0.0f, 0.0f);
-    style.FramePadding      = ImVec2(10.0f, 6.0f);
-    style.ItemSpacing       = ImVec2(10.0f, 10.0f);
-    style.ItemInnerSpacing  = ImVec2(6.0f, 6.0f);
+    style.FramePadding      = ImVec2(8.0f, 4.0f);
+    style.ItemSpacing       = ImVec2(8.0f, 8.0f);
+    style.ItemInnerSpacing  = ImVec2(4.0f, 4.0f);
     style.WindowBorderSize  = 0.0f;
     style.ChildBorderSize   = 1.0f;
     style.FrameBorderSize   = 1.0f;
@@ -76,19 +76,25 @@ void Theme::StatTile(const char* label, const char* val1, const char* val2, cons
     ImGui::PushStyleColor(ImGuiCol_ChildBg, Color::Surface2);
     ImGui::PushStyleColor(ImGuiCol_Border, Color::Border);
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 8.0f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 8.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8.0f, 6.0f));
 
-    ImGui::BeginChild(label, ImVec2(width, 70.0f), ImGuiChildFlags_Border, ImGuiWindowFlags_AlwaysUseWindowPadding);
+    ImGuiWindowFlags tile_flags = ImGuiWindowFlags_AlwaysUseWindowPadding | 
+                                 ImGuiWindowFlags_NoScrollbar | 
+                                 ImGuiWindowFlags_NoScrollWithMouse;
+
+    ImGui::BeginChild(label, ImVec2(width, 64.0f), ImGuiChildFlags_Border, tile_flags);
     ImGui::TextColored(Color::TextSecondary, "%s", label);
     
     if (Fonts::MonoLarge) ImGui::PushFont(Fonts::MonoLarge);
     ImGui::TextColored(val1_col, "%s", val1);
     if (Fonts::MonoLarge) ImGui::PopFont();
 
-    ImGui::SameLine();
-    if (Fonts::Mono) ImGui::PushFont(Fonts::Mono);
-    ImGui::TextColored(Color::IconGray, "%s", val2);
-    if (Fonts::Mono) ImGui::PopFont();
+    if (val2 && val2[0] != '\0') {
+        ImGui::SameLine();
+        if (Fonts::Mono) ImGui::PushFont(Fonts::Mono);
+        ImGui::TextColored(Color::IconGray, "%s", val2);
+        if (Fonts::Mono) ImGui::PopFont();
+    }
 
     ImGui::EndChild();
 

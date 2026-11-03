@@ -8,13 +8,15 @@
 namespace ht306::ui {
 
 void Routing::Render(AppState& state) {
+    ImGuiWindowFlags no_scroll = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
+
     // 1. Hero Header Banner
     Theme::BeginCard("RoutingHeroCard");
     ImGui::TextColored(Color::TextPrimary, "I2S Crosspoint Matrix & Channel Mapping");
     ImGui::SameLine();
     ImGui::PushStyleColor(ImGuiCol_ChildBg, Color::Surface2);
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 4.0f);
-    ImGui::BeginChild("I2sBusPill", ImVec2(140.0f, 22.0f), false);
+    ImGui::BeginChild("I2sBusPill", ImVec2(140.0f, 22.0f), false, no_scroll);
     ImGui::SetCursorPos(ImVec2(6.0f, 2.0f));
     ImGui::TextColored(Color::Tertiary, "RP2350 PIO I2S Bus");
     ImGui::EndChild();
@@ -24,7 +26,7 @@ void Routing::Render(AppState& state) {
     ImGui::SameLine();
     ImGui::PushStyleColor(ImGuiCol_ChildBg, Color::Surface2);
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 4.0f);
-    ImGui::BeginChild("DacChPill", ImVec2(200.0f, 22.0f), false);
+    ImGui::BeginChild("DacChPill", ImVec2(200.0f, 22.0f), false, no_scroll);
     ImGui::SetCursorPos(ImVec2(6.0f, 2.0f));
     ImGui::TextColored(Color::TextSecondary, "6x Discrete Physical DAC Channels");
     ImGui::EndChild();
@@ -63,7 +65,7 @@ void Routing::Render(AppState& state) {
     float col_w = (total_w - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
 
     // LEFT: Mode & Synthesizer Engine
-    Theme::BeginCard("SynthesizerCard", ImVec2(col_w, 290.0f));
+    Theme::BeginCard("SynthesizerCard", ImVec2(col_w, 280.0f));
     ImGui::TextColored(Color::PrimaryContainer, "%s", ICON_MD_TUNE);
     ImGui::SameLine();
     ImGui::TextColored(Color::TextPrimary, "Mode & Synthesizer Engine");
@@ -75,8 +77,8 @@ void Routing::Render(AppState& state) {
     // Stream info bar
     ImGui::PushStyleColor(ImGuiCol_ChildBg, Color::Surface2);
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 6.0f);
-    ImGui::BeginChild("DetectedStreamBar", ImVec2(0, 26.0f), false);
-    ImGui::SetCursorPos(ImVec2(8.0f, 4.0f));
+    ImGui::BeginChild("DetectedStreamBar", ImVec2(0, 24.0f), false, no_scroll);
+    ImGui::SetCursorPos(ImVec2(8.0f, 3.0f));
     ImGui::TextColored(Color::StatusOk, "●");
     ImGui::SameLine();
     ImGui::TextColored(Color::TextSecondary, "Detected Windows Stream:");
@@ -91,17 +93,17 @@ void Routing::Render(AppState& state) {
     ImGui::Spacing();
 
     // 4 Mode Selection Cards (2x2)
-    float mode_card_w = (col_w - 40.0f) * 0.5f;
+    float mode_card_w = (col_w - 36.0f) * 0.5f;
     struct UpmixModeDef {
         RoutingPreset preset;
         const char* title;
         const char* desc;
     };
     UpmixModeDef upmix_modes[4] = {
-        { RoutingPreset::DISCRETE_1TO1, "Direct 1:1 Discrete", "Bit-Perfect Passthrough. Untouched multichannel buffers." },
-        { RoutingPreset::STEREO_UPMIX,  "Stereo 2.0 -> 5.1 Upmix", "Matrix surround synthesizer for 2-channel legacy tracks." },
-        { RoutingPreset::DOWNMIX_71,    "7.1 -> 5.1 Downmix", "Foldback surrounds into side channels via ITU-R profile." },
-        { RoutingPreset::DUAL_MONO,     "Dual-Mono Front Pair", "Summed L+R centered phase alignment for voice checks." }
+        { RoutingPreset::DISCRETE_1TO1, "Direct 1:1 Discrete", "Bit-Perfect Passthrough. Untouched buffers." },
+        { RoutingPreset::STEREO_UPMIX,  "Stereo 2.0 -> 5.1", "Matrix surround synthesizer for 2ch tracks." },
+        { RoutingPreset::DOWNMIX_71,    "7.1 -> 5.1 Downmix", "Foldback surrounds into side channels." },
+        { RoutingPreset::DUAL_MONO,     "Dual-Mono Front", "Summed L+R centered phase alignment." }
     };
 
     for (int m = 0; m < 4; ++m) {
@@ -117,7 +119,7 @@ void Routing::Render(AppState& state) {
 
         char mode_card_id[32];
         std::snprintf(mode_card_id, sizeof(mode_card_id), "ModeCard_%d", m);
-        ImGui::BeginChild(mode_card_id, ImVec2(mode_card_w, 65.0f), true);
+        ImGui::BeginChild(mode_card_id, ImVec2(mode_card_w, 58.0f), true, no_scroll);
 
         ImGui::TextColored(Color::TextPrimary, "%s", upmix_modes[m].title);
         ImGui::TextColored(Color::TextSecondary, "%s", upmix_modes[m].desc);
@@ -137,8 +139,8 @@ void Routing::Render(AppState& state) {
     // Downmix Attenuation Bar
     ImGui::PushStyleColor(ImGuiCol_ChildBg, Color::SurfaceContainerLow);
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 6.0f);
-    ImGui::BeginChild("AttenBar", ImVec2(0, 26.0f), false);
-    ImGui::SetCursorPos(ImVec2(8.0f, 4.0f));
+    ImGui::BeginChild("AttenBar", ImVec2(0, 24.0f), false, no_scroll);
+    ImGui::SetCursorPos(ImVec2(8.0f, 3.0f));
     ImGui::TextColored(Color::StatusWarn, "Downmix Attenuation:");
     ImGui::SameLine();
     ImGui::TextColored(Color::TextPrimary, "%.1f dB ITU-R", state.settings.downmix_attenuation_db);
@@ -153,7 +155,7 @@ void Routing::Render(AppState& state) {
     ImGui::SameLine();
 
     // RIGHT: Physical I2S Line Status & Pinout
-    Theme::BeginCard("PinoutCard", ImVec2(col_w, 290.0f));
+    Theme::BeginCard("PinoutCard", ImVec2(col_w, 280.0f));
     ImGui::TextColored(Color::StatusInfo, "%s", ICON_MD_MEMORY);
     ImGui::SameLine();
     ImGui::TextColored(Color::TextPrimary, "Physical I2S Line Status & Pinout");
@@ -163,26 +165,26 @@ void Routing::Render(AppState& state) {
     ImGui::Spacing();
 
     // 4 Pinout tiles (2x2)
-    float pin_w = (col_w - 40.0f) * 0.5f;
+    float pin_w = (col_w - 36.0f) * 0.5f;
 
     // Bus 0
-    Theme::StatTile("Data Bus 0 (GP4)", "ADATA0: FL + FR", "TAS5508 Pins 22 / 23 (Left/Right Front)", Color::TextPrimary, pin_w);
+    Theme::StatTile("Data Bus 0 (GP4)", "ADATA0: FL + FR", "TAS5508 Pins 22/23", Color::TextPrimary, pin_w);
     ImGui::SameLine();
     // Bus 1
-    Theme::StatTile("Data Bus 1 (GP5)", "ADATA1: C + LFE", "TAS5508 Pins 24 / 25 (Center / Low-Freq Sub)", Color::TextPrimary, pin_w);
+    Theme::StatTile("Data Bus 1 (GP5)", "ADATA1: C + LFE", "TAS5508 Pins 24/25", Color::TextPrimary, pin_w);
 
     // Bus 2
-    Theme::StatTile("Data Bus 2 (GP6)", "ADATA2: SL + SR", "TAS5508 Pins 26 / 27 (Surround Rear L/R)", Color::TextPrimary, pin_w);
+    Theme::StatTile("Data Bus 2 (GP6)", "ADATA2: SL + SR", "TAS5508 Pins 26/27", Color::TextPrimary, pin_w);
     ImGui::SameLine();
     // Clock Gen
-    Theme::StatTile("Clock Gen (GP2 / GP3)", "6.144 MHz / 96k", "64fs Frame Sync Lock (RP2350 PIO)", Color::Tertiary, pin_w);
+    Theme::StatTile("Clock Gen (GP2/3)", "6.144 MHz / 96k", "64fs Frame Sync Lock", Color::Tertiary, pin_w);
 
     ImGui::Spacing();
     // Lock Subtext
     ImGui::PushStyleColor(ImGuiCol_ChildBg, Color::SurfaceContainerLow);
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 6.0f);
-    ImGui::BeginChild("LockBar", ImVec2(0, 26.0f), false);
-    ImGui::SetCursorPos(ImVec2(8.0f, 4.0f));
+    ImGui::BeginChild("LockBar", ImVec2(0, 24.0f), false, no_scroll);
+    ImGui::SetCursorPos(ImVec2(8.0f, 3.0f));
     ImGui::TextColored(Color::StatusOk, "●");
     ImGui::SameLine();
     ImGui::TextColored(Color::TextPrimary, "All 3x I2S Data Lines MUXed to High & Locked");

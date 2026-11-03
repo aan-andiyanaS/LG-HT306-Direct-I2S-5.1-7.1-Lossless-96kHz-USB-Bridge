@@ -71,10 +71,10 @@ static void LoadApplicationFonts(ImGuiIO& io, float scale) {
     font_cfg.OversampleV = 2;
     font_cfg.RasterizerMultiply = 1.15f; // Crisp subpixel contrast for dark themes
 
-    float base_ui_size = std::round(15.0f * scale);
-    float title_size   = std::round(18.0f * scale);
-    float mono_size    = std::round(13.0f * scale);
-    float mono_lg_size = std::round(18.0f * scale);
+    float base_ui_size = std::round(14.0f * scale);
+    float title_size   = std::round(17.0f * scale);
+    float mono_size    = std::round(12.0f * scale);
+    float mono_lg_size = std::round(15.0f * scale);
     float icon_size    = std::round(16.0f * scale);
 
     // 1. Regular UI Font (Plus Jakarta Sans)
@@ -111,10 +111,13 @@ static void LoadApplicationFonts(ImGuiIO& io, float scale) {
 static void RenderTopHeader(ht306::AppState& state, float width, float scale) {
     ImGui::PushStyleColor(ImGuiCol_ChildBg, ht306::ui::Color::SurfaceContainerLowest);
     ImGui::PushStyleColor(ImGuiCol_Border, ht306::ui::Color::Border);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16.0f * scale, 6.0f * scale));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(14.0f * scale, 5.0f * scale));
 
-    float header_h = 42.0f * scale;
-    ImGui::BeginChild("TopHeader", ImVec2(width, header_h), true, ImGuiWindowFlags_AlwaysUseWindowPadding);
+    float header_h = 38.0f * scale;
+    ImGuiWindowFlags h_flags = ImGuiWindowFlags_AlwaysUseWindowPadding | 
+                               ImGuiWindowFlags_NoScrollbar | 
+                               ImGuiWindowFlags_NoScrollWithMouse;
+    ImGui::BeginChild("TopHeader", ImVec2(width, header_h), true, h_flags);
 
     // Left Title + Logo
     ImGui::TextColored(ht306::ui::Color::PrimaryContainer, "%s", ICON_MD_GRAPHIC_EQ);
@@ -127,7 +130,7 @@ static void RenderTopHeader(ht306::AppState& state, float width, float scale) {
 
     // Right Controls
     float r_avail = ImGui::GetContentRegionAvail().x;
-    float right_block_w = 480.0f * scale;
+    float right_block_w = 460.0f * scale;
     ImGui::SameLine(r_avail - right_block_w);
 
     // Status Pill (Rounded full style matching HTML)
@@ -135,7 +138,7 @@ static void RenderTopHeader(ht306::AppState& state, float width, float scale) {
     ImGui::PushStyleColor(ImGuiCol_ChildBg, ht306::ui::Color::Surface2);
     ImGui::PushStyleColor(ImGuiCol_Border, ht306::ui::Color::Border);
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 999.0f);
-    ImGui::BeginChild("HeadConnPill", ImVec2(120.0f * scale, 24.0f * scale), true);
+    ImGui::BeginChild("HeadConnPill", ImVec2(115.0f * scale, 24.0f * scale), true, h_flags);
     ImGui::SetCursorPos(ImVec2(8.0f * scale, 3.0f * scale));
     if (connected) {
         ImGui::TextColored(ht306::ui::Color::StatusOk, "● Connected");
@@ -153,7 +156,7 @@ static void RenderTopHeader(ht306::AppState& state, float width, float scale) {
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 999.0f);
     char prof_btn[64];
     std::snprintf(prof_btn, sizeof(prof_btn), "Profile: %s %s", state.settings.active_profile.c_str(), ICON_MD_ARROW_DROP_DOWN);
-    if (ImGui::Button(prof_btn, ImVec2(130.0f * scale, 24.0f * scale))) {
+    if (ImGui::Button(prof_btn, ImVec2(125.0f * scale, 24.0f * scale))) {
         state.current_tab.store(ht306::NavTab::PROFILES);
     }
     ImGui::PopStyleVar();
@@ -163,9 +166,9 @@ static void RenderTopHeader(ht306::AppState& state, float width, float scale) {
     ImGui::SameLine();
     ImDrawList* dl = ImGui::GetWindowDrawList();
     ImVec2 p_pos = ImGui::GetCursorScreenPos();
-    float av_r = 12.0f * scale;
+    float av_r = 11.0f * scale;
     dl->AddCircleFilled(ImVec2(p_pos.x + av_r, p_pos.y + av_r), av_r, ht306::ui::Color::ToU32(ht306::ui::Color::PrimaryContainer));
-    dl->AddText(ImVec2(p_pos.x + 5.0f * scale, p_pos.y + 3.0f * scale), ht306::ui::Color::ToU32(ht306::ui::Color::TextPrimary), ICON_MD_PERSON);
+    dl->AddText(ImVec2(p_pos.x + 4.0f * scale, p_pos.y + 2.0f * scale), ht306::ui::Color::ToU32(ht306::ui::Color::TextPrimary), ICON_MD_PERSON);
     ImGui::Dummy(ImVec2(av_r * 2.0f, av_r * 2.0f));
 
     // Stream Toggle Button
@@ -174,13 +177,13 @@ static void RenderTopHeader(ht306::AppState& state, float width, float scale) {
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 999.0f);
     if (is_streaming) {
         ImGui::PushStyleColor(ImGuiCol_Button, ht306::ui::Color::StatusWarn);
-        if (ImGui::Button("⏹ STOP STREAM", ImVec2(125.0f * scale, 24.0f * scale))) {
+        if (ImGui::Button("⏹ STOP STREAM", ImVec2(120.0f * scale, 24.0f * scale))) {
             state.is_streaming.store(false);
         }
         ImGui::PopStyleColor();
     } else {
         ImGui::PushStyleColor(ImGuiCol_Button, ht306::ui::Color::PrimaryContainer);
-        if (ImGui::Button("▶ START STREAM", ImVec2(125.0f * scale, 24.0f * scale))) {
+        if (ImGui::Button("▶ START STREAM", ImVec2(120.0f * scale, 24.0f * scale))) {
             state.is_streaming.store(true);
         }
         ImGui::PopStyleColor();
@@ -323,9 +326,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         ImGui::SameLine();
 
         // 3. Right Content Area (View per active NavTab)
-        float content_w = io.DisplaySize.x - sidebar_w - (18.0f * g_DpiScale);
-        float content_h = io.DisplaySize.y - (48.0f * g_DpiScale);
-        ImGui::BeginChild("MainContentArea", ImVec2(content_w, content_h), false, ImGuiWindowFlags_AlwaysVerticalScrollbar);
+        float content_w = io.DisplaySize.x - sidebar_w - (16.0f * g_DpiScale);
+        float content_h = io.DisplaySize.y - (42.0f * g_DpiScale);
+        ImGui::BeginChild("MainContentArea", ImVec2(content_w, content_h), false, 0);
 
         ht306::NavTab cur_tab = app_state.current_tab.load();
         switch (cur_tab) {

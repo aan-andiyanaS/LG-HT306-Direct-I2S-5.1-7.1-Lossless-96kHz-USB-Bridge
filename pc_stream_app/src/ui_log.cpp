@@ -13,7 +13,8 @@ void Log::Render(AppState& state) {
     Theme::BeginCard("LogHeroCard");
     ImGui::PushStyleColor(ImGuiCol_ChildBg, Color::Surface2);
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 4.0f);
-    ImGui::BeginChild("RevBadge", ImVec2(120.0f, 22.0f), false);
+    const ImGuiWindowFlags no_scroll = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
+    ImGui::BeginChild("RevBadge", ImVec2(120.0f, 22.0f), false, no_scroll);
     ImGui::SetCursorPos(ImVec2(6.0f, 2.0f));
     ImGui::TextColored(Color::TextSecondary, "REV 1.3.0-RC4");
     ImGui::EndChild();
