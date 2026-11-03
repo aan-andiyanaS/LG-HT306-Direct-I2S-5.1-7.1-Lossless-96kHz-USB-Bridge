@@ -4,6 +4,7 @@
 #include <d3d11.h>
 #include <tchar.h>
 #include <cstdio>
+#include <cmath>
 #include <string>
 
 #include "imgui.h"
@@ -20,11 +21,16 @@
 #include "audio_capture.h"
 #include "audio_endpoint_helper.h"
 
+#ifndef DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
+#define DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 ((DPI_AWARENESS_CONTEXT)-4)
+#endif
+
 static ID3D11Device*            g_pd3dDevice = nullptr;
 static ID3D11DeviceContext*     g_pd3dDeviceContext = nullptr;
 static IDXGISwapChain*          g_pSwapChain = nullptr;
 static UINT                     g_ResizeWidth = 0, g_ResizeHeight = 0;
 static ID3D11RenderTargetView*  g_mainRenderTargetView = nullptr;
+static float                    g_DpiScale = 1.0f;
 
 bool CreateDeviceD3D(HWND hWnd);
 void CleanupDeviceD3D();
@@ -50,48 +56,60 @@ static std::string FindAssetPath(const std::string& subpath) {
     return subpath;
 }
 
-static void LoadApplicationFonts(ImGuiIO& io) {
+static void LoadApplicationFonts(ImGuiIO& io, float scale) {
     std::string font_sans = FindAssetPath("assets\\fonts\\PlusJakartaSans.ttf");
     std::string font_mono = FindAssetPath("assets\\fonts\\JetBrainsMono.ttf");
     std::string font_icon = FindAssetPath("assets\\fonts\\MaterialIcons.ttf");
 
-    // 1. Regular UI Font (Plus Jakarta Sans 15px)
+    ImFontConfig font_cfg;
+    font_cfg.OversampleH = 2;
+    font_cfg.OversampleV = 2;
+    font_cfg.RasterizerMultiply = 1.15f; // Crisp subpixel contrast for dark themes
+
+    float base_ui_size = std::round(15.0f * scale);
+    float title_size   = std::round(18.0f * scale);
+    float mono_size    = std::round(13.0f * scale);
+    float mono_lg_size = std::round(18.0f * scale);
+    float icon_size    = std::round(16.0f * scale);
+
+    // 1. Regular UI Font (Plus Jakarta Sans)
     if (GetFileAttributesA(font_sans.c_str()) != INVALID_FILE_ATTRIBUTES) {
-        ht306::ui::Fonts::UiRegular = io.Fonts->AddFontFromFileTTF(font_sans.c_str(), 15.0f);
+        ht306::ui::Fonts::UiRegular = io.Fonts->AddFontFromFileTTF(font_sans.c_str(), base_ui_size, &font_cfg);
 
         // Merge Material Icons into the regular UI font so any icon can be printed inline!
         if (GetFileAttributesA(font_icon.c_str()) != INVALID_FILE_ATTRIBUTES) {
-            ImFontConfig icon_cfg;
+            ImFontConfig icon_cfg = font_cfg;
             icon_cfg.MergeMode = true;
             icon_cfg.PixelSnapH = true;
-            icon_cfg.GlyphMinAdvanceX = 16.0f;
+            icon_cfg.GlyphMinAdvanceX = icon_size;
             static const ImWchar icon_ranges[] = { 0xE000, 0xF8FF, 0 };
-            io.Fonts->AddFontFromFileTTF(font_icon.c_str(), 16.0f, &icon_cfg, icon_ranges);
+            io.Fonts->AddFontFromFileTTF(font_icon.c_str(), icon_size, &icon_cfg, icon_ranges);
         }
     } else {
         ht306::ui::Fonts::UiRegular = io.Fonts->AddFontDefault();
     }
 
-    // 2. Title Font (Plus Jakarta Sans 18px Bold)
+    // 2. Title Font (Plus Jakarta Sans Bold)
     if (GetFileAttributesA(font_sans.c_str()) != INVALID_FILE_ATTRIBUTES) {
-        ht306::ui::Fonts::UiTitle = io.Fonts->AddFontFromFileTTF(font_sans.c_str(), 18.0f);
+        ht306::ui::Fonts::UiTitle = io.Fonts->AddFontFromFileTTF(font_sans.c_str(), title_size, &font_cfg);
     }
 
     // 3. Monospace Fonts (JetBrains Mono)
     if (GetFileAttributesA(font_mono.c_str()) != INVALID_FILE_ATTRIBUTES) {
-        ht306::ui::Fonts::Mono = io.Fonts->AddFontFromFileTTF(font_mono.c_str(), 13.0f);
-        ht306::ui::Fonts::MonoLarge = io.Fonts->AddFontFromFileTTF(font_mono.c_str(), 18.0f);
+        ht306::ui::Fonts::Mono = io.Fonts->AddFontFromFileTTF(font_mono.c_str(), mono_size, &font_cfg);
+        ht306::ui::Fonts::MonoLarge = io.Fonts->AddFontFromFileTTF(font_mono.c_str(), mono_lg_size, &font_cfg);
     }
 
     io.Fonts->Build();
 }
 
-static void RenderTopHeader(ht306::AppState& state, float width) {
+static void RenderTopHeader(ht306::AppState& state, float width, float scale) {
     ImGui::PushStyleColor(ImGuiCol_ChildBg, ht306::ui::Color::SurfaceContainerLowest);
     ImGui::PushStyleColor(ImGuiCol_Border, ht306::ui::Color::Border);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16.0f, 8.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16.0f * scale, 8.0f * scale));
 
-    ImGui::BeginChild("TopHeader", ImVec2(width, 44.0f), true, ImGuiWindowFlags_AlwaysUseWindowPadding);
+    float header_h = 44.0f * scale;
+    ImGui::BeginChild("TopHeader", ImVec2(width, header_h), true, ImGuiWindowFlags_AlwaysUseWindowPadding);
 
     // Left Title + Logo
     ImGui::TextColored(ht306::ui::Color::PrimaryContainer, "%s", ICON_MD_GRAPHIC_EQ);
@@ -104,7 +122,8 @@ static void RenderTopHeader(ht306::AppState& state, float width) {
 
     // Right Controls
     float r_avail = ImGui::GetContentRegionAvail().x;
-    ImGui::SameLine(r_avail - 440.0f);
+    float right_block_w = 460.0f * scale;
+    ImGui::SameLine(r_avail - right_block_w);
 
     // Status Pill
     bool connected = (state.state.load() != ht306::ConnectionState::DISCONNECTED);
@@ -123,13 +142,13 @@ static void RenderTopHeader(ht306::AppState& state, float width) {
     bool is_streaming = state.is_streaming.load();
     if (is_streaming) {
         ImGui::PushStyleColor(ImGuiCol_Button, ht306::ui::Color::StatusWarn);
-        if (ImGui::Button("⏹ STOP STREAM", ImVec2(120.0f, 26.0f))) {
+        if (ImGui::Button("⏹ STOP STREAM", ImVec2(125.0f * scale, 26.0f * scale))) {
             state.is_streaming.store(false);
         }
         ImGui::PopStyleColor();
     } else {
         ImGui::PushStyleColor(ImGuiCol_Button, ht306::ui::Color::PrimaryContainer);
-        if (ImGui::Button("▶ START STREAM", ImVec2(120.0f, 26.0f))) {
+        if (ImGui::Button("▶ START STREAM", ImVec2(125.0f * scale, 26.0f * scale))) {
             state.is_streaming.store(true);
         }
         ImGui::PopStyleColor();
@@ -141,18 +160,49 @@ static void RenderTopHeader(ht306::AppState& state, float width) {
 }
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+    // 1. Enable Windows Per-Monitor DPI Awareness V2 for razor-sharp physical pixel rendering
+    typedef BOOL(WINAPI* PFN_SetProcessDpiAwarenessContext)(DPI_AWARENESS_CONTEXT);
+    HMODULE hUser32 = GetModuleHandleW(L"user32.dll");
+    if (hUser32) {
+        auto set_dpi_ctx = (PFN_SetProcessDpiAwarenessContext)GetProcAddress(hUser32, "SetProcessDpiAwarenessContext");
+        if (set_dpi_ctx) {
+            set_dpi_ctx(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+        }
+    }
+
     CoInitializeEx(NULL, COINIT_MULTITHREADED);
 
     WNDCLASSEXW wc = { sizeof(wc), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(nullptr), nullptr, nullptr, nullptr, nullptr, L"HT306StitchStreamer", nullptr };
     ::RegisterClassExW(&wc);
 
+    // Initial default size scaled for high-dpi
+    int init_w = 1280;
+    int init_h = 840;
+
     HWND hwnd = ::CreateWindowW(
         wc.lpszClassName, 
         L"LG HT306 Audio Bridge — RP2350-Zero Direct-I2S (96kHz Lossless)", 
         WS_OVERLAPPEDWINDOW, 
-        50, 50, 1280, 840, 
+        50, 50, init_w, init_h, 
         nullptr, nullptr, wc.hInstance, nullptr
     );
+
+    // Query exact DPI scaling factor for this window
+    typedef UINT(WINAPI* PFN_GetDpiForWindow)(HWND);
+    if (hUser32) {
+        auto get_dpi = (PFN_GetDpiForWindow)GetProcAddress(hUser32, "GetDpiForWindow");
+        if (get_dpi) {
+            UINT dpi = get_dpi(hwnd);
+            if (dpi > 0) g_DpiScale = (float)dpi / 96.0f;
+        }
+    }
+
+    // Adjust window size proportionally
+    if (g_DpiScale > 1.01f) {
+        int scaled_w = (int)(init_w * g_DpiScale);
+        int scaled_h = (int)(init_h * g_DpiScale);
+        SetWindowPos(hwnd, NULL, 50, 50, scaled_w, scaled_h, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+    }
 
     if (!CreateDeviceD3D(hwnd)) {
         CleanupDeviceD3D();
@@ -168,12 +218,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-    io.IniFilename = nullptr; // Stateless portable UI
+    io.IniFilename = nullptr;
 
-    // Load Stitch Google Fonts & Material Icons
-    LoadApplicationFonts(io);
+    // Load rasterized sharp fonts matching physical display DPI
+    LoadApplicationFonts(io, g_DpiScale);
 
-    ht306::ui::Theme::Apply();
+    ht306::ui::Theme::Apply(g_DpiScale);
 
     ImGui_ImplWin32_Init(hwnd);
     ImGui_ImplDX11_Init(g_pd3dDevice, g_pd3dDeviceContext);
@@ -231,17 +281,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         ImGui::Begin("RootContainer", nullptr, root_flags);
 
         // 1. Top Header
-        RenderTopHeader(app_state, io.DisplaySize.x);
+        RenderTopHeader(app_state, io.DisplaySize.x, g_DpiScale);
 
         // 2. Left Sidebar Navigation
-        float sidebar_w = 210.0f;
+        float sidebar_w = 210.0f * g_DpiScale;
         ht306::ui::Sidebar::Render(app_state, sidebar_w);
 
         ImGui::SameLine();
 
         // 3. Right Content Area (View per active NavTab)
-        float content_w = io.DisplaySize.x - sidebar_w - 18.0f;
-        float content_h = io.DisplaySize.y - 48.0f;
+        float content_w = io.DisplaySize.x - sidebar_w - (18.0f * g_DpiScale);
+        float content_h = io.DisplaySize.y - (48.0f * g_DpiScale);
         ImGui::BeginChild("MainContentArea", ImVec2(content_w, content_h), false, ImGuiWindowFlags_AlwaysVerticalScrollbar);
 
         ht306::NavTab cur_tab = app_state.current_tab.load();
@@ -261,8 +311,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                     char slider_id[32];
                     std::snprintf(slider_id, sizeof(slider_id), "##trim_%d", c);
                     ImGui::TextColored(ht306::ui::Color::TextPrimary, "%s", ch_names[c]);
-                    ImGui::SameLine(180.0f);
-                    ImGui::SetNextItemWidth(300.0f);
+                    ImGui::SameLine(180.0f * g_DpiScale);
+                    ImGui::SetNextItemWidth(300.0f * g_DpiScale);
                     ImGui::SliderFloat(slider_id, &app_state.settings.trims[c], -12.0f, +12.0f, "%.1f dB");
                     ImGui::SameLine();
                     char mute_id[32];
@@ -284,14 +334,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 const char* spk_lbls[6] = { "FL", "FR", "C", "LFE", "SL", "SR" };
                 for (int out = 0; out < 6; ++out) {
                     ImGui::TextColored(ht306::ui::Color::TextPrimary, "Output %s ->", spk_lbls[out]);
-                    ImGui::SameLine(120.0f);
+                    ImGui::SameLine(120.0f * g_DpiScale);
                     for (int in = 0; in < 6; ++in) {
                         bool sel = (app_state.settings.routing_map[out] == in);
                         char r_id[32];
                         std::snprintf(r_id, sizeof(r_id), "%s##r_%d_%d", spk_lbls[in], out, in);
                         if (sel) ImGui::PushStyleColor(ImGuiCol_Button, ht306::ui::Color::StatusOk);
                         else ImGui::PushStyleColor(ImGuiCol_Button, ht306::ui::Color::Surface2);
-                        if (ImGui::Button(r_id, ImVec2(50.0f, 28.0f))) {
+                        if (ImGui::Button(r_id, ImVec2(50.0f * g_DpiScale, 28.0f * g_DpiScale))) {
                             app_state.settings.routing_map[out] = in;
                         }
                         ImGui::PopStyleColor();
@@ -324,7 +374,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 ImGui::Spacing();
                 ImGui::TextColored(ht306::ui::Color::TextSecondary, "Virtual Audio Device Status:");
                 ImGui::TextColored(ht306::ui::Color::StatusOk, "Driver package available in tools/vbcable");
-                if (ImGui::Button("Buka Folder Driver Virtual Cable", ImVec2(240.0f, 36.0f))) {
+                if (ImGui::Button("Buka Folder Driver Virtual Cable", ImVec2(240.0f * g_DpiScale, 36.0f * g_DpiScale))) {
                     ShellExecuteA(NULL, "open", "pc_stream_app\\tools\\vbcable", NULL, NULL, SW_SHOWNORMAL);
                 }
                 ht306::ui::Theme::EndCard();
@@ -426,6 +476,15 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam)) return true;
 
     switch (msg) {
+        case WM_DPICHANGED: {
+            RECT* const prcNewWindow = (RECT*)lParam;
+            SetWindowPos(hWnd, NULL,
+                prcNewWindow->left, prcNewWindow->top,
+                prcNewWindow->right - prcNewWindow->left,
+                prcNewWindow->bottom - prcNewWindow->top,
+                SWP_NOZORDER | SWP_NOACTIVATE);
+            return 0;
+        }
         case WM_SIZE:
             if (wParam == SIZE_MINIMIZED) return 0;
             g_ResizeWidth = (UINT)LOWORD(lParam);

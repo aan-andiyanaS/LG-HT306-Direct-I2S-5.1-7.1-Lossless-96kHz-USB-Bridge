@@ -2,7 +2,7 @@
 
 namespace ht306::ui {
 
-void Theme::Apply() {
+void Theme::Apply(float dpi_scale) {
     ImGuiStyle& style = ImGui::GetStyle();
 
     // Rounding from Stitch
@@ -22,6 +22,10 @@ void Theme::Apply() {
     style.WindowBorderSize  = 0.0f;
     style.ChildBorderSize   = 1.0f;
     style.FrameBorderSize   = 1.0f;
+
+    if (dpi_scale > 1.01f || dpi_scale < 0.99f) {
+        style.ScaleAllSizes(dpi_scale);
+    }
 
     // Color Palette
     ImVec4* colors = style.Colors;

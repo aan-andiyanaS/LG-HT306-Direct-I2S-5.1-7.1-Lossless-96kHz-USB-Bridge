@@ -51,7 +51,7 @@ struct Fonts {
 
 class Theme {
 public:
-    static void Apply();
+    static void Apply(float dpi_scale = 1.0f);
 
     static void BeginCard(const char* id, const ImVec2& size = ImVec2(0, 0)) {
         ImGui::PushStyleColor(ImGuiCol_ChildBg, Color::Surface);
