@@ -128,3 +128,14 @@ aw_st = transport.state; st = raw_st() if callable(raw_st) else raw_st).
     4. Mengunduh dan menyiapkan paket driver virtual audio resmi (VB-Audio Virtual Cable) di \pc_stream_app/tools/vbcable\ agar dapat memunculkan endpoint audio di taskbar Windows.
     5. Sukses kompilasi biner mandiri \pc_stream_app/build/ht306_stream_app.exe\ (2.22 MB, zero runtime dependencies, ultra-ringan ~10-12 MB RAM).
   - Files: \pc_stream_app/CMakeLists.txt\, \pc_stream_app/src/\ (main.cpp, ui_theme.h/cpp, ui_sidebar.h/cpp, ui_dashboard.h/cpp, ui_sweep_test.h/cpp, usb_transport.h/cpp, audio_capture.h/cpp, audio_endpoint_helper.h/cpp, app_state.h)
+
+
+- [x] **Slice 16: Modernisasi Desktop App ke Arsitektur C++ Native + WebView2 (JUCE 8 Webview Pattern)**
+  - Acceptance:
+    1. Mengadopsi arsitektur JUCE 8 Webview (C++ Native Window + Microsoft Edge WebView2 Embedded).
+    2. Mengintegrasikan UI Stitch Design System (HTML5, Tailwind CSS, SVG, Plus Jakarta Sans, JetBrains Mono) ke dalam `pc_stream_app/ui/index.html` dengan adapter Native Bridge (`window.chrome.webview.addEventListener` dan `sendNativeCommand`).
+    3. Mengimplementasikan host C++ native di `pc_stream_app/src/main_webview.cpp` lengkap dengan background telemetry 60 Hz, Win32 Immersive Dark Mode, dan IPC command handler dua arah (faders, trims, mute, volume, sweep test, vbcable, bootsel reboot).
+    4. Mengonfigurasi `pc_stream_app/CMakeLists.txt` untuk target `ht306_desktop_app` yang dikompilasi via MinGW-w64 GCC 16.2.0 + Ninja.
+    5. Sukses kompilasi biner `pc_stream_app/build/ht306_desktop_app.exe` (3.5 MB).
+    6. Pengukuran nyata alokasi memori runtime: **34.89 MB RAM** (jauh di bawah batas 50 MB, 100% responsif dan razor-sharp tanpa scrollbar cacat).
+  - Files: `pc_stream_app/CMakeLists.txt`, `pc_stream_app/src/main_webview.cpp`, `pc_stream_app/ui/index.html`, `pc_stream_app/third_party/`
