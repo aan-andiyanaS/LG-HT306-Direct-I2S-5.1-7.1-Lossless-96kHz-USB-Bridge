@@ -527,6 +527,34 @@ void TelemetryLoop() {
 }
 
 // ----------------------------------------------------------------------------
+// Clean up orphaned WebView2 processes if previous run terminated abnormally
+// ----------------------------------------------------------------------------
+static void KillOrphanWebViewProcesses() {
+    HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (hSnap != INVALID_HANDLE_VALUE) {
+        PROCESSENTRY32 pe;
+        pe.dwSize = sizeof(pe);
+        if (Process32First(hSnap, &pe)) {
+            do {
+                if (_stricmp(pe.szExeFile, "msedgewebview2.exe") == 0) {
+                    HANDLE hParent = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pe.th32ParentProcessID);
+                    if (!hParent) {
+                        HANDLE hOrphan = OpenProcess(PROCESS_TERMINATE, FALSE, pe.th32ProcessID);
+                        if (hOrphan) {
+                            TerminateProcess(hOrphan, 0);
+                            CloseHandle(hOrphan);
+                        }
+                    } else {
+                        CloseHandle(hParent);
+                    }
+                }
+            } while (Process32Next(hSnap, &pe));
+        }
+        CloseHandle(hSnap);
+    }
+}
+
+// ----------------------------------------------------------------------------
 // WinMain & Application Entry Point
 // ----------------------------------------------------------------------------
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
@@ -534,6 +562,21 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     (void)hPrevInstance;
     (void)lpCmdLine;
     (void)nCmdShow;
+
+    // 0. Ensure single instance so second launch activates existing window
+    HANDLE hMutex = CreateMutexA(NULL, TRUE, "Global\\LG_HT306_AudioBridge_InstanceMutex");
+    if (GetLastError() == ERROR_ALREADY_EXISTS) {
+        HWND existingHwnd = FindWindowA(NULL, "LG HT306 Audio Bridge \xE2\x80\x94 Direct I2S 96kHz Lossless");
+        if (existingHwnd) {
+            ShowWindow(existingHwnd, SW_RESTORE);
+            SetForegroundWindow(existingHwnd);
+        }
+        if (hMutex) CloseHandle(hMutex);
+        return 0;
+    }
+
+    // Clean up any lingering WebView2 processes from previous ungraceful exits
+    KillOrphanWebViewProcesses();
 
     // 1. Initialize audio endpoint helper and detect device
     ht306::audio::AudioEndpointHelper::EnumerateDevices(g_State);
@@ -548,7 +591,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         SetEnvironmentVariableA("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
             "--disable-gpu "
             "--disable-gpu-compositing "
-            "--disk-cache-size=1 --media-cache-size=1 --js-flags=\"--expose-gc --max-old-space-size=16 --optimize_for_size --lite-mode\" "
+            "--disk-cache-size=1 --media-cache-size=1 --js-flags=\"--max-old-space-size=16 --optimize_for_size --lite-mode\" "
             "--renderer-process-limit=1 "
             "--disable-background-networking "
             "--disable-component-update "
@@ -601,7 +644,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         w.run();
     } catch (const webview::exception& e) {
         std::cerr << "WebView error: " << e.what() << std::endl;
-        MessageBoxA(NULL, e.what(), "WebView2 Initialization Error", MB_ICONERROR | MB_OK);
+        std::string err = e.what();
+        if (err.empty()) {
+            err = "Tidak dapat menginisialisasi WebView2 runtime.\nPastikan Microsoft Edge WebView2 Runtime terpasang dan tidak ada proses aplikasi yang menggantung.";
+        }
+        MessageBoxA(NULL, err.c_str(), "LG HT306 Audio Bridge", MB_ICONWARNING | MB_OK);
     } catch (const std::exception& e) {
         std::cerr << "Standard error: " << e.what() << std::endl;
         MessageBoxA(NULL, e.what(), "Application Error", MB_ICONERROR | MB_OK);
@@ -618,6 +665,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     g_AudioCapture.Stop();
     g_UsbTransport.StopWorker();
     g_UsbTransport.Close();
+
+    if (hMutex) {
+        ReleaseMutex(hMutex);
+        CloseHandle(hMutex);
+    }
 
     return 0;
 }

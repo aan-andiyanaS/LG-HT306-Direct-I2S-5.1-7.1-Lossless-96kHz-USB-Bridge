@@ -4690,7 +4690,7 @@
         });
       }
 
-      // Free Tailwind JIT compiler runtime & force V8 garbage collection post-load
+      // Free Tailwind JIT compiler runtime post-load
       window.addEventListener("load", () => {
         setTimeout(() => {
           try {
@@ -4699,9 +4699,6 @@
             }
           } catch (_) {
             window.tailwind = undefined;
-          }
-          if (typeof window.gc === "function") {
-            try { window.gc(); } catch (_) {}
           }
           window.sendNativeCommand("app_ready", { version: "1.3.0", event: "post_load" });
         }, 400);
