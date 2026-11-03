@@ -1,0 +1,22 @@
+#pragma once
+
+// Material Icons Unicode codepoints in UTF-8
+#define ICON_MD_DASHBOARD       "\xEE\xA1\xB1"
+#define ICON_MD_TUNE            "\xEE\x90\xA9"
+#define ICON_MD_ALT_ROUTE       "\xEF\x86\x84"
+#define ICON_MD_LAYERS          "\xEE\x8F\xA7"
+#define ICON_MD_VOLUME_UP       "\xEE\x81\x90"
+#define ICON_MD_TERMINAL        "\xEE\xAE\x8E"
+#define ICON_MD_SETTINGS        "\xEE\xA2\xB8"
+#define ICON_MD_GRAPHIC_EQ      "\xEE\x87\x9B"
+#define ICON_MD_SPEED           "\xEE\x80\xA1"
+#define ICON_MD_MEMORY          "\xEE\x8C\xA2"
+#define ICON_MD_SURROUND_SOUND  "\xEE\x81\x89"
+#define ICON_MD_COMPRESS        "\xEE\xA4\x9D"
+#define ICON_MD_EQUALIZER       "\xEE\x80\x9D"
+#define ICON_MD_SPEAKER         "\xEE\x8C\xAC"
+#define ICON_MD_USB             "\xEE\x87\xA0"
+#define ICON_MD_CABLE           "\xEE\x82\x88"
+#define ICON_MD_REFRESH         "\xEE\x97\x95"
+#define ICON_MD_PERSON          "\xEE\xA7\xBD"
+#define ICON_MD_ARROW_DROP_DOWN "\xEE\x97\x85"

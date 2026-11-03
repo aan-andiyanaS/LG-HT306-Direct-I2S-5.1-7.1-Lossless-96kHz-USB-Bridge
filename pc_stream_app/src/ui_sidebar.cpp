@@ -1,5 +1,6 @@
 #include "ui_sidebar.h"
 #include "ui_theme.h"
+#include "ui_icons.h"
 #include "imgui.h"
 
 namespace ht306::ui {
@@ -11,13 +12,13 @@ struct NavItemDef {
 };
 
 static const NavItemDef kNavItems[] = {
-    { NavTab::DASHBOARD, "Dashboard", "[#]" },
-    { NavTab::MIXER,     "Mixer",     "[=]" },
-    { NavTab::ROUTING,   "Routing",   "[X]" },
-    { NavTab::PROFILES,  "Profiles",  "[P]" },
-    { NavTab::TEST,      "Test 5.1",  "[~]" },
-    { NavTab::LOG,       "Log",       "[>]" },
-    { NavTab::SETTINGS,  "Settings",  "[*]" }
+    { NavTab::DASHBOARD, "Dashboard", ICON_MD_DASHBOARD },
+    { NavTab::MIXER,     "Mixer",     ICON_MD_TUNE },
+    { NavTab::ROUTING,   "Routing",   ICON_MD_ALT_ROUTE },
+    { NavTab::PROFILES,  "Profiles",  ICON_MD_LAYERS },
+    { NavTab::TEST,      "Test 5.1",  ICON_MD_VOLUME_UP },
+    { NavTab::LOG,       "Log",       ICON_MD_TERMINAL },
+    { NavTab::SETTINGS,  "Settings",  ICON_MD_SETTINGS }
 };
 
 void Sidebar::Render(AppState& state, float width) {
@@ -52,9 +53,9 @@ void Sidebar::Render(AppState& state, float width) {
         }
 
         char btn_label[64];
-        std::snprintf(btn_label, sizeof(btn_label), "%s  %s", item.icon, item.label);
+        std::snprintf(btn_label, sizeof(btn_label), " %s   %s", item.icon, item.label);
 
-        if (ImGui::Button(btn_label, ImVec2(width - 24.0f, 36.0f))) {
+        if (ImGui::Button(btn_label, ImVec2(width - 24.0f, 38.0f))) {
             state.current_tab.store(item.tab);
         }
 

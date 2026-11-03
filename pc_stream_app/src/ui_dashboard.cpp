@@ -1,5 +1,6 @@
 #include "ui_dashboard.h"
 #include "ui_theme.h"
+#include "ui_icons.h"
 #include "imgui.h"
 #include <cstdio>
 #include <cmath>
@@ -16,13 +17,13 @@ void Dashboard::Render(AppState& state) {
     float left_w = total_w * 0.58f;
     float right_w = total_w - left_w - ImGui::GetStyle().ItemSpacing.x;
 
-    ImGui::BeginChild("MidLeft", ImVec2(left_w, 290.0f), false);
+    ImGui::BeginChild("MidLeft", ImVec2(left_w, 310.0f), false);
     RenderTelemetryCard(state);
     ImGui::EndChild();
 
     ImGui::SameLine();
 
-    ImGui::BeginChild("MidRight", ImVec2(right_w, 290.0f), false);
+    ImGui::BeginChild("MidRight", ImVec2(right_w, 310.0f), false);
     RenderControlsCard(state);
     ImGui::EndChild();
 
@@ -41,7 +42,7 @@ void Dashboard::RenderHardwareCard(AppState& state) {
     ImGui::PushStyleColor(ImGuiCol_ChildBg, Color::Surface2);
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 999.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 4.0f));
-    ImGui::BeginChild("HwStatusPill", ImVec2(140.0f, 26.0f), false);
+    ImGui::BeginChild("HwStatusPill", ImVec2(145.0f, 26.0f), false);
     ImDrawList* dl = ImGui::GetWindowDrawList();
     ImVec2 cp = ImGui::GetCursorScreenPos();
     dl->AddCircleFilled(ImVec2(cp.x + 8.0f, cp.y + 9.0f), 4.5f, Color::ToU32(Color::StatusOk));
@@ -60,10 +61,10 @@ void Dashboard::RenderHardwareCard(AppState& state) {
 
     // Right-aligned badges
     float avail_r = ImGui::GetContentRegionAvail().x;
-    ImGui::SameLine(avail_r - 340.0f);
-    ImGui::TextColored(Color::Tertiary, "[%s]", state.hw_info.com_port.c_str());
+    ImGui::SameLine(avail_r - 350.0f);
+    ImGui::TextColored(Color::Tertiary, "%s %s", ICON_MD_CABLE, state.hw_info.com_port.c_str());
     ImGui::SameLine();
-    ImGui::TextColored(Color::StatusInfo, "[EP 0x03 OUT]");
+    ImGui::TextColored(Color::StatusInfo, "%s EP 0x03 OUT", ICON_MD_USB);
     ImGui::SameLine();
     ImGui::TextColored(Color::TextSecondary, "0x%04X : 0x%04X", state.hw_info.vid, state.hw_info.pid);
 
@@ -87,9 +88,9 @@ void Dashboard::RenderHardwareCard(AppState& state) {
 }
 
 void Dashboard::RenderTelemetryCard(AppState& state) {
-    Theme::BeginCard("StreamEngineCard", ImVec2(0, 290.0f));
+    Theme::BeginCard("StreamEngineCard", ImVec2(0, 310.0f));
 
-    ImGui::TextColored(Color::PrimaryContainer, "[=]");
+    ImGui::TextColored(Color::PrimaryContainer, "%s", ICON_MD_TUNE);
     ImGui::SameLine();
     ImGui::TextColored(Color::TextPrimary, "STREAM & FORMAT ENGINE");
 
@@ -118,23 +119,29 @@ void Dashboard::RenderTelemetryCard(AppState& state) {
     float sub_w = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
 
     // Tile 1: Sample Rate
-    Theme::StatTile("Sample Rate", "96.0 kHz", "Master Bit-Clock: 6.144 MHz", Color::TextPrimary, sub_w);
+    char lbl1[64]; std::snprintf(lbl1, sizeof(lbl1), "%s Sample Rate", ICON_MD_SPEED);
+    Theme::StatTile(lbl1, "96.0 kHz", "Master Bit-Clock: 6.144 MHz", Color::TextPrimary, sub_w);
     ImGui::SameLine();
+
     // Tile 2: Bit Depth
-    Theme::StatTile("Bit Depth", "32-bit Container", "24-bit Valid High Precision Audio", Color::TextPrimary, sub_w);
+    char lbl2[64]; std::snprintf(lbl2, sizeof(lbl2), "%s Bit Depth", ICON_MD_MEMORY);
+    Theme::StatTile(lbl2, "32-bit Container", "24-bit Valid High Precision Audio", Color::TextPrimary, sub_w);
 
     // Tile 3: Channel Topology
-    Theme::StatTile("Channel Topology", "5.1 Surround", "6 Discrete I2S Channels (3x Data)", Color::TextPrimary, sub_w);
+    char lbl3[64]; std::snprintf(lbl3, sizeof(lbl3), "%s Channel Topology", ICON_MD_SURROUND_SOUND);
+    Theme::StatTile(lbl3, "5.1 Surround", "6 Discrete I2S Channels (3x Data)", Color::TextPrimary, sub_w);
     ImGui::SameLine();
+
     // Tile 4: Lossless Transport
-    Theme::StatTile("Lossless Transport", "Delta-Rice FLAC Order-4", "~58% Bandwidth Reduction", Color::Tertiary, sub_w);
+    char lbl4[64]; std::snprintf(lbl4, sizeof(lbl4), "%s Lossless Transport", ICON_MD_COMPRESS);
+    Theme::StatTile(lbl4, "Delta-Rice FLAC Order-4", "~58% Bandwidth Reduction", Color::Tertiary, sub_w);
 
     ImGui::Spacing();
     // Capture device bar
     ImGui::PushStyleColor(ImGuiCol_ChildBg, Color::Surface2);
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 6.0f);
     ImGui::BeginChild("CapDevBar", ImVec2(0, 32.0f), true);
-    ImGui::TextColored(Color::StatusOk, "●");
+    ImGui::TextColored(Color::StatusOk, "%s", ICON_MD_SPEAKER);
     ImGui::SameLine();
     ImGui::TextColored(Color::TextSecondary, "Capture Device:");
     ImGui::SameLine();
@@ -153,9 +160,9 @@ void Dashboard::RenderTelemetryCard(AppState& state) {
 }
 
 void Dashboard::RenderControlsCard(AppState& state) {
-    Theme::BeginCard("LinkBudgetCard", ImVec2(0, 290.0f));
+    Theme::BeginCard("LinkBudgetCard", ImVec2(0, 310.0f));
 
-    ImGui::TextColored(Color::StatusInfo, "[~]");
+    ImGui::TextColored(Color::StatusInfo, "%s", ICON_MD_EQUALIZER);
     ImGui::SameLine();
     ImGui::TextColored(Color::TextPrimary, "LINK BUDGET & BUFFER");
     ImGui::SameLine(ImGui::GetContentRegionAvail().x - 80.0f);
@@ -205,7 +212,7 @@ void Dashboard::RenderControlsCard(AppState& state) {
 void Dashboard::RenderVuMetersCard(AppState& state) {
     Theme::BeginCard("VuMetersCard");
 
-    ImGui::TextColored(Color::PrimaryContainer, "[*]");
+    ImGui::TextColored(Color::PrimaryContainer, "%s", ICON_MD_GRAPHIC_EQ);
     ImGui::SameLine();
     ImGui::TextColored(Color::TextPrimary, "6-CHANNEL LIVE VU METERS");
     ImGui::SameLine();
@@ -214,7 +221,9 @@ void Dashboard::RenderVuMetersCard(AppState& state) {
     ImGui::SameLine(ImGui::GetContentRegionAvail().x - 220.0f);
     ImGui::TextColored(Color::StatusOk, "[● CLIP: NONE]");
     ImGui::SameLine();
-    if (ImGui::Button("Reset Peaks")) {
+    char reset_lbl[32];
+    std::snprintf(reset_lbl, sizeof(reset_lbl), "%s Reset Peaks", ICON_MD_REFRESH);
+    if (ImGui::Button(reset_lbl)) {
         for (int i = 0; i < 6; ++i) state.meters[i].peak_hold_db = -60.0f;
     }
 
@@ -263,7 +272,7 @@ void Dashboard::RenderVuMetersCard(AppState& state) {
         ImGui::BeginChild(strip_id, ImVec2(0, 36.0f), true, ImGuiWindowFlags_AlwaysUseWindowPadding);
 
         // Tag + Name
-        ImGui::TextColored(Color::TextPrimary, "[%s]", chs[i].tag);
+        ImGui::TextColored(Color::TextPrimary, "%s", chs[i].tag);
         ImGui::SameLine();
         ImGui::TextColored(Color::TextSecondary, "%s", chs[i].name);
 
@@ -298,11 +307,13 @@ void Dashboard::RenderVuMetersCard(AppState& state) {
 
         // Numeric Readout on right
         ImGui::SameLine(160.0f + bar_w + 12.0f);
+        if (Fonts::Mono) ImGui::PushFont(Fonts::Mono);
         if (db <= -59.5f) {
             ImGui::TextColored(Color::TextSecondary, "-inf dB");
         } else {
             ImGui::TextColored(Color::TextPrimary, "%.1f dB", db);
         }
+        if (Fonts::Mono) ImGui::PopFont();
 
         ImGui::EndChild();
         ImGui::PopStyleVar(2);

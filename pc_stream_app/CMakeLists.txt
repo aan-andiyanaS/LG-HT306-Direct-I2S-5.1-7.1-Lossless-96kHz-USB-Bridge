@@ -61,3 +61,9 @@ else()
     target_compile_options(ht306_stream_app PRIVATE -O3 -Wall -Wno-unused-variable)
     target_link_options(ht306_stream_app PRIVATE -mwindows -static-libgcc -static-libstdc++)
 endif()
+
+add_custom_command(TARGET ht306_stream_app POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_CURRENT_SOURCE_DIR}/assets
+        $<TARGET_FILE_DIR:ht306_stream_app>/assets
+)

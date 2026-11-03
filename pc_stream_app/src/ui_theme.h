@@ -42,6 +42,13 @@ namespace Color {
     }
 } // namespace Color
 
+struct Fonts {
+    static inline ImFont* UiRegular   = nullptr;
+    static inline ImFont* UiTitle     = nullptr;
+    static inline ImFont* Mono        = nullptr;
+    static inline ImFont* MonoLarge   = nullptr;
+};
+
 class Theme {
 public:
     static void Apply();

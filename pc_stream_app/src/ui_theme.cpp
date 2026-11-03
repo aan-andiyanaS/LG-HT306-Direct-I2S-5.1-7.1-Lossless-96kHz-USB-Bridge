@@ -74,11 +74,18 @@ void Theme::StatTile(const char* label, const char* val1, const char* val2, cons
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 8.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 8.0f));
 
-    ImGui::BeginChild(label, ImVec2(width, 68.0f), ImGuiChildFlags_Border, ImGuiWindowFlags_AlwaysUseWindowPadding);
+    ImGui::BeginChild(label, ImVec2(width, 70.0f), ImGuiChildFlags_Border, ImGuiWindowFlags_AlwaysUseWindowPadding);
     ImGui::TextColored(Color::TextSecondary, "%s", label);
+    
+    if (Fonts::MonoLarge) ImGui::PushFont(Fonts::MonoLarge);
     ImGui::TextColored(val1_col, "%s", val1);
+    if (Fonts::MonoLarge) ImGui::PopFont();
+
     ImGui::SameLine();
+    if (Fonts::Mono) ImGui::PushFont(Fonts::Mono);
     ImGui::TextColored(Color::IconGray, "%s", val2);
+    if (Fonts::Mono) ImGui::PopFont();
+
     ImGui::EndChild();
 
     ImGui::PopStyleVar(2);

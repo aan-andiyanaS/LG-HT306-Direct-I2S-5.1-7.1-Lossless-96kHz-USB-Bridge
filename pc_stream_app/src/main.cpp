@@ -4,6 +4,7 @@
 #include <d3d11.h>
 #include <tchar.h>
 #include <cstdio>
+#include <string>
 
 #include "imgui.h"
 #include "backends/imgui_impl_win32.h"
@@ -11,6 +12,7 @@
 
 #include "app_state.h"
 #include "ui_theme.h"
+#include "ui_icons.h"
 #include "ui_sidebar.h"
 #include "ui_dashboard.h"
 #include "ui_sweep_test.h"
@@ -32,6 +34,58 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
+static std::string FindAssetPath(const std::string& subpath) {
+    const char* candidates[] = {
+        subpath.c_str(),
+        ("..\\" + subpath).c_str(),
+        ("pc_stream_app\\" + subpath).c_str(),
+        ("..\\..\\pc_stream_app\\" + subpath).c_str(),
+        ("E:\\Project\\HomeTheather\\pc_stream_app\\" + subpath).c_str()
+    };
+    for (const char* p : candidates) {
+        if (GetFileAttributesA(p) != INVALID_FILE_ATTRIBUTES) {
+            return std::string(p);
+        }
+    }
+    return subpath;
+}
+
+static void LoadApplicationFonts(ImGuiIO& io) {
+    std::string font_sans = FindAssetPath("assets\\fonts\\PlusJakartaSans.ttf");
+    std::string font_mono = FindAssetPath("assets\\fonts\\JetBrainsMono.ttf");
+    std::string font_icon = FindAssetPath("assets\\fonts\\MaterialIcons.ttf");
+
+    // 1. Regular UI Font (Plus Jakarta Sans 15px)
+    if (GetFileAttributesA(font_sans.c_str()) != INVALID_FILE_ATTRIBUTES) {
+        ht306::ui::Fonts::UiRegular = io.Fonts->AddFontFromFileTTF(font_sans.c_str(), 15.0f);
+
+        // Merge Material Icons into the regular UI font so any icon can be printed inline!
+        if (GetFileAttributesA(font_icon.c_str()) != INVALID_FILE_ATTRIBUTES) {
+            ImFontConfig icon_cfg;
+            icon_cfg.MergeMode = true;
+            icon_cfg.PixelSnapH = true;
+            icon_cfg.GlyphMinAdvanceX = 16.0f;
+            static const ImWchar icon_ranges[] = { 0xE000, 0xF8FF, 0 };
+            io.Fonts->AddFontFromFileTTF(font_icon.c_str(), 16.0f, &icon_cfg, icon_ranges);
+        }
+    } else {
+        ht306::ui::Fonts::UiRegular = io.Fonts->AddFontDefault();
+    }
+
+    // 2. Title Font (Plus Jakarta Sans 18px Bold)
+    if (GetFileAttributesA(font_sans.c_str()) != INVALID_FILE_ATTRIBUTES) {
+        ht306::ui::Fonts::UiTitle = io.Fonts->AddFontFromFileTTF(font_sans.c_str(), 18.0f);
+    }
+
+    // 3. Monospace Fonts (JetBrains Mono)
+    if (GetFileAttributesA(font_mono.c_str()) != INVALID_FILE_ATTRIBUTES) {
+        ht306::ui::Fonts::Mono = io.Fonts->AddFontFromFileTTF(font_mono.c_str(), 13.0f);
+        ht306::ui::Fonts::MonoLarge = io.Fonts->AddFontFromFileTTF(font_mono.c_str(), 18.0f);
+    }
+
+    io.Fonts->Build();
+}
+
 static void RenderTopHeader(ht306::AppState& state, float width) {
     ImGui::PushStyleColor(ImGuiCol_ChildBg, ht306::ui::Color::SurfaceContainerLowest);
     ImGui::PushStyleColor(ImGuiCol_Border, ht306::ui::Color::Border);
@@ -39,8 +93,8 @@ static void RenderTopHeader(ht306::AppState& state, float width) {
 
     ImGui::BeginChild("TopHeader", ImVec2(width, 44.0f), true, ImGuiWindowFlags_AlwaysUseWindowPadding);
 
-    // Left Title
-    ImGui::TextColored(ht306::ui::Color::PrimaryContainer, "[*]");
+    // Left Title + Logo
+    ImGui::TextColored(ht306::ui::Color::PrimaryContainer, "%s", ICON_MD_GRAPHIC_EQ);
     ImGui::SameLine();
     ImGui::TextColored(ht306::ui::Color::TextPrimary, "HT306 Audio Bridge");
     ImGui::SameLine();
@@ -50,7 +104,7 @@ static void RenderTopHeader(ht306::AppState& state, float width) {
 
     // Right Controls
     float r_avail = ImGui::GetContentRegionAvail().x;
-    ImGui::SameLine(r_avail - 420.0f);
+    ImGui::SameLine(r_avail - 440.0f);
 
     // Status Pill
     bool connected = (state.state.load() != ht306::ConnectionState::DISCONNECTED);
@@ -63,7 +117,7 @@ static void RenderTopHeader(ht306::AppState& state, float width) {
     ImGui::SameLine();
     ImGui::TextColored(ht306::ui::Color::IconGray, "|");
     ImGui::SameLine();
-    ImGui::TextColored(ht306::ui::Color::TextSecondary, "Profile: %s", state.settings.active_profile.c_str());
+    ImGui::TextColored(ht306::ui::Color::TextSecondary, "Profile: %s %s", state.settings.active_profile.c_str(), ICON_MD_ARROW_DROP_DOWN);
 
     ImGui::SameLine();
     bool is_streaming = state.is_streaming.load();
@@ -96,7 +150,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         wc.lpszClassName, 
         L"LG HT306 Audio Bridge — RP2350-Zero Direct-I2S (96kHz Lossless)", 
         WS_OVERLAPPEDWINDOW, 
-        60, 60, 1260, 820, 
+        50, 50, 1280, 840, 
         nullptr, nullptr, wc.hInstance, nullptr
     );
 
@@ -115,6 +169,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.IniFilename = nullptr; // Stateless portable UI
+
+    // Load Stitch Google Fonts & Material Icons
+    LoadApplicationFonts(io);
 
     ht306::ui::Theme::Apply();
 
@@ -177,7 +234,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         RenderTopHeader(app_state, io.DisplaySize.x);
 
         // 2. Left Sidebar Navigation
-        float sidebar_w = 200.0f;
+        float sidebar_w = 210.0f;
         ht306::ui::Sidebar::Render(app_state, sidebar_w);
 
         ImGui::SameLine();
@@ -194,7 +251,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 break;
             case ht306::NavTab::MIXER: {
                 ht306::ui::Theme::BeginCard("MixerCard");
-                ImGui::TextColored(ht306::ui::Color::PrimaryContainer, "[=]");
+                ImGui::TextColored(ht306::ui::Color::PrimaryContainer, "%s", ICON_MD_TUNE);
                 ImGui::SameLine();
                 ImGui::TextColored(ht306::ui::Color::TextPrimary, "6-CHANNEL HARDWARE MIXER & GAIN TRIMS");
                 ImGui::Separator();
@@ -217,7 +274,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             }
             case ht306::NavTab::ROUTING: {
                 ht306::ui::Theme::BeginCard("RoutingCard");
-                ImGui::TextColored(ht306::ui::Color::PrimaryContainer, "[X]");
+                ImGui::TextColored(ht306::ui::Color::PrimaryContainer, "%s", ICON_MD_ALT_ROUTE);
                 ImGui::SameLine();
                 ImGui::TextColored(ht306::ui::Color::TextPrimary, "6x6 CHANNEL MAPPING MATRIX");
                 ImGui::Separator();
@@ -257,7 +314,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             case ht306::NavTab::LOG:
             case ht306::NavTab::SETTINGS: {
                 ht306::ui::Theme::BeginCard("SettingsCard");
-                ImGui::TextColored(ht306::ui::Color::PrimaryContainer, "[*]");
+                ImGui::TextColored(ht306::ui::Color::PrimaryContainer, "%s", ICON_MD_SETTINGS);
                 ImGui::SameLine();
                 ImGui::TextColored(ht306::ui::Color::TextPrimary, "PREFERENCES & AUDIO DEVICE SINK");
                 ImGui::Separator();
