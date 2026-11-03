@@ -407,6 +407,13 @@ void HandleNativeCommand(const std::string& raw_json_str) {
             }
         }
     }
+    else if (action == "app_ready") {
+        // Instant post-boot trim after Blink DOM and layout finish rendering (~800ms)
+        std::thread([]() {
+            std::this_thread::sleep_for(std::chrono::milliseconds(800));
+            TrimWorkingSetTree();
+        }).detach();
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -421,6 +428,13 @@ void TelemetryLoop() {
         if (!g_Running.load() || !g_pWebview) continue;
 
         counter++;
+        // Staged cold-start trimming:
+        // counter == 5  (~1.25s): crushes initial DOM & Blink bootstrap spike
+        // counter == 12 (~3.00s): crushes Google Fonts & DirectWrite glyph decode cache
+        // counter == 20 (~5.00s): crushes CSS rasterization & network service buffers
+        if (counter == 5 || counter == 12 || counter == 20) {
+            TrimWorkingSetTree();
+        }
         // Periodic active working set trimming every ~10s when idle
         if (!g_State.is_streaming.load() && counter % 40 == 0) {
             TrimWorkingSetTree();
@@ -534,7 +548,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         SetEnvironmentVariableA("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
             "--disable-gpu "
             "--disable-gpu-compositing "
-            "--disk-cache-size=1 --media-cache-size=1 --js-flags=\"--max-old-space-size=16 --optimize_for_size --lite-mode\" "
+            "--disk-cache-size=1 --media-cache-size=1 --js-flags=\"--expose-gc --max-old-space-size=16 --optimize_for_size --lite-mode\" "
             "--renderer-process-limit=1 "
             "--disable-background-networking "
             "--disable-component-update "
