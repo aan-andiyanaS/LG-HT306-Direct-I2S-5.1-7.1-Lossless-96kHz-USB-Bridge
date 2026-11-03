@@ -111,3 +111,20 @@ aw_st = transport.state; st = raw_st() if callable(raw_st) else raw_st).
     4. Menyesuaikan assertion di 	est_hw_stream.py.
     5. Verifikasi: 64/64 unit tests lulus 100%, user mengonfirmasi aplikasi berjalan normal ('oke, bisa') dan status di UI terhubung/aktif secara lancar.
   - Files: pc_streamer/ht306bridge/transport.py, pc_streamer/ht306bridge/ui_server.py, pc_streamer/ht306bridge/cli.py, pc_streamer/tests_hw/test_hw_stream.py
+
+- [x] **Slice 15: Pembangunan Native C/C++ Dear ImGui Desktop App (\pc_stream_app\) Identik dengan Stitch Design System**
+  - Acceptance:
+    1. Menyiapkan toolchain MinGW-w64 GCC 16.2.0 portabel (\w64devkit\) dan library Dear ImGui v1.91.8.
+    2. Mengimplementasikan antarmuka Dear ImGui DirectX 11 native murni yang sama persis dengan Stitch Design System:
+       - Sidebar kiri 200px (7 tab: Dashboard, Mixer, Routing, Profiles, Test, Log, Settings).
+       - Header bar (Status pill, Profile selector, Quick stream toggle).
+       - Hardware Status Card (Uptime, Heartbeat, PIO I2S, GP8 MUX, DSP Sync Lock).
+       - Stream & Format Engine (4 parameter boxes 96kHz, 32-bit, 5.1, Delta-Rice + Capture Device bar).
+       - Link Budget & Buffer (Gradient bar 68% safe envelope + 4 micro telemetry tiles).
+       - 6-Channel Live VU Meters (Strips horizontal FL, FR, C, LFE, SL, SR dengan skala dBFS, peak hold line, dan gradien warna halus).
+       - 5.1 Acoustic Sweep Speaker Test (Diagram ruangan surround dengan animasi pulse ring pada speaker aktif).
+       - Halaman Mixer (6 fader gain trim) & Routing (Matrix 6x6).
+    3. Mengintegrasikan WinUSB Bulk transport (EP 0x03 OUT) dan WASAPI Loopback capture engine.
+    4. Mengunduh dan menyiapkan paket driver virtual audio resmi (VB-Audio Virtual Cable) di \pc_stream_app/tools/vbcable\ agar dapat memunculkan endpoint audio di taskbar Windows.
+    5. Sukses kompilasi biner mandiri \pc_stream_app/build/ht306_stream_app.exe\ (2.22 MB, zero runtime dependencies, ultra-ringan ~10-12 MB RAM).
+  - Files: \pc_stream_app/CMakeLists.txt\, \pc_stream_app/src/\ (main.cpp, ui_theme.h/cpp, ui_sidebar.h/cpp, ui_dashboard.h/cpp, ui_sweep_test.h/cpp, usb_transport.h/cpp, audio_capture.h/cpp, audio_endpoint_helper.h/cpp, app_state.h)
