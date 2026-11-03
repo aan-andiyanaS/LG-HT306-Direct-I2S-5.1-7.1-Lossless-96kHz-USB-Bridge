@@ -24,10 +24,16 @@ set(IMGUI_SOURCES
 
 set(APP_SOURCES
     src/main.cpp
+    src/app_state.cpp
     src/ui_theme.cpp
     src/ui_sidebar.cpp
     src/ui_dashboard.cpp
+    src/ui_mixer.cpp
+    src/ui_routing.cpp
+    src/ui_profiles.cpp
     src/ui_sweep_test.cpp
+    src/ui_log.cpp
+    src/ui_settings.cpp
     src/usb_transport.cpp
     src/audio_capture.cpp
     src/audio_endpoint_helper.cpp

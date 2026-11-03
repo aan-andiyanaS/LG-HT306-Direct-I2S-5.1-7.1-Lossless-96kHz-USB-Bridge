@@ -17,13 +17,13 @@ void Dashboard::Render(AppState& state) {
     float left_w = total_w * 0.58f;
     float right_w = total_w - left_w - ImGui::GetStyle().ItemSpacing.x;
 
-    ImGui::BeginChild("MidLeft", ImVec2(left_w, 310.0f), false);
+    ImGui::BeginChild("MidLeft", ImVec2(left_w, 315.0f), false);
     RenderTelemetryCard(state);
     ImGui::EndChild();
 
     ImGui::SameLine();
 
-    ImGui::BeginChild("MidRight", ImVec2(right_w, 310.0f), false);
+    ImGui::BeginChild("MidRight", ImVec2(right_w, 315.0f), false);
     RenderControlsCard(state);
     ImGui::EndChild();
 
@@ -47,13 +47,15 @@ void Dashboard::RenderHardwareCard(AppState& state) {
     ImVec2 cp = ImGui::GetCursorScreenPos();
     dl->AddCircleFilled(ImVec2(cp.x + 8.0f, cp.y + 9.0f), 4.5f, Color::ToU32(Color::StatusOk));
     ImGui::SetCursorPosX(22.0f);
-    ImGui::TextColored(Color::StatusOk, "CONNECTED");
+    ImGui::TextColored(Color::StatusOk, "● CONNECTED");
     ImGui::EndChild();
     ImGui::PopStyleVar(2);
     ImGui::PopStyleColor();
 
     ImGui::SameLine();
-    ImGui::TextColored(Color::TextSecondary, "HARDWARE LINK /");
+    ImGui::TextColored(Color::TextSecondary, "HARDWARE LINK");
+    ImGui::SameLine();
+    ImGui::TextColored(Color::IconGray, "/");
     ImGui::SameLine();
     ImGui::TextColored(Color::TextPrimary, "RP2350-Zero");
     ImGui::SameLine();
@@ -61,12 +63,12 @@ void Dashboard::RenderHardwareCard(AppState& state) {
 
     // Right-aligned badges
     float avail_r = ImGui::GetContentRegionAvail().x;
-    ImGui::SameLine(avail_r - 350.0f);
+    ImGui::SameLine(avail_r - 380.0f);
     ImGui::TextColored(Color::Tertiary, "%s %s", ICON_MD_CABLE, state.hw_info.com_port.c_str());
     ImGui::SameLine();
     ImGui::TextColored(Color::StatusInfo, "%s EP 0x03 OUT", ICON_MD_USB);
     ImGui::SameLine();
-    ImGui::TextColored(Color::TextSecondary, "0x%04X : 0x%04X", state.hw_info.vid, state.hw_info.pid);
+    ImGui::TextColored(Color::TextSecondary, "VID/PID: 0x%04X : 0x%04X", state.hw_info.vid, state.hw_info.pid);
 
     ImGui::Spacing();
     ImGui::Separator();
@@ -88,14 +90,14 @@ void Dashboard::RenderHardwareCard(AppState& state) {
 }
 
 void Dashboard::RenderTelemetryCard(AppState& state) {
-    Theme::BeginCard("StreamEngineCard", ImVec2(0, 310.0f));
+    Theme::BeginCard("StreamEngineCard", ImVec2(0, 315.0f));
 
     ImGui::TextColored(Color::PrimaryContainer, "%s", ICON_MD_TUNE);
     ImGui::SameLine();
     ImGui::TextColored(Color::TextPrimary, "STREAM & FORMAT ENGINE");
 
     // Mode Selector Pills
-    ImGui::SameLine(ImGui::GetContentRegionAvail().x - 220.0f);
+    ImGui::SameLine(ImGui::GetContentRegionAvail().x - 240.0f);
     const char* modes[] = { "Auto: Windows", "Best", "Adaptive", "Manual" };
     for (int i = 0; i < 4; ++i) {
         bool is_sel = (state.settings.format_mode == i);
@@ -150,8 +152,8 @@ void Dashboard::RenderTelemetryCard(AppState& state) {
     } else {
         ImGui::TextColored(Color::TextPrimary, "WASAPI Loopback (Default Output Device)");
     }
-    ImGui::SameLine(ImGui::GetContentRegionAvail().x - 110.0f);
-    ImGui::TextColored(Color::StatusOk, "[SHARED 0dBFS]");
+    ImGui::SameLine(ImGui::GetContentRegionAvail().x - 120.0f);
+    ImGui::TextColored(Color::StatusOk, "SHARED 0dBFS");
     ImGui::EndChild();
     ImGui::PopStyleVar();
     ImGui::PopStyleColor();
@@ -160,7 +162,7 @@ void Dashboard::RenderTelemetryCard(AppState& state) {
 }
 
 void Dashboard::RenderControlsCard(AppState& state) {
-    Theme::BeginCard("LinkBudgetCard", ImVec2(0, 310.0f));
+    Theme::BeginCard("LinkBudgetCard", ImVec2(0, 315.0f));
 
     ImGui::TextColored(Color::StatusInfo, "%s", ICON_MD_EQUALIZER);
     ImGui::SameLine();
@@ -174,7 +176,7 @@ void Dashboard::RenderControlsCard(AppState& state) {
 
     // Link Usage Envelope Progress Bar
     ImGui::TextColored(Color::TextSecondary, "USB Full-Speed Iso/Bulk Safe Envelope");
-    ImGui::SameLine(ImGui::GetContentRegionAvail().x - 80.0f);
+    ImGui::SameLine(ImGui::GetContentRegionAvail().x - 90.0f);
     ImGui::TextColored(Color::TextPrimary, "%d%% Utilized", state.telemetry.link_usage_pct);
 
     ImDrawList* dl = ImGui::GetWindowDrawList();
@@ -218,8 +220,8 @@ void Dashboard::RenderVuMetersCard(AppState& state) {
     ImGui::SameLine();
     ImGui::TextColored(Color::TextSecondary, "| True-Peak DBFS Telemetry with Instantaneous Hold Markers");
 
-    ImGui::SameLine(ImGui::GetContentRegionAvail().x - 220.0f);
-    ImGui::TextColored(Color::StatusOk, "[● CLIP: NONE]");
+    ImGui::SameLine(ImGui::GetContentRegionAvail().x - 240.0f);
+    ImGui::TextColored(Color::StatusOk, "● CLIP: NONE (Clean Headroom)");
     ImGui::SameLine();
     char reset_lbl[32];
     std::snprintf(reset_lbl, sizeof(reset_lbl), "%s Reset Peaks", ICON_MD_REFRESH);
@@ -237,14 +239,14 @@ void Dashboard::RenderVuMetersCard(AppState& state) {
 
     ImDrawList* dl = ImGui::GetWindowDrawList();
     ImVec2 tick_pos = ImGui::GetCursorScreenPos();
-    const char* ticks[] = { "-60", "-48", "-36", "-24", "-18", "-12", "-6", "-3", "0 dBFS" };
+    const char* ticks[] = { "-60 dB", "-48", "-36", "-24", "-18", "-12", "-6", "-3", "0 dBFS" };
     float tick_dbs[] =    { -60.0f, -48.0f, -36.0f, -24.0f, -18.0f, -12.0f, -6.0f, -3.0f, 0.0f };
 
     for (int t = 0; t < 9; ++t) {
         float norm = (tick_dbs[t] + 60.0f) / 60.0f;
         float tx = tick_pos.x + (meter_track_w * norm);
-        ImU32 col = (t >= 7) ? Color::ToU32(Color::StatusError) : (t >= 6) ? Color::ToU32(Color::StatusWarn) : Color::ToU32(Color::IconGray);
-        dl->AddText(ImVec2(tx - 10.0f, tick_pos.y), col, ticks[t]);
+        ImU32 col = (t >= 8) ? Color::ToU32(Color::StatusError) : (t >= 6) ? Color::ToU32(Color::StatusWarn) : Color::ToU32(Color::IconGray);
+        dl->AddText(ImVec2(tx - 12.0f, tick_pos.y), col, ticks[t]);
     }
     ImGui::Dummy(ImVec2(0, 16.0f));
 
@@ -257,9 +259,9 @@ void Dashboard::RenderVuMetersCard(AppState& state) {
         { "FL",  "Front L" },
         { "FR",  "Front R" },
         { "C",   "Center" },
-        { "LFE", "Subwoofer" },
-        { "SL",  "Surround L" },
-        { "SR",  "Surround R" }
+        { "LFE", "Sub 120Hz" },
+        { "SL",  "Surr L" },
+        { "SR",  "Surr R" }
     };
 
     for (int i = 0; i < 6; ++i) {
@@ -280,10 +282,20 @@ void Dashboard::RenderVuMetersCard(AppState& state) {
         ImGui::SameLine(160.0f);
         ImVec2 bar_p = ImGui::GetCursorScreenPos();
         float bar_w = ImGui::GetContentRegionAvail().x - 100.0f;
-        float bar_h = 16.0f;
+        float bar_h = 18.0f;
 
         // Background track
         dl->AddRectFilled(bar_p, ImVec2(bar_p.x + bar_w, bar_p.y + bar_h), Color::ToU32(Color::SurfaceDim), 3.0f);
+
+        // Ticks visual backdrop lines
+        for (int t = 0; t < 9; ++t) {
+            float norm = (tick_dbs[t] + 60.0f) / 60.0f;
+            float tx = bar_p.x + (bar_w * norm);
+            ImU32 tick_col = (t >= 8) ? Color::ToU32(Color::WithAlpha(Color::StatusError, 0.4f)) : 
+                             (t >= 6) ? Color::ToU32(Color::WithAlpha(Color::StatusWarn, 0.4f)) : 
+                             Color::ToU32(Color::WithAlpha(Color::TextPrimary, 0.15f));
+            dl->AddLine(ImVec2(tx, bar_p.y), ImVec2(tx, bar_p.y + bar_h), tick_col, 1.0f);
+        }
 
         // Active fill
         float db = state.meters[i].peak_db;
@@ -303,7 +315,9 @@ void Dashboard::RenderVuMetersCard(AppState& state) {
         float pk = state.meters[i].peak_hold_db;
         float pk_norm = (std::clamp)((pk + 60.0f) / 60.0f, 0.0f, 1.0f);
         float pk_x = bar_p.x + (bar_w * pk_norm);
-        dl->AddLine(ImVec2(pk_x, bar_p.y), ImVec2(pk_x, bar_p.y + bar_h), Color::ToU32(Color::TextPrimary), 2.0f);
+        ImU32 pk_col = (pk > -3.0f) ? Color::ToU32(Color::StatusError) : 
+                       (pk > -12.0f) ? Color::ToU32(Color::StatusWarn) : Color::ToU32(Color::StatusOk);
+        dl->AddLine(ImVec2(pk_x, bar_p.y), ImVec2(pk_x, bar_p.y + bar_h), pk_col, 2.0f);
 
         // Numeric Readout on right
         ImGui::SameLine(160.0f + bar_w + 12.0f);
@@ -321,48 +335,88 @@ void Dashboard::RenderVuMetersCard(AppState& state) {
         ImGui::Spacing();
     }
 
-    // Bottom Action Controls
+    // Bottom Action Controls (Exact match to Stitch code.html bottom action bar)
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
 
     bool is_streaming = state.is_streaming.load();
-    float btn_w = 170.0f;
-    float btn_h = 42.0f;
+    float btn_h = 38.0f;
+
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 999.0f);
 
     if (is_streaming) {
-        ImGui::PushStyleColor(ImGuiCol_Button, Color::StatusWarn);
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, Color::StatusOk);
-        if (ImGui::Button("[ ⏹ STOP STREAM ]", ImVec2(btn_w, btn_h))) {
+        ImGui::PushStyleColor(ImGuiCol_Button, Color::PrimaryContainer);
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, Color::LgRedHover);
+        char stop_lbl[64];
+        std::snprintf(stop_lbl, sizeof(stop_lbl), "%s  Stop Stream", ICON_MD_STOP_CIRCLE);
+        if (ImGui::Button(stop_lbl, ImVec2(160.0f, btn_h))) {
             state.is_streaming.store(false);
         }
         ImGui::PopStyleColor(2);
+
+        ImGui::SameLine();
+        ImGui::TextColored(Color::StatusOk, "● Active Transmission");
     } else {
-        ImGui::PushStyleColor(ImGuiCol_Button, Color::PrimaryContainer);
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, Color::LgRedHover);
-        if (ImGui::Button("[ ▶ START STREAM ]", ImVec2(btn_w, btn_h))) {
+        ImGui::PushStyleColor(ImGuiCol_Button, Color::StatusOk);
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, Color::Tertiary);
+        char start_lbl[64];
+        std::snprintf(start_lbl, sizeof(start_lbl), "%s  Start Stream", ICON_MD_PLAY_CIRCLE);
+        if (ImGui::Button(start_lbl, ImVec2(160.0f, btn_h))) {
             state.is_streaming.store(true);
         }
         ImGui::PopStyleColor(2);
+
+        ImGui::SameLine();
+        ImGui::TextColored(Color::TextSecondary, "○ Stream Idle");
     }
 
-    ImGui::SameLine();
-    if (ImGui::Button("[ 🔊 5.1 SWEEP TEST ]", ImVec2(btn_w, btn_h))) {
-        state.sweep_running.store(true);
+    ImGui::SameLine(ImGui::GetContentRegionAvail().x - 390.0f);
+
+    // Quick Pill 1: 5.1 Speaker Sweep
+    char swp_lbl[64];
+    std::snprintf(swp_lbl, sizeof(swp_lbl), "%s 5.1 Speaker Sweep", ICON_MD_VOLUME_UP);
+    if (ImGui::Button(swp_lbl, ImVec2(180.0f, btn_h))) {
+        state.current_tab.store(NavTab::TEST);
     }
 
+    // Quick Pill 2: Mute Master
     ImGui::SameLine();
+    char mute_lbl[64];
     if (state.settings.mute_master) {
         ImGui::PushStyleColor(ImGuiCol_Button, Color::StatusError);
-        if (ImGui::Button("[ 🔇 MUTED ]", ImVec2(btn_w, btn_h))) {
+        std::snprintf(mute_lbl, sizeof(mute_lbl), "%s Muted", ICON_MD_VOLUME_OFF);
+        if (ImGui::Button(mute_lbl, ImVec2(100.0f, btn_h))) {
             state.settings.mute_master = false;
         }
         ImGui::PopStyleColor();
     } else {
-        if (ImGui::Button("[ 🔊 MUTE ]", ImVec2(btn_w, btn_h))) {
+        std::snprintf(mute_lbl, sizeof(mute_lbl), "%s Mute", ICON_MD_VOLUME_OFF);
+        if (ImGui::Button(mute_lbl, ImVec2(100.0f, btn_h))) {
             state.settings.mute_master = true;
         }
     }
+
+    // Quick Pill 3: Settings
+    ImGui::SameLine();
+    char set_lbl[64];
+    std::snprintf(set_lbl, sizeof(set_lbl), "%s", ICON_MD_SETTINGS);
+    if (ImGui::Button(set_lbl, ImVec2(40.0f, btn_h))) {
+        state.current_tab.store(NavTab::SETTINGS);
+    }
+
+    ImGui::PopStyleVar();
+
+    // Hardware Synchronized Footer Subtext
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    ImGui::TextColored(Color::Tertiary, "%s", ICON_MD_VERIFIED);
+    ImGui::SameLine();
+    ImGui::TextColored(Color::IconGray, "Bit-Perfect stream synchronized to IC602 Pulsus PS9850 ASRC. Zero resample artifacts.");
+    ImGui::SameLine(ImGui::GetContentRegionAvail().x - 320.0f);
+    ImGui::TextColored(Color::IconGray, "FIFO DEPTH: 1024 BYTES │ LATENCY OFFSET: 0.00ms");
 
     Theme::EndCard();
 }

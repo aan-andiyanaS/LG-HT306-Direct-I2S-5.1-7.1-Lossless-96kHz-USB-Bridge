@@ -6,6 +6,7 @@ namespace ht306::ui {
 
 class SweepTest {
 public:
+    static void RenderPage(AppState& state);
     static void RenderModal(AppState& state);
 };
 

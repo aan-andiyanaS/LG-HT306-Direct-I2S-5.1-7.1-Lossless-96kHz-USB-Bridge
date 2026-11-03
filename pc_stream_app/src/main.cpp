@@ -16,7 +16,12 @@
 #include "ui_icons.h"
 #include "ui_sidebar.h"
 #include "ui_dashboard.h"
+#include "ui_mixer.h"
+#include "ui_routing.h"
+#include "ui_profiles.h"
 #include "ui_sweep_test.h"
+#include "ui_log.h"
+#include "ui_settings.h"
 #include "usb_transport.h"
 #include "audio_capture.h"
 #include "audio_endpoint_helper.h"
@@ -106,9 +111,9 @@ static void LoadApplicationFonts(ImGuiIO& io, float scale) {
 static void RenderTopHeader(ht306::AppState& state, float width, float scale) {
     ImGui::PushStyleColor(ImGuiCol_ChildBg, ht306::ui::Color::SurfaceContainerLowest);
     ImGui::PushStyleColor(ImGuiCol_Border, ht306::ui::Color::Border);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16.0f * scale, 8.0f * scale));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16.0f * scale, 6.0f * scale));
 
-    float header_h = 44.0f * scale;
+    float header_h = 42.0f * scale;
     ImGui::BeginChild("TopHeader", ImVec2(width, header_h), true, ImGuiWindowFlags_AlwaysUseWindowPadding);
 
     // Left Title + Logo
@@ -122,37 +127,65 @@ static void RenderTopHeader(ht306::AppState& state, float width, float scale) {
 
     // Right Controls
     float r_avail = ImGui::GetContentRegionAvail().x;
-    float right_block_w = 460.0f * scale;
+    float right_block_w = 480.0f * scale;
     ImGui::SameLine(r_avail - right_block_w);
 
-    // Status Pill
+    // Status Pill (Rounded full style matching HTML)
     bool connected = (state.state.load() != ht306::ConnectionState::DISCONNECTED);
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, ht306::ui::Color::Surface2);
+    ImGui::PushStyleColor(ImGuiCol_Border, ht306::ui::Color::Border);
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 999.0f);
+    ImGui::BeginChild("HeadConnPill", ImVec2(120.0f * scale, 24.0f * scale), true);
+    ImGui::SetCursorPos(ImVec2(8.0f * scale, 3.0f * scale));
     if (connected) {
-        ImGui::TextColored(ht306::ui::Color::StatusOk, "● CONNECTED");
+        ImGui::TextColored(ht306::ui::Color::StatusOk, "● Connected");
     } else {
-        ImGui::TextColored(ht306::ui::Color::StatusError, "● DISCONNECTED");
+        ImGui::TextColored(ht306::ui::Color::StatusError, "● Disconnected");
     }
+    ImGui::EndChild();
+    ImGui::PopStyleVar();
+    ImGui::PopStyleColor(2);
 
+    // Profile Pill (Clickable)
     ImGui::SameLine();
-    ImGui::TextColored(ht306::ui::Color::IconGray, "|");
-    ImGui::SameLine();
-    ImGui::TextColored(ht306::ui::Color::TextSecondary, "Profile: %s %s", state.settings.active_profile.c_str(), ICON_MD_ARROW_DROP_DOWN);
+    ImGui::PushStyleColor(ImGuiCol_Button, ht306::ui::Color::Surface2);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ht306::ui::Color::SurfaceVariant);
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 999.0f);
+    char prof_btn[64];
+    std::snprintf(prof_btn, sizeof(prof_btn), "Profile: %s %s", state.settings.active_profile.c_str(), ICON_MD_ARROW_DROP_DOWN);
+    if (ImGui::Button(prof_btn, ImVec2(130.0f * scale, 24.0f * scale))) {
+        state.current_tab.store(ht306::NavTab::PROFILES);
+    }
+    ImGui::PopStyleVar();
+    ImGui::PopStyleColor(2);
 
+    // Person Avatar Icon Circle
+    ImGui::SameLine();
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    ImVec2 p_pos = ImGui::GetCursorScreenPos();
+    float av_r = 12.0f * scale;
+    dl->AddCircleFilled(ImVec2(p_pos.x + av_r, p_pos.y + av_r), av_r, ht306::ui::Color::ToU32(ht306::ui::Color::PrimaryContainer));
+    dl->AddText(ImVec2(p_pos.x + 5.0f * scale, p_pos.y + 3.0f * scale), ht306::ui::Color::ToU32(ht306::ui::Color::TextPrimary), ICON_MD_PERSON);
+    ImGui::Dummy(ImVec2(av_r * 2.0f, av_r * 2.0f));
+
+    // Stream Toggle Button
     ImGui::SameLine();
     bool is_streaming = state.is_streaming.load();
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 999.0f);
     if (is_streaming) {
         ImGui::PushStyleColor(ImGuiCol_Button, ht306::ui::Color::StatusWarn);
-        if (ImGui::Button("⏹ STOP STREAM", ImVec2(125.0f * scale, 26.0f * scale))) {
+        if (ImGui::Button("⏹ STOP STREAM", ImVec2(125.0f * scale, 24.0f * scale))) {
             state.is_streaming.store(false);
         }
         ImGui::PopStyleColor();
     } else {
         ImGui::PushStyleColor(ImGuiCol_Button, ht306::ui::Color::PrimaryContainer);
-        if (ImGui::Button("▶ START STREAM", ImVec2(125.0f * scale, 26.0f * scale))) {
+        if (ImGui::Button("▶ START STREAM", ImVec2(125.0f * scale, 24.0f * scale))) {
             state.is_streaming.store(true);
         }
         ImGui::PopStyleColor();
     }
+    ImGui::PopStyleVar();
 
     ImGui::EndChild();
     ImGui::PopStyleVar();
@@ -299,87 +332,24 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             case ht306::NavTab::DASHBOARD:
                 ht306::ui::Dashboard::Render(app_state);
                 break;
-            case ht306::NavTab::MIXER: {
-                ht306::ui::Theme::BeginCard("MixerCard");
-                ImGui::TextColored(ht306::ui::Color::PrimaryContainer, "%s", ICON_MD_TUNE);
-                ImGui::SameLine();
-                ImGui::TextColored(ht306::ui::Color::TextPrimary, "6-CHANNEL HARDWARE MIXER & GAIN TRIMS");
-                ImGui::Separator();
-                ImGui::Spacing();
-                const char* ch_names[6] = { "FL (Front L)", "FR (Front R)", "C (Center)", "LFE (Subwoofer)", "SL (Surround L)", "SR (Surround R)" };
-                for (int c = 0; c < 6; ++c) {
-                    char slider_id[32];
-                    std::snprintf(slider_id, sizeof(slider_id), "##trim_%d", c);
-                    ImGui::TextColored(ht306::ui::Color::TextPrimary, "%s", ch_names[c]);
-                    ImGui::SameLine(180.0f * g_DpiScale);
-                    ImGui::SetNextItemWidth(300.0f * g_DpiScale);
-                    ImGui::SliderFloat(slider_id, &app_state.settings.trims[c], -12.0f, +12.0f, "%.1f dB");
-                    ImGui::SameLine();
-                    char mute_id[32];
-                    std::snprintf(mute_id, sizeof(mute_id), "MUTE##m_%d", c);
-                    ImGui::Checkbox(mute_id, &app_state.settings.mutes[c]);
-                }
-                ht306::ui::Theme::EndCard();
+            case ht306::NavTab::MIXER:
+                ht306::ui::Mixer::Render(app_state);
                 break;
-            }
-            case ht306::NavTab::ROUTING: {
-                ht306::ui::Theme::BeginCard("RoutingCard");
-                ImGui::TextColored(ht306::ui::Color::PrimaryContainer, "%s", ICON_MD_ALT_ROUTE);
-                ImGui::SameLine();
-                ImGui::TextColored(ht306::ui::Color::TextPrimary, "6x6 CHANNEL MAPPING MATRIX");
-                ImGui::Separator();
-                ImGui::Spacing();
-                ImGui::TextColored(ht306::ui::Color::TextSecondary, "Konfigurasi rute input software ke output fisik I2S PS9850:");
-                ImGui::Spacing();
-                const char* spk_lbls[6] = { "FL", "FR", "C", "LFE", "SL", "SR" };
-                for (int out = 0; out < 6; ++out) {
-                    ImGui::TextColored(ht306::ui::Color::TextPrimary, "Output %s ->", spk_lbls[out]);
-                    ImGui::SameLine(120.0f * g_DpiScale);
-                    for (int in = 0; in < 6; ++in) {
-                        bool sel = (app_state.settings.routing_map[out] == in);
-                        char r_id[32];
-                        std::snprintf(r_id, sizeof(r_id), "%s##r_%d_%d", spk_lbls[in], out, in);
-                        if (sel) ImGui::PushStyleColor(ImGuiCol_Button, ht306::ui::Color::StatusOk);
-                        else ImGui::PushStyleColor(ImGuiCol_Button, ht306::ui::Color::Surface2);
-                        if (ImGui::Button(r_id, ImVec2(50.0f * g_DpiScale, 28.0f * g_DpiScale))) {
-                            app_state.settings.routing_map[out] = in;
-                        }
-                        ImGui::PopStyleColor();
-                        if (in < 5) ImGui::SameLine();
-                    }
-                }
-                ImGui::Spacing();
-                if (ImGui::Button("Reset to Default 1:1 Mapping")) {
-                    for (int i = 0; i < 6; ++i) app_state.settings.routing_map[i] = i;
-                }
-                ht306::ui::Theme::EndCard();
+            case ht306::NavTab::ROUTING:
+                ht306::ui::Routing::Render(app_state);
                 break;
-            }
-            case ht306::NavTab::TEST: {
-                app_state.sweep_running.store(true);
-                ht306::ui::Dashboard::Render(app_state);
-                break;
-            }
             case ht306::NavTab::PROFILES:
-            case ht306::NavTab::LOG:
-            case ht306::NavTab::SETTINGS: {
-                ht306::ui::Theme::BeginCard("SettingsCard");
-                ImGui::TextColored(ht306::ui::Color::PrimaryContainer, "%s", ICON_MD_SETTINGS);
-                ImGui::SameLine();
-                ImGui::TextColored(ht306::ui::Color::TextPrimary, "PREFERENCES & AUDIO DEVICE SINK");
-                ImGui::Separator();
-                ImGui::Spacing();
-                ImGui::Checkbox("Auto-reconnect on USB unplug", &app_state.settings.auto_reconnect);
-                ImGui::Checkbox("Bit-Perfect Mode (Bypass limiter and volume)", &app_state.settings.bit_perfect_mode);
-                ImGui::Spacing();
-                ImGui::TextColored(ht306::ui::Color::TextSecondary, "Virtual Audio Device Status:");
-                ImGui::TextColored(ht306::ui::Color::StatusOk, "Driver package available in tools/vbcable");
-                if (ImGui::Button("Buka Folder Driver Virtual Cable", ImVec2(240.0f * g_DpiScale, 36.0f * g_DpiScale))) {
-                    ShellExecuteA(NULL, "open", "pc_stream_app\\tools\\vbcable", NULL, NULL, SW_SHOWNORMAL);
-                }
-                ht306::ui::Theme::EndCard();
+                ht306::ui::Profiles::Render(app_state);
                 break;
-            }
+            case ht306::NavTab::TEST:
+                ht306::ui::SweepTest::RenderPage(app_state);
+                break;
+            case ht306::NavTab::LOG:
+                ht306::ui::Log::Render(app_state);
+                break;
+            case ht306::NavTab::SETTINGS:
+                ht306::ui::Settings::Render(app_state);
+                break;
         }
 
         ImGui::EndChild();

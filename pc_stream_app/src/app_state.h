@@ -26,6 +26,13 @@ enum class NavTab {
     SETTINGS
 };
 
+enum class RoutingPreset {
+    DISCRETE_1TO1 = 0,
+    STEREO_UPMIX,
+    DOWNMIX_71,
+    DUAL_MONO
+};
+
 struct AudioEndpointInfo {
     std::wstring id;
     std::string name;
@@ -73,19 +80,65 @@ struct AppSettings {
     bool auto_reconnect = true;
     bool bit_perfect_mode = false;
     bool mute_master = false;
-    float master_volume = 1.0f;
+    float master_volume_db = 0.0f;      // -60.0 dB to +6.0 dB
     int buffer_batch_frames = 8;
-    int target_device_index = 0; // 0 = Default / Virtual Cable
-    int format_mode = 0;         // 0: Auto Windows, 1: Best, 2: Adaptive, 3: Manual
+    int target_device_index = 0;        // 0 = Default / Virtual Cable
+    int format_mode = 0;                // 0: Auto Windows, 1: Best, 2: Adaptive, 3: Manual
     std::string active_profile = "Movie";
 
+    // Operating mode & Limiter
+    bool desktop_os_linked = true;
+    bool limiter_enabled = true;
+    int lip_sync_delay_ms = 24;         // 0 to 200 ms
+
     // Channel trims (-12dB to +12dB)
-    float trims[6] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
+    float trims[6] = { 0.0f, 0.0f, +1.5f, -2.0f, 0.0f, 0.0f };
     bool mutes[6] = { false, false, false, false, false, false };
     bool solos[6] = { false, false, false, false, false, false };
+    bool phase_inverts[6] = { false, false, false, false, false, false };
 
     // 6x6 routing matrix (output_ch -> input_ch, default identity 0->0, 1->1, ...)
     int routing_map[6] = { 0, 1, 2, 3, 4, 5 };
+    RoutingPreset routing_preset = RoutingPreset::DISCRETE_1TO1;
+    float downmix_attenuation_db = -3.0f;
+
+    // Buffer latency profile (0: Auto, 1: Low Latency 3.8ms, 2: Safe Mode 10ms)
+    int buffer_profile = 0;
+    int resampling_quality = 0; // 0: Bit-Perfect, 1: Sinc, 2: Linear
+    bool follow_default_device = true;
+};
+
+enum class LogLevel {
+    LOG_DEBUG = 0,
+    LOG_INFO,
+    LOG_WARN,
+    LOG_ERROR
+};
+
+struct LogEntry {
+    std::string timestamp;
+    LogLevel level;
+    std::string subsystem;
+    std::string message;
+};
+
+struct ProfileItem {
+    std::string id;
+    std::string name;
+    std::string description;
+    std::string mode;
+    std::string upmix;
+    int lipsync_ms;
+    float center_clarity_db;
+    int sub_lpf_hz;
+    bool is_active;
+};
+
+struct AppRuleItem {
+    std::string app_name;
+    std::string process_name;
+    std::string target_profile;
+    bool enabled;
 };
 
 struct AppState {
@@ -102,12 +155,24 @@ struct AppState {
     std::vector<AudioEndpointInfo> available_devices;
     int active_device_index = 0;
 
-    // Sweep test state
+    // 5.1 Acoustic Sweep test state
     std::atomic<int> sweep_active_channel{-1}; // -1 = idle, 0..5 = FL, C, FR, SR, SL, LFE
     std::atomic<bool> sweep_running{false};
+    int test_signal_type = 0;                  // 0: Chirp Sweep, 1: Pink Noise, 2: Sine 1kHz, 3: Dual-Tone, 4: Polarity Pulse
+    float test_level_dbfs = -20.0f;
+
+    // Profiles & Rules
+    std::vector<ProfileItem> profiles;
+    std::vector<AppRuleItem> app_rules;
 
     // Diagnostics / Log
-    std::vector<std::string> log_lines;
+    std::vector<LogEntry> logs;
+    int log_filter_level = 0; // 0: ALL, 1: DEBUG, 2: INFO, 3: WARN, 4: ERROR
+    char log_search[64] = { 0 };
+    bool log_autoscroll = true;
+
+    AppState();
+    void AddLog(LogLevel level, const std::string& subsystem, const std::string& msg);
 };
 
 } // namespace ht306
