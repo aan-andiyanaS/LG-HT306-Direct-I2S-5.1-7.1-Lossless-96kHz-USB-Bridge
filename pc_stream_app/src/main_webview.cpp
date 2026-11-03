@@ -24,6 +24,8 @@
 #include <sstream>
 #include <iomanip>
 #include <algorithm>
+#include <tlhelp32.h>
+#include <psapi.h>
 
 namespace ht306 {
     using AudioCapture = audio::AudioCapture;
@@ -39,6 +41,47 @@ ht306::AudioCapture g_AudioCapture(g_State, g_UsbTransport);
 std::atomic<bool> g_Running{true};
 webview::webview* g_pWebview = nullptr;
 ICoreWebView2* g_pCoreWebView2 = nullptr;
+
+
+// ----------------------------------------------------------------------------
+// Aggressive Memory & Working Set Trimmer
+// ----------------------------------------------------------------------------
+void TrimWorkingSetTree() {
+    SetProcessWorkingSetSize(GetCurrentProcess(), (SIZE_T)-1, (SIZE_T)-1);
+    DWORD myPid = GetCurrentProcessId();
+    HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (hSnap != INVALID_HANDLE_VALUE) {
+        PROCESSENTRY32 pe;
+        pe.dwSize = sizeof(pe);
+        std::vector<DWORD> pids;
+        if (Process32First(hSnap, &pe)) {
+            do {
+                if (pe.th32ParentProcessID == myPid) {
+                    pids.push_back(pe.th32ProcessID);
+                }
+            } while (Process32Next(hSnap, &pe));
+        }
+        if (Process32First(hSnap, &pe)) {
+            do {
+                for (DWORD cp : pids) {
+                    if (pe.th32ParentProcessID == cp) {
+                        pids.push_back(pe.th32ProcessID);
+                        break;
+                    }
+                }
+            } while (Process32Next(hSnap, &pe));
+        }
+        CloseHandle(hSnap);
+
+        for (DWORD pid : pids) {
+            HANDLE hProc = OpenProcess(PROCESS_SET_QUOTA | PROCESS_QUERY_INFORMATION, FALSE, pid);
+            if (hProc) {
+                SetProcessWorkingSetSize(hProc, (SIZE_T)-1, (SIZE_T)-1);
+                CloseHandle(hProc);
+            }
+        }
+    }
+}
 
 // ----------------------------------------------------------------------------
 // Win32 Theming & Helper Functions
@@ -334,7 +377,7 @@ void HandleNativeCommand(const std::string& raw_json_str) {
     else if (action == "window_minimize") {
         if (g_pWebview) {
             HWND hwnd = (HWND)g_pWebview->get_native_handle(WEBVIEW_NATIVE_HANDLE_KIND_UI_WINDOW);
-            if (hwnd) ShowWindow(hwnd, SW_MINIMIZE);
+            if (hwnd) { ShowWindow(hwnd, SW_MINIMIZE); TrimWorkingSetTree(); }
         }
     }
     else if (action == "window_maximize") {
@@ -378,6 +421,10 @@ void TelemetryLoop() {
         if (!g_Running.load() || !g_pWebview) continue;
 
         counter++;
+        // Periodic active working set trimming every ~10s when idle
+        if (!g_State.is_streaming.load() && counter % 40 == 0) {
+            TrimWorkingSetTree();
+        }
         if (counter % 30 == 0) {
             g_State.hw_info.uptime_sec++;
         }
@@ -487,7 +534,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         SetEnvironmentVariableA("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
             "--disable-gpu "
             "--disable-gpu-compositing "
-            "--js-flags=\"--max-old-space-size=32 --lite-mode\" "
+            "--disk-cache-size=1 --media-cache-size=1 --js-flags=\"--max-old-space-size=16 --optimize_for_size --lite-mode\" "
             "--renderer-process-limit=1 "
             "--disable-background-networking "
             "--disable-component-update "
