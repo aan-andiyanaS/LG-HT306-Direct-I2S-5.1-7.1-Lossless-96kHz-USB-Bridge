@@ -38,6 +38,7 @@ ht306::UsbTransport g_UsbTransport(g_State);
 ht306::AudioCapture g_AudioCapture(g_State, g_UsbTransport);
 std::atomic<bool> g_Running{true};
 webview::webview* g_pWebview = nullptr;
+ICoreWebView2* g_pCoreWebView2 = nullptr;
 
 // ----------------------------------------------------------------------------
 // Win32 Theming & Helper Functions
@@ -330,6 +331,39 @@ void HandleNativeCommand(const std::string& raw_json_str) {
     else if (action == "clear_logs") {
         g_State.logs.clear();
     }
+    else if (action == "window_minimize") {
+        if (g_pWebview) {
+            HWND hwnd = (HWND)g_pWebview->get_native_handle(WEBVIEW_NATIVE_HANDLE_KIND_UI_WINDOW);
+            if (hwnd) ShowWindow(hwnd, SW_MINIMIZE);
+        }
+    }
+    else if (action == "window_maximize") {
+        if (g_pWebview) {
+            HWND hwnd = (HWND)g_pWebview->get_native_handle(WEBVIEW_NATIVE_HANDLE_KIND_UI_WINDOW);
+            if (hwnd) {
+                if (IsZoomed(hwnd)) {
+                    ShowWindow(hwnd, SW_RESTORE);
+                } else {
+                    ShowWindow(hwnd, SW_MAXIMIZE);
+                }
+            }
+        }
+    }
+    else if (action == "window_close") {
+        if (g_pWebview) {
+            HWND hwnd = (HWND)g_pWebview->get_native_handle(WEBVIEW_NATIVE_HANDLE_KIND_UI_WINDOW);
+            if (hwnd) PostMessage(hwnd, WM_CLOSE, 0, 0);
+        }
+    }
+    else if (action == "window_drag") {
+        if (g_pWebview) {
+            HWND hwnd = (HWND)g_pWebview->get_native_handle(WEBVIEW_NATIVE_HANDLE_KIND_UI_WINDOW);
+            if (hwnd) {
+                ReleaseCapture();
+                SendMessage(hwnd, WM_NCLBUTTONDOWN, HTCAPTION, 0);
+            }
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -338,11 +372,11 @@ void HandleNativeCommand(const std::string& raw_json_str) {
 void TelemetryLoop() {
     uint32_t counter = 0;
     while (g_Running.load()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(16));
+        std::this_thread::sleep_for(std::chrono::milliseconds(33)); // ~30 Hz smooth & low CPU
         if (!g_Running.load() || !g_pWebview) continue;
 
         counter++;
-        if (counter % 60 == 0) {
+        if (counter % 30 == 0) {
             g_State.hw_info.uptime_sec++;
         }
 
@@ -409,13 +443,22 @@ void TelemetryLoop() {
         ss << "}";
 
         std::string json_str = ss.str();
-        if (g_pWebview && g_Running.load()) {
-            g_pWebview->dispatch([json_str]() {
-                if (g_pWebview) {
-                    std::string js = "if(window.handleNativeTelemetry) window.handleNativeTelemetry(" + json_str + ");";
-                    g_pWebview->eval(js);
+        if (g_Running.load()) {
+            if (g_pCoreWebView2) {
+                int len = MultiByteToWideChar(CP_UTF8, 0, json_str.c_str(), -1, NULL, 0);
+                if (len > 0) {
+                    std::wstring wjson(len, 0);
+                    MultiByteToWideChar(CP_UTF8, 0, json_str.c_str(), -1, &wjson[0], len);
+                    g_pCoreWebView2->PostWebMessageAsJson(wjson.c_str());
                 }
-            });
+            } else if (g_pWebview) {
+                g_pWebview->dispatch([json_str]() {
+                    if (g_pWebview) {
+                        std::string js = "if(window.handleNativeTelemetry) window.handleNativeTelemetry(" + json_str + ");";
+                        g_pWebview->eval(js);
+                    }
+                });
+            }
         }
     }
 }
@@ -436,9 +479,22 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // 2. Start background telemetry thread
     std::thread telemetry_thread(TelemetryLoop);
 
-    // 3. Initialize WebView2
+    // 3. Initialize WebView2 with low-RAM parameters
     try {
-        webview::webview w(true, nullptr);
+        // Enforce supported memory constraints on Chromium WebView2
+        SetEnvironmentVariableA("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
+            "--js-flags=\"--max-old-space-size=48\" "
+            "--renderer-process-limit=1 "
+            "--disable-background-networking "
+            "--disable-component-update "
+            "--disable-sync "
+            "--disable-features=TranslateUI,AutofillServerCommunication "
+            "--disable-default-apps "
+            "--disable-extensions"
+        );
+
+        // debug = false to disable full Chromium DevTools backend (~60MB RAM savings)
+        webview::webview w(false, nullptr);
         g_pWebview = &w;
 
         w.set_title("LG HT306 Audio Bridge \xE2\x80\x94 Direct I2S 96kHz Lossless");
@@ -447,6 +503,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         HWND hwnd = (HWND)w.get_native_handle(WEBVIEW_NATIVE_HANDLE_KIND_UI_WINDOW);
         if (hwnd) {
             EnableImmersiveDarkMode(hwnd);
+
+            // Frameless window: remove standard OS caption bar so only the inner UI header displays
+            LONG style = GetWindowLong(hwnd, GWL_STYLE);
+            style &= ~WS_CAPTION;
+            style &= ~WS_THICKFRAME;
+            SetWindowLong(hwnd, GWL_STYLE, style);
+            SetWindowPos(hwnd, NULL, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+        }
+
+        ICoreWebView2Controller* ctrl = (ICoreWebView2Controller*)w.get_native_handle(WEBVIEW_NATIVE_HANDLE_KIND_BROWSER_CONTROLLER);
+        if (ctrl) {
+            ctrl->get_CoreWebView2(&g_pCoreWebView2);
         }
 
         w.bind("nativePostCommand", [](std::string req) -> std::string {

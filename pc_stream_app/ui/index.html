@@ -153,9 +153,9 @@
         <span class="material-symbols-outlined text-text-primary text-[14px]">person</span>
       </div>
       <div class="flex items-center -mr-space-md ml-space-xs">
-        <button class="w-10 h-10 flex items-center justify-center text-text-secondary hover:bg-surface-2 hover:text-text-primary transition-colors" type="button" title="Minimize"><span class="text-xs leading-none">─</span></button>
-        <button class="w-10 h-10 flex items-center justify-center text-text-secondary hover:bg-surface-2 hover:text-text-primary transition-colors" type="button" title="Maximize"><span class="text-xs leading-none">▢</span></button>
-        <button class="w-10 h-10 flex items-center justify-center text-text-secondary hover:bg-status-error hover:text-text-primary transition-colors" type="button" title="Close"><span class="text-xs leading-none">✕</span></button>
+        <button id="btn-win-min" onclick="window.sendNativeCommand('window_minimize')" class="w-10 h-10 flex items-center justify-center text-text-secondary hover:bg-surface-2 hover:text-text-primary transition-colors cursor-pointer" type="button" title="Minimize"><span class="text-xs leading-none">─</span></button>
+        <button id="btn-win-max" onclick="window.sendNativeCommand('window_maximize')" class="w-10 h-10 flex items-center justify-center text-text-secondary hover:bg-surface-2 hover:text-text-primary transition-colors cursor-pointer" type="button" title="Maximize"><span class="text-xs leading-none">▢</span></button>
+        <button id="btn-win-close" onclick="window.sendNativeCommand('window_close')" class="w-10 h-10 flex items-center justify-center text-text-secondary hover:bg-status-error hover:text-text-primary transition-colors cursor-pointer" type="button" title="Close"><span class="text-xs leading-none">✕</span></button>
       </div>
     </div>
   </header>
@@ -4004,6 +4004,17 @@
         }
       }
 
+      
+      // --- NATIVE WINDOW DRAG LISTENER ---
+      const appHeader = document.querySelector('header');
+      if (appHeader) {
+        appHeader.addEventListener('mousedown', (e) => {
+          if (!e.target.closest('button, input, select, a, [onclick], [data-tab]')) {
+            window.sendNativeCommand('window_drag');
+          }
+        });
+      }
+
       // --- REGISTER NATIVE WEBVIEW2 LISTENER ---
       if (isNativeWebView2) {
         window.chrome.webview.addEventListener("message", (event) => {
@@ -4091,7 +4102,7 @@
 
         sendSweepApi: function (action, channel, levelDb) {
           window.sendNativeCommand("sweep_test", { action: action, channel: channel, level_db: levelDb });
-          if (!isNativeWebView2) {
+          if (!isNativeWebView2 && window.location.protocol.startsWith("http")) {
             fetch("/api/test_sweep", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -4190,7 +4201,7 @@
           .catch(() => {});
       }
 
-      if (!isNativeWebView2) {
+      if (!isNativeWebView2 && window.location.protocol.startsWith("http")) {
         setInterval(pollStatus, 500);
         pollStatus();
         setInterval(pollMeters, 60);
@@ -4199,7 +4210,7 @@
       // --- CONFIG UPDATE SENDER ---
       function sendConfigUpdate(payload) {
         window.sendNativeCommand("update_config", payload);
-        if (!isNativeWebView2) {
+        if (!isNativeWebView2 && window.location.protocol.startsWith("http")) {
           return fetch("/api/config", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -4529,7 +4540,7 @@
         });
       }
 
-      if (!isNativeWebView2) {
+      if (!isNativeWebView2 && window.location.protocol.startsWith("http")) {
         setInterval(() => {
           if (currentTab === "log") fetchLogs();
         }, 1500);
