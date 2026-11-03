@@ -372,7 +372,9 @@ void HandleNativeCommand(const std::string& raw_json_str) {
 void TelemetryLoop() {
     uint32_t counter = 0;
     while (g_Running.load()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(33)); // ~30 Hz smooth & low CPU
+        // Sleep dynamically: 250ms when idle (0% CPU/GPU), 35ms when streaming audio
+        int sleep_ms = g_State.is_streaming.load() ? 35 : 250;
+        std::this_thread::sleep_for(std::chrono::milliseconds(sleep_ms));
         if (!g_Running.load() || !g_pWebview) continue;
 
         counter++;
@@ -481,14 +483,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     // 3. Initialize WebView2 with low-RAM parameters
     try {
-        // Enforce supported memory constraints on Chromium WebView2
+        // Enforce lowest possible memory constraints on Chromium WebView2
         SetEnvironmentVariableA("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
-            "--js-flags=\"--max-old-space-size=48\" "
+            "--disable-gpu "
+            "--disable-gpu-compositing "
+            "--js-flags=\"--max-old-space-size=32 --lite-mode\" "
             "--renderer-process-limit=1 "
             "--disable-background-networking "
             "--disable-component-update "
             "--disable-sync "
-            "--disable-features=TranslateUI,AutofillServerCommunication "
+            "--disable-features=TranslateUI,AutofillServerCommunication,CalculateNativeWinOcclusion,SpareRendererForSitePerProcess "
             "--disable-default-apps "
             "--disable-extensions"
         );
@@ -515,6 +519,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         ICoreWebView2Controller* ctrl = (ICoreWebView2Controller*)w.get_native_handle(WEBVIEW_NATIVE_HANDLE_KIND_BROWSER_CONTROLLER);
         if (ctrl) {
             ctrl->get_CoreWebView2(&g_pCoreWebView2);
+            if (g_pCoreWebView2) {
+                ICoreWebView2_19* core19 = nullptr;
+                if (SUCCEEDED(g_pCoreWebView2->QueryInterface(IID_ICoreWebView2_19, (void**)&core19)) && core19) {
+                    core19->put_MemoryUsageTargetLevel(COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_LOW);
+                    core19->Release();
+                }
+            }
         }
 
         w.bind("nativePostCommand", [](std::string req) -> std::string {
