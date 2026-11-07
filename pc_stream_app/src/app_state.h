@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <chrono>
+#include <mutex>
 
 namespace ht306 {
 
@@ -166,6 +167,7 @@ struct AppState {
     std::vector<AppRuleItem> app_rules;
 
     // Diagnostics / Log
+    mutable std::mutex log_mutex;
     std::vector<LogEntry> logs;
     int log_filter_level = 0; // 0: ALL, 1: DEBUG, 2: INFO, 3: WARN, 4: ERROR
     char log_search[64] = { 0 };
@@ -173,6 +175,8 @@ struct AppState {
 
     AppState();
     void AddLog(LogLevel level, const std::string& subsystem, const std::string& msg);
+    void ClearLogs();
+    std::vector<LogEntry> GetLogsSnapshot() const;
 };
 
 } // namespace ht306

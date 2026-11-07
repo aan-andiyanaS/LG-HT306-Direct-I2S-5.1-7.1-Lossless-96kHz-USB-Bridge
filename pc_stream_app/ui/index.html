@@ -144,6 +144,12 @@
         <span id="header-status-dot" class="w-2 h-2 rounded-full bg-status-ok"></span>
         <span id="header-status-text" class="font-code-sm text-code-sm text-status-ok font-medium">Connected</span>
       </div>
+      <!-- Windows Taskbar Audio Device Badge -->
+      <button id="header-audio-badge" type="button" class="flex items-center gap-space-xs px-space-sm py-0.5 rounded-full bg-surface-2 border border-border cursor-pointer hover:bg-surface-variant transition-colors" title="Windows Taskbar Audio Device (Klik untuk switch/pasang driver)" onclick="window.handleAudioBadgeClick(event)">
+        <span id="header-audio-dot" class="w-2 h-2 rounded-full bg-icon-gray"></span>
+        <span class="material-symbols-outlined text-[14px] text-text-secondary">volume_up</span>
+        <span id="header-audio-text" class="font-code-sm text-code-sm text-text-secondary font-medium">Taskbar: Detecting...</span>
+      </button>
       <div class="flex items-center gap-space-xs px-space-sm py-0.5 rounded-full bg-surface-2 border border-border cursor-pointer hover:bg-surface-variant transition-colors" onclick="switchTab('profiles')">
         <span class="font-code-sm text-code-sm text-text-secondary">Profile:</span>
         <span id="header-profile-text" class="font-code-sm text-code-sm text-text-primary font-medium">Movie</span>
@@ -267,21 +273,21 @@
 <div class="bg-surface-2 p-space-sm rounded-lg flex flex-col justify-between">
 <span class="font-caption text-caption text-text-secondary">PIO I2S Engine</span>
 <div class="flex items-baseline gap-space-xs mt-1">
-<span class="font-code-lg text-code-lg text-tertiary font-semibold">READY</span>
+<span class="font-code-lg text-code-lg text-tertiary font-semibold" id="dash-pio-status">READY</span>
 <span class="font-meter-num text-meter-num text-text-secondary">@ 96 kHz</span>
 </div>
 </div>
 <div class="bg-surface-2 p-space-sm rounded-lg flex flex-col justify-between">
 <span class="font-caption text-caption text-text-secondary">GP8 Hardware MUX</span>
 <div class="flex items-baseline gap-space-xs mt-1">
-<span class="font-code-lg text-code-lg text-status-info font-semibold">HIGH</span>
+<span class="font-code-lg text-code-lg text-status-info font-semibold" id="dash-mux-status">HIGH</span>
 <span class="font-meter-num text-meter-num text-text-secondary">Direct Bypass</span>
 </div>
 </div>
 <div class="bg-surface-2 p-space-sm rounded-lg flex flex-col justify-between col-span-2 sm:col-span-1">
 <span class="font-caption text-caption text-text-secondary">DSP Sync Lock</span>
 <div class="flex items-baseline gap-space-xs mt-1">
-<span class="font-code-lg text-code-lg text-text-primary font-semibold">LOCKED</span>
+<span class="font-code-lg text-code-lg text-text-primary font-semibold" id="dash-dsp-status">LOCKED</span>
 <span class="font-meter-num text-meter-num text-status-ok">PS9850 ASRC</span>
 </div>
 </div>
@@ -298,11 +304,11 @@
 <h2 class="font-headline-md text-headline-md text-text-primary">STREAM &amp; FORMAT ENGINE</h2>
 </div>
 <!-- Mode Pills -->
-<div class="flex items-center gap-1 bg-surface-2 p-1 rounded-full">
-<button class="px-space-sm py-0.5 rounded-full bg-primary-container text-text-primary font-caption text-caption font-medium shadow-sm transition-all" type="button">Auto: Windows</button>
-<button class="px-space-sm py-0.5 rounded-full text-text-secondary hover:text-text-primary font-caption text-caption transition-all" type="button">Best</button>
-<button class="px-space-sm py-0.5 rounded-full text-text-secondary hover:text-text-primary font-caption text-caption transition-all" type="button">Adaptive</button>
-<button class="px-space-sm py-0.5 rounded-full text-text-secondary hover:text-text-primary font-caption text-caption transition-all" type="button">Manual</button>
+<div class="flex items-center gap-1 bg-surface-2 p-1 rounded-full" id="format-mode-group">
+<button class="format-mode-btn px-space-sm py-0.5 rounded-full bg-primary-container text-text-primary font-caption text-caption font-medium shadow-sm transition-all" data-format="0" type="button">Auto: Windows</button>
+<button class="format-mode-btn px-space-sm py-0.5 rounded-full text-text-secondary hover:text-text-primary font-caption text-caption transition-all" data-format="1" type="button">Best</button>
+<button class="format-mode-btn px-space-sm py-0.5 rounded-full text-text-secondary hover:text-text-primary font-caption text-caption transition-all" data-format="2" type="button">Adaptive</button>
+<button class="format-mode-btn px-space-sm py-0.5 rounded-full text-text-secondary hover:text-text-primary font-caption text-caption transition-all" data-format="3" type="button">Manual</button>
 </div>
 </div>
 <div class="grid grid-cols-1 sm:grid-cols-2 gap-space-sm mb-space-md">
@@ -344,7 +350,7 @@
 <div class="flex items-center gap-space-xs truncate">
 <span class="material-symbols-outlined text-[18px] text-status-ok">speaker</span>
 <span class="font-caption text-caption text-text-secondary">Capture Device:</span>
-<span class="font-code-sm text-code-sm text-text-primary font-medium truncate">WASAPI Loopback (Realtek High Definition Audio - Default)</span>
+<span id="dash-device-name" class="font-code-sm text-code-sm text-text-primary font-medium truncate">WASAPI Loopback (Realtek High Definition Audio - Default)</span>
 </div>
 <span class="font-meter-num text-meter-num text-status-ok uppercase font-semibold ml-2">Shared 0dBFS</span>
 </div>
@@ -2228,7 +2234,7 @@
 </div>
 <!-- Quick Action Controls -->
 <div class="flex items-center gap-space-xs self-stretch md:self-auto flex-wrap">
-<button class="flex items-center gap-space-xs px-space-lg py-2.5 rounded-full bg-primary-container hover:bg-lg-red-hover active:bg-lg-red-pressed text-text-primary font-body-sm font-semibold shadow-sm transition-all" id="sweep-trigger-btn" onclick="window.testEngine.toggleSweep()">
+<button class="flex items-center gap-space-xs px-space-lg py-2.5 rounded-full bg-primary-container hover:bg-lg-red-hover active:bg-lg-red-pressed text-text-primary font-body-sm font-semibold shadow-sm transition-all" id="sweep-trigger-btn">
 <span class="material-symbols-outlined text-[18px]">graphic_eq</span>
 <span>Start 5.1 Auto-Sweep</span>
 </button>
@@ -3273,7 +3279,7 @@
 <label class="font-caption text-caption text-text-secondary uppercase tracking-wider font-semibold">Capture Stream Source</label>
 <div class="flex items-center gap-space-sm">
 <div class="relative flex-1">
-<select class="w-full appearance-none bg-surface-2 border border-border rounded-lg px-space-md py-2 text-text-primary font-body-sm text-body-sm focus:outline-none focus:border-primary-fixed-dim cursor-pointer pr-10">
+<select id="setting-device-select" class="w-full appearance-none bg-surface-2 border border-border rounded-lg px-space-md py-2 text-text-primary font-body-sm text-body-sm focus:outline-none focus:border-primary-fixed-dim cursor-pointer pr-10">
 <option selected="">Default Windows Loopback (WASAPI Shared)</option>
 <option>Speakers (Realtek(R) High Definition Audio) - Loopback</option>
 <option>LG HT306 Bridge (Virtual Cable ASIO 2.0)</option>
@@ -3290,13 +3296,16 @@
 <div class="flex items-center gap-2">
 <span class="material-symbols-outlined text-[18px] text-tertiary">install_desktop</span>
 <div class="flex flex-col">
-<span class="font-body-sm text-body-sm text-text-primary font-medium">Virtual Audio Cable Driver</span>
-<span class="font-caption text-caption text-text-secondary">Paket driver audio virtual 5.1 (tools/vbcable)</span>
+<div class="flex items-center gap-2">
+  <span class="font-body-sm text-body-sm text-text-primary font-medium">Taskbar Audio Endpoint</span>
+  <span id="setting-driver-status" class="font-caption text-caption px-1.5 py-0.2 rounded bg-surface border border-border text-icon-gray">Memeriksa...</span>
+</div>
+<span class="font-caption text-caption text-text-secondary">WHQL Virtual Endpoint 5.1 agar suara Windows otomatis mengalir ke LG HT306</span>
 </div>
 </div>
-<button id="btn-install-vbcable" class="px-space-md py-1.5 bg-primary-container hover:bg-lg-red-hover text-text-primary rounded-lg font-caption text-caption font-semibold flex items-center gap-1.5 transition-colors cursor-pointer" type="button">
+<button id="btn-install-vbcable" class="px-space-md py-1.5 bg-primary-container hover:bg-lg-red-hover text-text-primary rounded-lg font-caption text-caption font-semibold flex items-center gap-1.5 transition-colors cursor-pointer" type="button" onclick="window.handleInstallCableClick(event)">
 <span class="material-symbols-outlined text-[16px]">open_in_new</span>
-<span>Buka Installer VB-Cable</span>
+<span>Driver Taskbar</span>
 </button>
 </div>
 
@@ -3628,7 +3637,7 @@
       const isNativeWebView2 = !!(window.chrome && window.chrome.webview && typeof window.chrome.webview.postMessage === "function");
 
       window.sendNativeCommand = function (action, payload = {}) {
-        const message = { action, ...payload };
+        const message = { ...payload, action };
         if (typeof window.nativePostCommand === "function") {
           try {
             window.nativePostCommand(JSON.stringify(message));
@@ -3653,6 +3662,7 @@
       let isStreaming = true;
       let isMuted = false;
       let appUptimeSeconds = 0;
+      let audioDriverState = { installed: false, is_default: false, name: "" };
 
       // Channels: 0:FL, 1:FR, 2:C, 3:LFE, 4:SL, 5:SR
       const CHANNEL_NAMES = ["FL", "FR", "C", "LFE", "SL", "SR"];
@@ -3660,8 +3670,11 @@
       
       let trimsDb = [0.0, 0.0, 1.5, 0.0, -1.0, -1.0];
       let mutes = [false, false, false, false, false, false];
+      let solos = [false, false, false, false, false, false];
+      let phases = [false, false, false, false, false, false];
       let currentMode = "desktop";
       let currentProfile = "Movie";
+      const channelCards = document.querySelectorAll(".channel-card");
 
       // Utility: dBFS to percentage (for VU meters)
       function dbfsToPercent(db) {
@@ -3971,12 +3984,235 @@
           }
         }
 
+        // Hardware flags & Heartbeat
+        const heartbeat = data.heartbeat_text || (data.hw_info && data.hw_info.heartbeat_text);
+        if (heartbeat) {
+          const hbElem = document.getElementById("dash-heartbeat");
+          if (hbElem) hbElem.innerText = heartbeat;
+        }
+
+        const pioReady = data.pio_ready !== undefined ? data.pio_ready : (data.hw_info && data.hw_info.pio_ready);
+        if (pioReady !== undefined) {
+          const pioElem = document.getElementById("dash-pio-status");
+          if (pioElem) {
+            pioElem.innerText = pioReady ? "READY" : "OFFLINE";
+            pioElem.className = pioReady ? "font-code-lg text-code-lg text-tertiary font-semibold" : "font-code-lg text-code-lg text-status-error font-semibold";
+          }
+        }
+
+        const muxHigh = data.mux_high !== undefined ? data.mux_high : (data.hw_info && data.hw_info.mux_high);
+        if (muxHigh !== undefined) {
+          const muxElem = document.getElementById("dash-mux-status");
+          if (muxElem) {
+            muxElem.innerText = muxHigh ? "HIGH" : "LOW";
+            muxElem.className = muxHigh ? "font-code-lg text-code-lg text-status-info font-semibold" : "font-code-lg text-code-lg text-status-warn font-semibold";
+          }
+        }
+
+        const dspLocked = data.dsp_locked !== undefined ? data.dsp_locked : (data.hw_info && data.hw_info.dsp_locked);
+        if (dspLocked !== undefined) {
+          const dspElem = document.getElementById("dash-dsp-status");
+          if (dspElem) {
+            dspElem.innerText = dspLocked ? "LOCKED" : "UNLOCKED";
+            dspElem.className = dspLocked ? "font-code-lg text-code-lg text-text-primary font-semibold" : "font-code-lg text-code-lg text-status-warn font-semibold";
+          }
+        }
+
+        // Format Mode
+        if (data.format_mode !== undefined || (data.config && data.config.format_mode !== undefined)) {
+          const fmode = data.format_mode !== undefined ? data.format_mode : data.config.format_mode;
+          if (typeof window.setFormatModeUi === "function") {
+            window.setFormatModeUi(fmode);
+          }
+        }
+
+        // Master Volume & Master Mute
+        if (data.master_volume_db !== undefined || (data.config && data.config.master_volume_db !== undefined)) {
+          const vol = data.master_volume_db !== undefined ? data.master_volume_db : data.config.master_volume_db;
+          const mSlider = document.getElementById("master-slider");
+          const mVolNum = document.getElementById("master-vol-num");
+          if (mSlider && document.activeElement !== mSlider) {
+            mSlider.value = vol;
+          }
+          if (mVolNum) {
+            mVolNum.textContent = (vol > 0 ? "+" : "") + vol.toFixed(1) + " dB";
+          }
+        }
+
+        if (data.mute_master !== undefined || (data.config && data.config.mute_master !== undefined)) {
+          const mm = data.mute_master !== undefined ? data.mute_master : data.config.mute_master;
+          isMuted = mm;
+          const muteLabel = document.getElementById("mute-label");
+          if (muteLabel) muteLabel.textContent = isMuted ? "Unmute Master" : "Mute Master";
+          const mMuteBtn = document.getElementById("master-mute-btn");
+          if (mMuteBtn) {
+            if (isMuted) {
+              mMuteBtn.classList.add("bg-status-error", "text-text-primary");
+              mMuteBtn.classList.remove("bg-surface-2", "text-text-secondary");
+            } else {
+              mMuteBtn.classList.remove("bg-status-error", "text-text-primary");
+              mMuteBtn.classList.add("bg-surface-2", "text-text-secondary");
+            }
+          }
+        }
+
+        // Solos and Phase inverts sync
+        const solosArr = data.solos || (data.config && data.config.solos);
+        if (Array.isArray(solosArr) && solosArr.length >= 6) {
+          for (let i = 0; i < 6; i++) {
+            if (solos[i] !== solosArr[i]) {
+              solos[i] = solosArr[i];
+              const card = channelCards[i];
+              if (card) {
+                const bSolo = card.querySelector(".btn-solo");
+                if (bSolo) {
+                  if (solos[i]) {
+                    bSolo.classList.add("bg-status-warn", "text-background");
+                    bSolo.classList.remove("bg-surface-2", "text-text-secondary");
+                  } else {
+                    bSolo.classList.remove("bg-status-warn", "text-background");
+                    bSolo.classList.add("bg-surface-2", "text-text-secondary");
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        const phasesArr = data.phase_inverts || data.phases || (data.config && (data.config.phase_inverts || data.config.phases));
+        if (Array.isArray(phasesArr) && phasesArr.length >= 6) {
+          for (let i = 0; i < 6; i++) {
+            if (phases[i] !== phasesArr[i]) {
+              phases[i] = phasesArr[i];
+              const card = channelCards[i];
+              if (card) {
+                const bPhase = card.querySelector(".btn-phase");
+                if (bPhase) {
+                  if (phases[i]) {
+                    bPhase.classList.add("bg-secondary-container", "text-text-primary");
+                    bPhase.classList.remove("bg-surface-2", "text-text-secondary");
+                    bPhase.textContent = "Ø";
+                  } else {
+                    bPhase.classList.remove("bg-secondary-container", "text-text-primary");
+                    bPhase.classList.add("bg-surface-2", "text-text-secondary");
+                    bPhase.textContent = "O";
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        // Channel mutes sync
+        const mutesArr = data.mutes || (data.config && data.config.mutes);
+        if (Array.isArray(mutesArr) && mutesArr.length >= 6) {
+          for (let i = 0; i < 6; i++) {
+            if (mutes[i] !== mutesArr[i]) {
+              mutes[i] = mutesArr[i];
+              const chUpper = CHANNEL_NAMES[i];
+              const mixerCard = document.querySelector(`.channel-card[data-ch="${chUpper}"]`) ||
+                                document.querySelector(`.channel-card[data-ch="${chUpper === 'LFE' ? 'SW' : chUpper}"]`);
+              if (mixerCard) {
+                const btnMute = mixerCard.querySelector(".btn-mute");
+                const vu = mixerCard.querySelector(".vu-bar");
+                if (btnMute) {
+                  if (mutes[i]) {
+                    btnMute.classList.add("bg-status-error", "text-text-primary");
+                    btnMute.classList.remove("bg-surface-2", "text-text-secondary");
+                    if (vu) vu.style.opacity = "0.2";
+                  } else {
+                    btnMute.classList.remove("bg-status-error", "text-text-primary");
+                    btnMute.classList.add("bg-surface-2", "text-text-secondary");
+                    if (vu) vu.style.opacity = "1";
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        // Routing map sync
+        const rmap = data.routing_map || (data.config && data.config.routing_map);
+        if (Array.isArray(rmap) && rmap.length >= 6) {
+          let rChanged = false;
+          for (let i = 0; i < 6; i++) {
+            if (routeState[i] !== rmap[i]) {
+              routeState[i] = rmap[i];
+              rChanged = true;
+            }
+          }
+          if (rChanged && typeof renderMatrix === "function") {
+            renderMatrix();
+          }
+        }
+
+        // Audio Capture Devices sync
+        if (Array.isArray(data.devices) && data.devices.length > 0) {
+          const devSelect = document.getElementById("setting-device-select");
+          if (devSelect) {
+            let needsUpdate = devSelect.options.length !== data.devices.length;
+            if (!needsUpdate) {
+              for (let i = 0; i < data.devices.length; i++) {
+                const expectedText = data.devices[i].name + (data.devices[i].is_default ? " (Default)" : "");
+                if (devSelect.options[i].text !== expectedText) {
+                  needsUpdate = true;
+                  break;
+                }
+              }
+            }
+            if (needsUpdate) {
+              devSelect.innerHTML = "";
+              data.devices.forEach((dev) => {
+                const opt = document.createElement("option");
+                opt.value = dev.index;
+                opt.textContent = dev.name + (dev.is_default ? " (Default)" : "");
+                devSelect.appendChild(opt);
+              });
+            }
+            const activeIdx = data.active_device_index !== undefined ? data.active_device_index :
+                              (data.config && data.config.active_device_index !== undefined ? data.config.active_device_index : 0);
+            if (String(devSelect.value) !== String(activeIdx)) {
+              devSelect.value = activeIdx;
+            }
+          }
+
+          const dashDevName = document.getElementById("dash-device-name");
+          if (dashDevName) {
+            const activeIdx = data.active_device_index !== undefined ? data.active_device_index : 0;
+            const activeDev = data.devices.find(d => d.index === activeIdx) || data.devices[0];
+            if (activeDev && dashDevName.textContent !== activeDev.name) {
+              dashDevName.textContent = activeDev.name;
+            }
+          }
+        }
+
+        // Limiter & LipSync sync
+        if (data.limiter_enabled !== undefined || (data.config && data.config.limiter_enabled !== undefined)) {
+          const lim = data.limiter_enabled !== undefined ? data.limiter_enabled : data.config.limiter_enabled;
+          const limiterToggle = document.getElementById("limiter-toggle");
+          if (limiterToggle && document.activeElement !== limiterToggle && limiterToggle.checked !== lim) {
+            limiterToggle.checked = lim;
+          }
+        }
+
+        if (data.lip_sync_delay_ms !== undefined || (data.config && data.config.lip_sync_delay_ms !== undefined)) {
+          const delay = data.lip_sync_delay_ms !== undefined ? data.lip_sync_delay_ms : data.config.lip_sync_delay_ms;
+          const lSlider = document.getElementById("lipsync-slider");
+          if (lSlider && document.activeElement !== lSlider && parseInt(lSlider.value, 10) !== delay) {
+            if (typeof window.updateDelayUi === "function") {
+              window.updateDelayUi(delay);
+            }
+          }
+        }
+
         // 7. Config / Profiles / Logs from Native
         if (data.profile || (data.config && data.config.profile) || (data.settings && data.settings.active_profile)) {
           const prof = data.profile || (data.config && data.config.profile) || data.settings.active_profile;
-          currentProfile = prof;
-          const headerProf = document.getElementById("header-profile-text");
-          if (headerProf) headerProf.innerText = prof;
+          if (currentProfile !== prof) {
+            currentProfile = prof;
+            const headerProf = document.getElementById("header-profile-text");
+            if (headerProf) headerProf.innerText = prof;
+          }
         }
 
         if (data.mode || (data.config && data.config.mode)) {
@@ -3992,15 +4228,71 @@
           if (Array.isArray(t)) trimsDb = t;
         }
 
-        // Logs stream
+        // Logs stream (only re-render DOM when log content changes)
         if (Array.isArray(data.logs)) {
-          logBuffer = data.logs.map(l => typeof l === "string" ? l : (l.message || JSON.stringify(l)));
-          renderLogs();
+          const nextLen = data.logs.length;
+          const lastNext = nextLen > 0 ? String(data.logs[nextLen - 1]) : "";
+          const lastCur = logBuffer.length > 0 ? String(logBuffer[logBuffer.length - 1]) : "";
+          if (nextLen !== logBuffer.length || lastNext !== lastCur) {
+            logBuffer = data.logs.map(l => typeof l === "string" ? l : (l.message || JSON.stringify(l)));
+            renderLogs();
+          }
         } else if (data.log) {
           const line = typeof data.log === "string" ? data.log : (data.log.message || JSON.stringify(data.log));
           logBuffer.push(line);
           if (logBuffer.length > 500) logBuffer.shift();
           renderLogs();
+        }
+
+        // 8. Audio Driver & Windows Taskbar Status sync
+        if (data.audio_driver) {
+          audioDriverState = data.audio_driver;
+          const audioDot = document.getElementById("header-audio-dot");
+          const audioText = document.getElementById("header-audio-text");
+          const settingDriverStatus = document.getElementById("setting-driver-status");
+          const btnInstallDriver = document.getElementById("btn-install-vbcable");
+
+          if (audioDriverState.installed) {
+            if (audioDriverState.is_default) {
+              if (audioDot) audioDot.className = "w-2 h-2 rounded-full bg-status-ok";
+              if (audioText) {
+                audioText.innerText = "Taskbar: " + (audioDriverState.name || "LG HT306");
+                audioText.className = "font-code-sm text-code-sm text-status-ok font-medium";
+              }
+            } else {
+              if (audioDot) audioDot.className = "w-2 h-2 rounded-full bg-status-info";
+              if (audioText) {
+                audioText.innerText = "Taskbar: Standby";
+                audioText.className = "font-code-sm text-code-sm text-status-info font-medium";
+              }
+            }
+            if (settingDriverStatus) {
+              settingDriverStatus.innerHTML = `<span class="text-status-ok font-medium">Terpasang (${audioDriverState.name || 'LG HT306'})</span>`;
+            }
+            if (btnInstallDriver) {
+              const hasCableName = (audioDriverState.name && audioDriverState.name.includes("CABLE"));
+              if (hasCableName) {
+                btnInstallDriver.innerHTML = `<span class="material-symbols-outlined text-[16px]">draw</span><span>Sinkronkan Nama ke LG HT306</span>`;
+                btnInstallDriver.className = "px-space-md py-1.5 bg-primary-container hover:bg-lg-red-hover text-text-primary rounded-lg font-caption text-caption font-semibold flex items-center gap-1.5 transition-colors cursor-pointer";
+              } else {
+                btnInstallDriver.innerHTML = `<span class="material-symbols-outlined text-[16px]">sync_alt</span><span>${audioDriverState.is_default ? 'Kembalikan Speaker PC' : 'Jadikan Default Taskbar'}</span>`;
+                btnInstallDriver.className = "px-space-md py-1.5 bg-surface border border-border hover:bg-surface-variant text-text-primary rounded-lg font-caption text-caption font-semibold flex items-center gap-1.5 transition-colors cursor-pointer";
+              }
+            }
+          } else {
+            if (audioDot) audioDot.className = "w-2 h-2 rounded-full bg-status-warn";
+            if (audioText) {
+              audioText.innerText = "+ Pasang Driver Taskbar";
+              audioText.className = "font-code-sm text-code-sm text-status-warn font-medium";
+            }
+            if (settingDriverStatus) {
+              settingDriverStatus.innerHTML = `<span class="text-status-warn font-medium">Belum Terpasang</span>`;
+            }
+            if (btnInstallDriver) {
+              btnInstallDriver.innerHTML = `<span class="material-symbols-outlined text-[16px]">download</span><span>Pasang Driver Audio</span>`;
+              btnInstallDriver.className = "px-space-md py-1.5 bg-primary-container hover:bg-lg-red-hover text-text-primary rounded-lg font-caption text-caption font-semibold flex items-center gap-1.5 transition-colors cursor-pointer";
+            }
+          }
         }
       }
 
@@ -4009,7 +4301,7 @@
       const appHeader = document.querySelector('header');
       if (appHeader) {
         appHeader.addEventListener('mousedown', (e) => {
-          if (!e.target.closest('button, input, select, a, [onclick], [data-tab]')) {
+          if (!e.target.closest('button, input, select, a, [onclick], [data-tab], #header-audio-badge, #btn-install-vbcable')) {
             window.sendNativeCommand('window_drag');
           }
         });
@@ -4101,7 +4393,7 @@
         },
 
         sendSweepApi: function (action, channel, levelDb) {
-          window.sendNativeCommand("sweep_test", { action: action, channel: channel, level_db: levelDb });
+          window.sendNativeCommand("sweep_test", { sweep_action: action, channel: channel, level_db: levelDb, signal_type: this.signalType || 1 });
           if (!isNativeWebView2 && window.location.protocol.startsWith("http")) {
             fetch("/api/test_sweep", {
               method: "POST",
@@ -4255,7 +4547,6 @@
       }
 
       // --- MIXER CHANNEL STRIPS CONTROLS ---
-      const channelCards = document.querySelectorAll(".channel-card");
       channelCards.forEach((card, idx) => {
         const fader = card.querySelector(".ch-fader");
         const readout = card.querySelector(".ch-readout");
@@ -4294,6 +4585,40 @@
             }
             window.sendNativeCommand("set_mutes", { mutes: mutes, channel: idx, muted: mutes[idx] });
             sendConfigUpdate({ mutes: mutes });
+          });
+        }
+
+        const btnSolo = card.querySelector(".btn-solo");
+        if (btnSolo) {
+          btnSolo.addEventListener("click", () => {
+            solos[idx] = !solos[idx];
+            if (solos[idx]) {
+              btnSolo.classList.add("bg-status-warn", "text-background");
+              btnSolo.classList.remove("bg-surface-2", "text-text-secondary");
+            } else {
+              btnSolo.classList.remove("bg-status-warn", "text-background");
+              btnSolo.classList.add("bg-surface-2", "text-text-secondary");
+            }
+            window.sendNativeCommand("set_solo", { channel: idx, solo: solos[idx] });
+            sendConfigUpdate({ solos: solos });
+          });
+        }
+
+        const btnPhase = card.querySelector(".btn-phase");
+        if (btnPhase) {
+          btnPhase.addEventListener("click", () => {
+            phases[idx] = !phases[idx];
+            if (phases[idx]) {
+              btnPhase.classList.add("bg-secondary-container", "text-text-primary");
+              btnPhase.classList.remove("bg-surface-2", "text-text-secondary");
+              btnPhase.textContent = "Ø";
+            } else {
+              btnPhase.classList.remove("bg-secondary-container", "text-text-primary");
+              btnPhase.classList.add("bg-surface-2", "text-text-secondary");
+              btnPhase.textContent = "O";
+            }
+            window.sendNativeCommand("set_phase", { channel: idx, invert: phases[idx] });
+            sendConfigUpdate({ phase_inverts: phases });
           });
         }
       });
@@ -4395,6 +4720,7 @@
       // --- 5.1 SPEAKER SWEEP TEST INTERFACE ---
       const sweepTriggerBtn = document.getElementById("sweep-trigger-btn");
       if (sweepTriggerBtn) {
+        sweepTriggerBtn.removeAttribute("onclick");
         sweepTriggerBtn.addEventListener("click", () => {
           window.testEngine.toggleSweep();
         });
@@ -4546,6 +4872,85 @@
         }, 1500);
       }
 
+      // --- FORMAT MODE SELECTOR ---
+      const formatModeBtns = document.querySelectorAll(".format-mode-btn");
+      window.setFormatModeUi = function (modeIdx) {
+        formatModeBtns.forEach((btn) => {
+          const idx = parseInt(btn.getAttribute("data-format"), 10);
+          if (idx === modeIdx) {
+            btn.className = "format-mode-btn px-space-sm py-0.5 rounded-full bg-primary-container text-text-primary font-caption text-caption font-medium shadow-sm transition-all";
+          } else {
+            btn.className = "format-mode-btn px-space-sm py-0.5 rounded-full text-text-secondary hover:text-text-primary font-caption text-caption transition-all";
+          }
+        });
+      };
+
+      formatModeBtns.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const idx = parseInt(btn.getAttribute("data-format"), 10);
+          window.setFormatModeUi(idx);
+          window.sendNativeCommand("set_format_mode", { format_mode: idx });
+          sendConfigUpdate({ format_mode: idx });
+        });
+      });
+
+      // --- CAPTURE DEVICE SELECTOR ---
+      const devSelect = document.getElementById("setting-device-select");
+      if (devSelect) {
+        devSelect.addEventListener("change", (e) => {
+          const idx = parseInt(e.target.value, 10);
+          window.sendNativeCommand("set_device", { device_index: idx });
+          sendConfigUpdate({ active_device_index: idx });
+        });
+      }
+
+      // --- TRUE-PEAK LIMITER & LIPSYNC DELAY ---
+      const limiterToggle = document.getElementById("limiter-toggle");
+      if (limiterToggle) {
+        limiterToggle.addEventListener("change", (e) => {
+          window.sendNativeCommand("set_limiter", { limiter_enabled: e.target.checked });
+          sendConfigUpdate({ limiter_enabled: e.target.checked });
+        });
+      }
+
+      const lipsyncSlider = document.getElementById("lipsync-slider");
+      const lipsyncDisplay = document.getElementById("lipsync-display");
+      const delayBlock = document.getElementById("timeline-delay-block");
+      const lipsyncSubframes = document.getElementById("lipsync-subframes");
+
+      window.updateDelayUi = function (ms) {
+        const num = parseInt(ms, 10);
+        if (lipsyncSlider) lipsyncSlider.value = num;
+        if (lipsyncDisplay) lipsyncDisplay.textContent = num + " ms";
+        if (delayBlock) delayBlock.style.width = Math.max(8, (num / 200) * 100) + "%";
+        if (lipsyncSubframes) {
+          const subframes = Math.round((num / 1000) * 96000 / 288);
+          const frames60 = ((num / 1000) * 60).toFixed(2);
+          lipsyncSubframes.textContent = `${subframes} subframes / ${frames60} frames @ 60Hz`;
+        }
+        document.querySelectorAll(".delay-pill").forEach((pill) => {
+          const v = parseInt(pill.getAttribute("data-val"), 10);
+          if (v === num) {
+            pill.className = "delay-pill px-space-md py-0.5 rounded-full bg-primary-container text-text-primary font-code-sm text-code-sm font-semibold transition-colors";
+          } else {
+            pill.className = "delay-pill px-space-md py-0.5 rounded-full bg-surface-2 hover:bg-surface-variant font-code-sm text-code-sm text-text-secondary transition-colors";
+          }
+        });
+      };
+
+      window.setDelay = function (ms) {
+        const num = parseInt(ms, 10);
+        window.updateDelayUi(num);
+        window.sendNativeCommand("set_lipsync", { lip_sync_delay_ms: num });
+        sendConfigUpdate({ lip_sync_delay_ms: num });
+      };
+
+      if (lipsyncSlider) {
+        lipsyncSlider.addEventListener("input", (e) => {
+          window.setDelay(e.target.value);
+        });
+      }
+
       // --- ROUTING MATRIX ENGINE ---
       const matrixInputs = ["FL", "FR", "C", "LFE", "SL", "SR"];
       const matrixOutputs = [
@@ -4642,15 +5047,79 @@
       };
 
       // --- SETTINGS ACTIONS: DRIVER INSTALLER & BOOTSEL REBOOT ---
+      let isDriverActionBusy = false;
+      function showDriverInstallingState() {
+        const audioText = document.getElementById("header-audio-text");
+        const audioDot = document.getElementById("header-audio-dot");
+        const settingDriverStatus = document.getElementById("setting-driver-status");
+        const btnInstallDriver = document.getElementById("btn-install-vbcable");
+        if (audioText) {
+          audioText.innerText = "Membuka Installer...";
+          audioText.className = "font-code-sm text-code-sm text-status-warn font-medium animate-pulse";
+        }
+        if (audioDot) audioDot.className = "w-2 h-2 rounded-full bg-status-warn animate-pulse";
+        if (settingDriverStatus) settingDriverStatus.innerHTML = `<span class="text-status-warn font-medium animate-pulse">Menunggu persetujuan UAC & dialog setup...</span>`;
+        if (btnInstallDriver) {
+          btnInstallDriver.innerHTML = `<span class="material-symbols-outlined text-[16px] animate-spin">sync</span><span>Membuka Setup...</span>`;
+          btnInstallDriver.disabled = true;
+          setTimeout(() => { if (btnInstallDriver) btnInstallDriver.disabled = false; }, 15000);
+        }
+      }
+
+      window.handleAudioBadgeClick = function (e) {
+        if (e) {
+          if (e.stopPropagation) e.stopPropagation();
+          if (e.preventDefault) e.preventDefault();
+        }
+        if (isDriverActionBusy) return;
+        isDriverActionBusy = true;
+        setTimeout(() => { isDriverActionBusy = false; }, 800);
+
+        if (!audioDriverState || !audioDriverState.installed) {
+          showDriverInstallingState();
+          window.sendNativeCommand("install_audio_driver", { driver: "vbcable" });
+        } else if (audioDriverState.name && audioDriverState.name.includes("CABLE")) {
+          showDriverInstallingState();
+          window.sendNativeCommand("sync_audio_names", {});
+        } else if (audioDriverState.is_default) {
+          window.sendNativeCommand("restore_default_playback", {});
+        } else {
+          window.sendNativeCommand("switch_to_ht306", {});
+        }
+      };
+
+      window.handleInstallCableClick = function (e) {
+        if (e) {
+          if (e.stopPropagation) e.stopPropagation();
+          if (e.preventDefault) e.preventDefault();
+        }
+        if (isDriverActionBusy) return;
+        isDriverActionBusy = true;
+        setTimeout(() => { isDriverActionBusy = false; }, 800);
+
+        if (audioDriverState && audioDriverState.installed) {
+          if (audioDriverState.name && audioDriverState.name.includes("CABLE")) {
+            showDriverInstallingState();
+            window.sendNativeCommand("sync_audio_names", {});
+          } else if (audioDriverState.is_default) {
+            window.sendNativeCommand("restore_default_playback", {});
+          } else {
+            window.sendNativeCommand("switch_to_ht306", {});
+          }
+        } else {
+          showDriverInstallingState();
+          window.sendNativeCommand("install_audio_driver", { driver: "vbcable" });
+        }
+      };
+
+      const headerAudioBadge = document.getElementById("header-audio-badge");
+      if (headerAudioBadge) {
+        headerAudioBadge.addEventListener("click", window.handleAudioBadgeClick);
+      }
+
       const installCableBtn = document.getElementById("btn-install-vbcable");
       if (installCableBtn) {
-        installCableBtn.addEventListener("click", () => {
-          const sent = window.sendNativeCommand("open_vbcable_installer", { driver: "vbcable", path: "pc_stream_app\\tools\\vbcable" });
-          window.sendNativeCommand("install_driver", { driver: "vbcable" });
-          if (!sent) {
-            alert("Paket driver Virtual Audio Cable berada di: pc_stream_app\\tools\\vbcable\\VBCABLE_Setup_x64.exe\nSilakan jalankan file installer tersebut.");
-          }
-        });
+        installCableBtn.addEventListener("click", window.handleInstallCableClick);
       }
 
       const rebootBootselBtn = document.getElementById("reboot-bootsel-btn");

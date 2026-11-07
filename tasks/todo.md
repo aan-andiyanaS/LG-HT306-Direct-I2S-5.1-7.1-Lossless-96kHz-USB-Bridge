@@ -155,3 +155,101 @@ aw_st = transport.state; st = raw_st() if callable(raw_st) else raw_st).
        - Total Working Set: **6.26 MB** (penurunan drastis dari 220-250MB awal).
        - CPU Usage: **0.0 - 0.1%**, GPU Usage: **0.0%**.
   - Files: pc_stream_app/src/main_webview.cpp, pc_stream_app/ui/index.html
+
+
+- [x] **Slice 18: Realisasi Penuh Fitur MVP (Minimum Viable Product) pada Native C++ WebView2 Engine & Audit Produksi**
+  - Acceptance:
+    1. **Pipeline DSP Audio 6-Kanal Real-Time (`audio_capture.h/cpp`)**:
+       - Matriks Routing 6x6 penuh (`routing_map[6]`).
+       - Stereo Upmix ITU-R BS.775 (`STEREO_UPMIX`) & Dual-Mono (`DUAL_MONO`) untuk sumber stereo maupun endpoint multichannel (>=6ch).
+       - Per-Channel Gain Trims (`-12 dB` s/d `+12 dB`), Master Volume (`-60 dB` s/d `+6 dB`), Solo, Mute, dan Phase Invert (`180°`) dengan *smooth exponential gain ramping* (`m_current_gains[6]`) bebas *zipper noise* dan kalkulasi `std::pow` yang di-hoist di luar inner loop.
+       - Mode Bit-Perfect Pass-Through (`bit_perfect_mode`) yang melewati seluruh manipulasi gain/DSP (1.0f unity).
+       - Soft-Knee True-Peak Limiter (`std::tanh` pada `-0.1 dBFS`) dan detektor clipping (`meters[ch].clipped`).
+    2. **Generator 5.1 Acoustic Sweep Test & Hot-Swap WASAPI (`audio_capture.cpp`, `audio_endpoint_helper.cpp`)**:
+       - Filter Pink Noise 7-elemen Paul Kellet (-3dB/octave), Logarithmic Chirp Sweep (40 Hz – 16 kHz), dan Sine 1 kHz.
+       - Akurasi waktu berbasis `QueryPerformanceCounter` (QPC) ketika PC sedang tidak memutar audio sehingga hardware RP2350 tidak mengalami *buffer starvation*.
+       - Hot-swap dinamis perangkat audio WASAPI (`active_device_index`) dengan pengamanan `CoInitializeEx`.
+    3. **Auto-Discovery Port COM & Non-Blocking Serial Heartbeat (`usb_transport.h/cpp`)**:
+       - Deteksi otomatis port COM `VID_2E8A&PID_4306` via SetupAPI (`SPDRP_HARDWAREID` & regkey `PortName`).
+       - Pembacaan non-blocking CDC-ACM serial heartbeat (`[HT306]`, `SYNC_LOCK`, `PIO_READY`, `MUX_HIGH`) dan 1200-baud DTR drop `RebootBootsel()` yang diamankan dengan `std::recursive_mutex`.
+    4. **Profiles Engine, System Tray & COM STA Thread-Safe Telemetry (`main_webview.cpp`, `ui/index.html`)**:
+       - Preset profil suara instan (*Movie / Cinematic*, *Bit-Perfect Studio*, *Gaming / Low Latency*, *Music / Hi-Fi Stereo*).
+       - Ikon Windows System Tray (`Shell_NotifyIconA`) dengan menu klik-kanan (*Restore Window*, *Start/Stop Stream*, *Bit-Perfect Mode*, *Exit*) dan proteksi Single-Instance Mutex (`Global\LG_HT306_AudioBridge_InstanceMutex`).
+       - Pengiriman telemetri COM STA thread-safe via `g_pWebview->dispatch` + *Smart Delta Push* saat idle, mempertahankan total konsumsi RAM pohon proses di **~8.20 MB** (Host C++ **2.35 MB** + 6 sub-proses WebView2 **5.86 MB**).
+    5. **Verifikasi & Code Review**:
+       - Lulus `tests/verify_end_to_end.py` (100% Bit-Exact 24-bit & 32-bit).
+       - Lulus audit **Senior Code Reviewer (`code-reviewer`)** Putaran ke-2 dengan status **APPROVE** (0 isu Critical/Important tersisa).
+    6. **Pembersihan Jejak Dear ImGui & Hot-Plug Deteksi Fleksibel**:
+       - Menghapus seluruh berkas dan pustaka sisa Dear ImGui DX11 (`vendor/imgui`, `assets/`, `ui_*.cpp/h`, `main.cpp`, `ht306_stream_app.exe`).
+       - Memperbaiki deteksi hardware RP2350-Zero secara fleksibel dan instan:
+         - Menambahkan handler `WM_DEVICECHANGE` + `RegisterDeviceNotificationA` di `main_webview.cpp` untuk deteksi hot-plug colok/cabut kabel USB secara instan (< 50 ms).
+         - Memisahkan (*decoupling*) deteksi fisik hardware (`CheckHardwarePresence`) dan pembukaan CDC Serial port (`COM4`) dari pipa transfer WinUSB bulk streaming.
+         - Mendukung pencarian ganda WinUSB GUID (`GUID_DEVINTERFACE_HT306_WINUSB` dan `GUID_DEVINTERFACE_STANDARD_WINUSB`).
+         - Menyesuaikan `bcdDevice` ke `0x0101` di `usb_descriptors.c` dan mengompilasi ulang `ht306_rp2350_zero.uf2` untuk melewati pembatasan cache lama Windows `ExtPropDescSemaphore`.
+  - Files: `firmware/src/usb_descriptors.c`, `firmware/build/ht306_rp2350_zero.uf2`, `pc_stream_app/CMakeLists.txt`, `pc_stream_app/src/app_state.h`, `pc_stream_app/src/app_state.cpp`, `pc_stream_app/src/audio_endpoint_helper.cpp`, `pc_stream_app/src/audio_capture.h`, `pc_stream_app/src/audio_capture.cpp`, `pc_stream_app/src/usb_transport.h`, `pc_stream_app/src/usb_transport.cpp`, `pc_stream_app/src/main_webview.cpp`, `pc_stream_app/ui/index.html`
+
+
+- [x] **Slice 19: Integrasi Windows Taskbar Audio Device & Dynamic Auto-Switching Endpoint untuk LG HT306**
+  - Acceptance:
+    1. **Arsitektur Endpoint Windows Audio (WHQL Attestation)**:
+       - Memanfaatkan driver virtual audio WHQL (`tools/vbcable/`) yang 100% lolos Microsoft Driver Signature Enforcement (DSE) dan kompatibel dengan Windows 10/11 64-bit tanpa mematikan Secure Boot.
+       - Menyediakan automated silent installer (`VBCABLE_Setup_x64.exe -i -h`) via UAC Elevation (`runas`) dan auto-restart `AudioEndpointBuilder` + `audiosrv` tanpa perlu me-reboot Windows.
+    2. **COM `IPolicyConfig` Auto-Switching & Renaming (`audio_policy_manager.h/cpp`, `policy_config.h`)**:
+       - Mengimplementasikan antarmuka COM `IPolicyConfig` (`CLSID_CPolicyConfigClient` `{870af99c-171d-4f9e-af0d-e63df40c2bc9}` dan `IID_IPolicyConfig` `{f8679f50-850a-41cf-9c72-430f290290c8}`) standar industri untuk mengubah default playback device secara programmatic.
+       - Menyimpan ID endpoint default sebelumnya (`m_previousDefaultEndpointId`).
+       - Memasang nama representatif `"Speakers (LG HT306 Home Theater)"` via Core Audio `IPropertyStore` (`PKEY_Device_FriendlyName`).
+       - Menyetel format perangkat default ke 5.1 Surround 96 kHz 32-bit Float (`KSDATAFORMAT_SUBTYPE_IEEE_FLOAT`).
+    3. **Lifecycle Hooking pada USB Hot-Plug (`usb_transport.cpp`)**:
+       - Saat RP2350 dicolokkan dan `UsbTransport::Open()` sukses: Otomatis memanggil `SwitchToHT306()`, memindahkan default playback Windows ke LG HT306 seketika (semua suara sistem, browser, game langsung terarah).
+       - Saat kabel RP2350 dicabut (`OnDeviceDisconnected()`): Otomatis memanggil `RestorePreviousDefault()`, mengembalikan audio default Windows ke speaker laptop / Realtek semula tanpa glitch.
+    4. **Frontend UI Badge & Settings (`ui/index.html`, `main_webview.cpp`)**:
+       - Menambahkan badge Taskbar Audio Device interaktif di header utama di sebelah indikator status hardware (`Taskbar: LG HT306` atau `+ Pasang Driver Taskbar`).
+       - Menambahkan kartu kontrol driver di tab Settings dengan status real-time dan tombol aksi 1-klik.
+       - Mengintegrasikan telemetri JSON `audio_driver` ke dalam loop background 60 Hz.
+    5. **Kompilasi & Efisiensi Memori**:
+       - Berhasil dikompilasi via MinGW-w64 GCC 16.2.0 + Ninja menghasilkan biner mandiri `ht306_desktop_app.exe` (3.20 MB).
+       - Mempertahankan konsumsi RAM ultra-ringan (~6 MB).
+  - Files: `pc_stream_app/src/policy_config.h`, `pc_stream_app/src/audio_policy_manager.h`, `pc_stream_app/src/audio_policy_manager.cpp`, `pc_stream_app/src/usb_transport.cpp`, `pc_stream_app/src/main_webview.cpp`, `pc_stream_app/ui/index.html`, `pc_stream_app/CMakeLists.txt`
+
+- [x] **Slice 20: Perbaikan Interaktivitas Tombol Pasang Driver Taskbar & UAC Elevation Flow**
+  - Acceptance:
+    1. **Frontend Event Handler & Window Drag Isolation (`ui/index.html`)**:
+       - Memperbaiki deklarasi `window.handleAudioBadgeClick` dan `window.handleInstallCableClick` pada objek global `window` dengan pengamanan `stopPropagation()`, `preventDefault()`, serta throttling anti multi-klik.
+       - Memastikan tombol badge `#header-audio-badge` dan tombol settings `#btn-install-vbcable` bebas dari interupsi native `window_drag` listener.
+       - Menambahkan status visual interaktif `"Membuka Installer..."` dan animasi loading seketika saat tombol ditekan.
+    2. **Installer Invocation & UAC Elevation (`audio_policy_manager.cpp`)**:
+       - Mengubah `FindVBCableSetupExe()` agar mengembalikan canonical full path (`GetFullPathNameA`) untuk mencegah kegagalan `ShellExecuteExA` dengan verb `"runas"` pada path relatif bertingkat (`..\`).
+       - Menginisialisasi COM STA (`CoInitializeEx` dengan `COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE`) sebelum `ShellExecuteExA`.
+       - Menghapus parameter `-i -h` yang tidak didukung oleh installer GUI VB-Cable sehingga jendela wizard installer terbuka dengan benar di layar pengguna.
+       - Mengatur `sei.hwnd = NULL` agar dialog UAC dan jendela wizard setup tidak tertahan oleh thread UI WebView.
+       - Menambahkan timeout tunggu hingga 120 detik dan pasca instalasi langsung melakukan auto-rename ke `"LG HT306 Home Theater"` serta konfigurasi 5.1 Surround 96 kHz.
+    3. **Kompilasi & Verifikasi**:
+       - Sukses kompilasi biner `ht306_desktop_app.exe` via Ninja tanpa error.
+  - Files: `pc_stream_app/ui/index.html`, `pc_stream_app/src/audio_policy_manager.cpp`, `tasks/todo.md`
+
+- [x] **Slice 21: Otomatisasi Sinkronisasi Penamaan Taskbar 'LG HT306 Home Theater' & Auto-Disable 16ch**
+  - Acceptance:
+    1. **Skrip Otomasi Registry & Service Refresh (`tools/setup_ht306_audio.ps1`, `tools/vbcable/install_vbcable.cmd`)**:
+       - Mengubah properti registry `{a45c254e-df1c-4efd-8020-67d146a850e0},2` dan `{b3f8fa53-0004-438e-9003-51a46e139bfc},6` menjadi `"LG HT306 Home Theater"`.
+       - Menonaktifkan perangkat `CABLE in 16ch` secara otomatis (`DeviceState = 2`) sehingga tidak membingungkan di daftar Taskbar.
+       - Me-refresh cache sistem dengan me-restart layanan `AudioEndpointBuilder` secara otomatis.
+    2. **Integrasi C++ Backend & IPC (`audio_policy_manager.h/cpp`, `main_webview.cpp`)**:
+       - Menambahkan metode `AudioPolicyManager::SyncEndpointNames()` dengan pemanggilan elevated UAC.
+       - Menambahkan IPC handler `sync_audio_names` pada antarmuka WebView2.
+    3. **Frontend UI 1-Klik (`ui/index.html`)**:
+       - Jika nama perangkat masih mendeteksi string `"CABLE"`, tombol di tab Settings otomatis beralih menjadi `"Sinkronkan Nama ke LG HT306"` yang langsung memicu proses perapian nama 100% otomatis.
+    4. **Kompilasi & Peluncuran**:
+       - Sukses kompilasi biner `ht306_desktop_app.exe` dan aplikasi berhasil diluncurkan di desktop pengguna.
+  - Files: `pc_stream_app/tools/setup_ht306_audio.ps1`, `pc_stream_app/tools/sync_audio_names.cmd`, `pc_stream_app/tools/vbcable/install_vbcable.cmd`, `pc_stream_app/src/audio_policy_manager.h`, `pc_stream_app/src/audio_policy_manager.cpp`, `pc_stream_app/src/main_webview.cpp`, `pc_stream_app/ui/index.html`, `tasks/todo.md`
+
+- [x] **Slice 22: Resolusi Root-Cause ACL `MMDevices` (`KEY_SET_VALUE`) — Auto-Rename & Auto-Disable 16ch Tanpa UAC**
+  - Acceptance:
+    1. **Investigasi Root-Cause ACL Windows 11 `MMDevices`**:
+       - Menemukan penyebab mengapa PowerShell `Set-ItemProperty`, `reg add`, dan COM `OpenPropertyStore(STGM_WRITE)` selalu ditolak (`ERROR_ACCESS_DENIED`) meskipun dijalankan sebagai Administrator: ACL pada `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\MMDevices\Audio\Render\{GUID}` dan `\Properties` hanya memberikan hak `KEY_QUERY_VALUE | KEY_SET_VALUE` (`0x0003`) kepada `BUILTIN\Administrators` dan `BUILTIN\Users`, serta menolak `KEY_CREATE_SUB_KEY` (`0x0004`) yang diminta oleh `KEY_WRITE` (`0x20006`).
+    2. **Implementasi Native Win32 C++ `KEY_SET_VALUE` Tanpa UAC (`audio_policy_manager.cpp`, `main_webview.cpp`)**:
+       - Menulis ulang `AudioPolicyManager::SyncEndpointNames()` dan `AudioPolicyManager::RenameEndpoint()` menggunakan Win32 `RegOpenKeyExW(HKEY_LOCAL_MACHINE, ..., 0, KEY_SET_VALUE, &hKey)` dan `RegSetValueExW` secara langsung di C++ tanpa skrip eksternal dan **tanpa prompt UAC**.
+       - Menonaktifkan `CABLE In 16ch` (`DeviceState = 0x10000002`) dan mengubah nama `CABLE Input` menjadi `LG HT306 Home Theater (5.1 Surround)` secara otomatis saat startup aplikasi, saat event `WM_DEVICECHANGE`, dan di dalam `CheckDriverStatus()`.
+       - Memperbarui `Sinkronkan_Nama_HT306.bat` agar menggunakan `.NET RegistryRights::SetValue`.
+    3. **Verifikasi Live di Mesin Pengguna**:
+       - Diverifikasi langsung melalui `IMMDeviceEnumerator::EnumAudioEndpoints`: `CABLE In 16ch` hilang dari daftar aktif Windows Taskbar, dan perangkat utama tampil sebagai `LG HT306 Home Theater (5.1 Surround)`.
+  - Files: `pc_stream_app/src/audio_policy_manager.cpp`, `pc_stream_app/src/main_webview.cpp`, `Sinkronkan_Nama_HT306.bat`, `pc_stream_app/tools/Sinkronkan_Nama_HT306.bat`, `tasks/todo.md`

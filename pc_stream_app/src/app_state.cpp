@@ -88,10 +88,21 @@ void AppState::AddLog(LogLevel level, const std::string& subsystem, const std::s
     char buf[32];
     std::snprintf(buf, sizeof(buf), "%02d:%02d:%02d.%03d", tm.tm_hour, tm.tm_min, tm.tm_sec, (int)ms.count());
 
+    std::lock_guard<std::mutex> lock(log_mutex);
     logs.push_back({ buf, level, subsystem, msg });
     if (logs.size() > 500) {
         logs.erase(logs.begin());
     }
+}
+
+void AppState::ClearLogs() {
+    std::lock_guard<std::mutex> lock(log_mutex);
+    logs.clear();
+}
+
+std::vector<LogEntry> AppState::GetLogsSnapshot() const {
+    std::lock_guard<std::mutex> lock(log_mutex);
+    return logs;
 }
 
 } // namespace ht306

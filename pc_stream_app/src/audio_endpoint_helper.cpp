@@ -15,6 +15,8 @@ static std::string WideToUtf8(const std::wstring& wstr) {
 }
 
 void AudioEndpointHelper::EnumerateDevices(AppState& state) {
+    HRESULT hrCom = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
+
     state.available_devices.clear();
 
     // Always provide Default option
@@ -33,55 +35,59 @@ void AudioEndpointHelper::EnumerateDevices(AppState& state) {
         (void**)&enumerator
     );
 
-    if (FAILED(hr) || !enumerator) return;
+    if (SUCCEEDED(hr) && enumerator) {
+        IMMDeviceCollection* collection = NULL;
+        hr = enumerator->EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE, &collection);
+        if (SUCCEEDED(hr) && collection) {
+            UINT count = 0;
+            collection->GetCount(&count);
 
-    IMMDeviceCollection* collection = NULL;
-    hr = enumerator->EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE, &collection);
-    if (SUCCEEDED(hr) && collection) {
-        UINT count = 0;
-        collection->GetCount(&count);
+            for (UINT i = 0; i < count; ++i) {
+                IMMDevice* device = NULL;
+                if (SUCCEEDED(collection->Item(i, &device)) && device) {
+                    LPWSTR dev_id = NULL;
+                    device->GetId(&dev_id);
 
-        for (UINT i = 0; i < count; ++i) {
-            IMMDevice* device = NULL;
-            if (SUCCEEDED(collection->Item(i, &device)) && device) {
-                LPWSTR dev_id = NULL;
-                device->GetId(&dev_id);
-
-                IPropertyStore* props = NULL;
-                if (SUCCEEDED(device->OpenPropertyStore(STGM_READ, &props)) && props) {
-                    PROPVARIANT var_name;
-                    PropVariantInit(&var_name);
-                    if (SUCCEEDED(props->GetValue(PKEY_Device_FriendlyName, &var_name))) {
-                        AudioEndpointInfo info;
-                        if (dev_id) info.id = dev_id;
-                        info.name = WideToUtf8(var_name.pwszVal ? var_name.pwszVal : L"Unknown Audio Device");
-                        
-                        // Check if this is a dedicated virtual cable or HT306 device
-                        if (info.name.find("CABLE") != std::string::npos || 
-                            info.name.find("HT306") != std::string::npos ||
-                            info.name.find("Virtual") != std::string::npos) {
-                            // Suggest selecting this virtual endpoint
-                            if (state.active_device_index <= 0) {
-                                state.active_device_index = (int)state.available_devices.size();
+                    IPropertyStore* props = NULL;
+                    if (SUCCEEDED(device->OpenPropertyStore(STGM_READ, &props)) && props) {
+                        PROPVARIANT var_name;
+                        PropVariantInit(&var_name);
+                        if (SUCCEEDED(props->GetValue(PKEY_Device_FriendlyName, &var_name))) {
+                            AudioEndpointInfo info;
+                            if (dev_id) info.id = dev_id;
+                            info.name = WideToUtf8(var_name.pwszVal ? var_name.pwszVal : L"Unknown Audio Device");
+                            
+                            // Check if this is a dedicated virtual cable or HT306 device
+                            if (info.name.find("CABLE") != std::string::npos || 
+                                info.name.find("HT306") != std::string::npos ||
+                                info.name.find("Virtual") != std::string::npos) {
+                                // Suggest selecting this virtual endpoint
+                                if (state.active_device_index <= 0) {
+                                    state.active_device_index = (int)state.available_devices.size();
+                                }
                             }
+
+                            state.available_devices.push_back(info);
                         }
-
-                        state.available_devices.push_back(info);
+                        PropVariantClear(&var_name);
+                        props->Release();
                     }
-                    PropVariantClear(&var_name);
-                    props->Release();
-                }
 
-                if (dev_id) CoTaskMemFree(dev_id);
-                device->Release();
+                    if (dev_id) CoTaskMemFree(dev_id);
+                    device->Release();
+                }
             }
+            collection->Release();
         }
-        collection->Release();
+        enumerator->Release();
     }
-    enumerator->Release();
 
     if (state.active_device_index < 0 && !state.available_devices.empty()) {
         state.active_device_index = 0;
+    }
+
+    if (SUCCEEDED(hrCom)) {
+        CoUninitialize();
     }
 }
 
