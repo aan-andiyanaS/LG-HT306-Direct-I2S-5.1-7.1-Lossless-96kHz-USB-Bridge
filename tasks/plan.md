@@ -1,43 +1,71 @@
-# Rencana Implementasi: Modern Desktop UI (Arsitektur JUCE 8 Webview)
+# Implementation Plan: Dynamic Audio Endpoint Presence (Show/Hide on RP2350 Connection)
 
-## 1. Latar Belakang & Tujuan
-Dear ImGui (C++ DirectX 11) yang saat ini berjalan membuktikan binary C++ native dapat berjalan sangat ringan (~12–15 MB RAM). Namun, antarmukanya kaku, tidak memiliki CSS layout engine, dan rentan terhadap masalah scrollbar / scaling saat DPI berubah.
+## Overview
+Mengimplementasikan manajemen visibilitas dinamis (*Dynamic Endpoint Presence*) untuk perangkat audio Windows **`LG HT306 Home Theater (5.1 Surround)`** sehingga perangkat tersebut **hanya muncul di Windows Taskbar Sound Output ketika hardware RP2350-Zero benar-benar terhubung ke USB**, dan **otomatis disembunyikan (serta mengembalikan output ke speaker bawaan PC)** ketika RP2350-Zero dicabut atau belum dihubungkan.
 
-Di sisi lain, antarmuka pada `pc_streamer/stitch_design_system_implementation/` (HTML5, Tailwind CSS, SVG Icons, Plus Jakarta Sans, JetBrains Mono) memiliki kualitas visual komersial yang rapi dan modern.
+## Architecture Decisions
+1. **Zero-UAC Real-Time `DeviceState` Switching via `KEY_SET_VALUE` (`0x0002`):**
+   - Menggunakan Win32 API `RegOpenKeyExW(HKEY_LOCAL_MACHINE, ..., 0, KEY_SET_VALUE, &hKey)` pada `SOFTWARE\Microsoft\Windows\CurrentVersion\MMDevices\Audio\Render\{GUID}` untuk mengubah nilai `DeviceState`:
+     - **RP2350 Terhubung (`Active`):** `DeviceState = 0x00000001` (`DEVICE_STATE_ACTIVE`) → perangkat langsung muncul di Windows Taskbar Sound Output.
+     - **RP2350 Tidak Terhubung / Dicabut (`Hidden/Standby`):** `DeviceState = 0x10000002` (`DEVICE_STATE_DISABLED`) → perangkat langsung menghilang dari Windows Taskbar Sound Output, sementara `CABLE In 16ch` tetap dikunci pada `0x10000002`.
+2. **Pemisahan Status `installed` vs `endpoint_visible` pada `AudioDriverStatus`:**
+   - Saat `DeviceState = 0x10000002`, fungsi `IMMDeviceEnumerator::EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE)` tidak lagi mengembalikan endpoint HT306.
+   - Oleh karena itu, `AudioPolicyManager::CheckDriverStatus()` akan menggunakan mask `DEVICE_STATE_ACTIVE | DEVICE_STATE_DISABLED` (serta verifikasi registry `VBAudioVACWDM` non-16ch) dan mengisi struktur `AudioDriverStatus`:
+     - `installed = true` (driver sudah terpasang di PC).
+     - `endpoint_visible = (dwState == DEVICE_STATE_ACTIVE)` (apakah saat ini sedang dimunculkan di Taskbar).
+     - `is_default = (endpoint_visible && current_default == dev_id)`.
+3. **Fallback Default Speaker Otomatis sebelum Menyembunyikan Endpoint:**
+   - Sebelum menyembunyikan `LG HT306 Home Theater` (`SetEndpointVisibility(false)`), jika `m_saved_previous_device_id` kosong (misal aplikasi baru dibuka saat RP2350 tidak terhubung namun HT306 masih menjadi default dari sesi sebelumnya), `RestorePreviousDefault()` otomatis mencari endpoint `DEVICE_STATE_ACTIVE` pertama yang bukan HT306/VB-Cable (contoh: `Speakers (Realtek(R) Audio)`) dan memindahkannya via `IPolicyConfig::SetDefaultEndpoint`.
+4. **Sinkronisasi Siklus Hidup (`UsbTransport` & `main_webview.cpp`):**
+   - **Saat Startup (`WinMain`):** Mengecek `g_UsbTransport.CheckHardwarePresence()`. Jika RP2350 belum dicolok, memanggil `RestorePreviousDefault(g_State)` (yang sekaligus menyembunyikan endpoint dari Taskbar). Jika RP2350 sudah dicolok, memanggil `SwitchToHT306(g_State)` (yang memunculkan endpoint di Taskbar dan menjadikannya default).
+   - **Saat Hot-Plug Masuk (`CheckHardwarePresence()` / `Open()`):** Memanggil `SwitchToHT306(m_state)` → `SetEndpointVisibility(true)` → tunggu hingga `Audiosrv` mendaftarkan `DEVICE_STATE_ACTIVE` (polling cepat $\le 400\text{ ms}$) → `SetDefaultEndpoint` + `ConfigureEndpointSurround96k`.
+   - **Saat Hot-Plug Cabut (`OnDeviceDisconnected()`) & Saat Aplikasi Ditutup (`WM_CLOSE` / `WM_DESTROY`):** Memanggil `RestorePreviousDefault(m_state)` → kembalikan speaker PC → `SetEndpointVisibility(false)`.
 
-**Tujuan Implementasi:**
-1. Mengadopsi arsitektur **JUCE 8 Webview** (C++ Native Desktop Window + Microsoft Edge WebView2 Embedded).
-2. Mempertahankan seluruh **Core Audio & USB Engine C++** (`audio_capture.cpp` WASAPI loopback dan `usb_transport.cpp` WinUSB bulk).
-3. Menghadirkan antarmuka 100% identik dengan Stitch Design System: font tajam (DirectWrite), animasi halus, tidak ada scrollbar aneh, dan responsif.
-4. Memastikan alokasi RAM tetap sangat efisien: **target < 50 MB** (rata-rata WebView2 shared memory ~30–42 MB).
+## Task List
 
----
+### Phase 1: Backend AudioPolicyManager (`audio_policy_manager.h/cpp`)
+- [x] **Task 1: Perluas `AudioDriverStatus` & `CheckDriverStatus()` untuk Mendukung Status `Standby / Hidden`**
+  - **Acceptance:** `AudioDriverStatus` memiliki field `bool endpoint_visible = false;`. `CheckDriverStatus()` memindai `DEVICE_STATE_ACTIVE | DEVICE_STATE_DISABLED` (mengecualikan `16ch`) sehingga ketika endpoint disembunyikan (`0x10000002`), `installed` tetap `true` dan `endpoint_visible` bernilai `false`.
+  - **Verify:** Kompilasi bersih via Ninja.
+  - **Files:** `pc_stream_app/src/audio_policy_manager.h`, `pc_stream_app/src/audio_policy_manager.cpp`
 
-## 2. Tahapan Implementasi (Vertical Slices)
+- [x] **Task 2: Implementasi `SetEndpointVisibility(bool visible)` & Integrasi ke `SwitchToHT306()` / `RestorePreviousDefault()`**
+  - **Acceptance:**
+    - `SetEndpointVisibility(bool visible)` mengubah `DeviceState` endpoint utama HT306 (`0x00000001` saat `true`, `0x10000002` saat `false`) via `RegOpenKeyExW(..., KEY_SET_VALUE)` tanpa menyentuh `16ch` (yang selalu `0x10000002`).
+    - `SwitchToHT306(AppState&)` memanggil `SetEndpointVisibility(true)`, mem-polling `CheckDriverStatus()` hingga `endpoint_visible == true` (maks 10x40ms), menyimpan endpoint non-HT306 sebelumnya, lalu menyetel default endpoint + format 5.1 96 kHz.
+    - `RestorePreviousDefault(AppState&)` memindahkan default playback ke speaker PC (menggunakan `m_saved_previous_device_id` atau fallback speaker non-HT306 aktif pertama), lalu memanggil `SetEndpointVisibility(false)`.
+  - **Verify:** Kompilasi bersih via Ninja.
+  - **Files:** `pc_stream_app/src/audio_policy_manager.h`, `pc_stream_app/src/audio_policy_manager.cpp`
 
-### Slice 1: Persiapan Aset Frontend & Struktur Folder di `pc_stream_app`
-- Menyalin dan mengonsolidasikan berkas frontend dari `pc_streamer/stitch_design_system_implementation/` ke dalam `pc_stream_app/ui/`.
-- Mengonfigurasi client JS agar siap menerima event telemetri dari C++ Native Bridge.
-- Sub-agent: `flash` (Web/Asset Integrator).
+### Checkpoint 1: Backend AudioPolicyManager
+- [x] Build C++ berhasil tanpa warning/error dan transisi `SetEndpointVisibility(true/false)` teruji.
 
-### Slice 2: Implementasi C++ Native Host Window (WebView2 / JUCE 8 Pattern)
-- Mengimplementasikan C++ Native Window Host di Windows yang meng-embed Microsoft Edge WebView2 kompatibel dengan MinGW GCC 16.2.0.
-- Mengonfigurasi properti jendela (1280x840, dark mode frame, disabling unnecessary browser context menus).
-- Menghubungkan WebView2 ke folder lokal `pc_stream_app/ui/`.
-- Sub-agent: `inherit` (C++ Desktop Engineer).
+### Phase 2: Integrasi USB Lifecycle & Frontend UI (`usb_transport.cpp`, `main_webview.cpp`, `ui/index.html`)
+- [x] **Task 3: Integrasi State Kehadiran Hardware RP2350 (`usb_transport.cpp` & `main_webview.cpp`)**
+  - **Acceptance:**
+    - Saat startup di `WinMain`, visibilitas endpoint langsung disinkronkan dengan `g_UsbTransport.CheckHardwarePresence()`.
+    - Di `UsbTransport::WorkerLoop()` dan `OnDeviceDisconnected()`, transisi `hw_present` (`false -> true` maupun `true -> false`) selalu memicu `SwitchToHT306(m_state)` / `RestorePreviousDefault(m_state)` dan memperbarui `AudioEndpointHelper::EnumerateDevices(m_state)`.
+    - JSON telemetri `audio_driver` menyertakan `"visible": true/false`.
+  - **Verify:** Kompilasi bersih via Ninja.
+  - **Files:** `pc_stream_app/src/usb_transport.cpp`, `pc_stream_app/src/main_webview.cpp`
 
-### Slice 3: Implementasi Native IPC Bridge (Komunikasi C++ <-> JS Dua Arah)
-- C++ ke JS: Streaming telemetri (6-channel VU meter levels 60fps, Link Budget, RP2350 USB connection state, FIFO depth, uptime, buffer underruns, logs).
-- JS ke C++: Perintah kontrol pengguna (Master volume dB, Channel gain trims, Buffer latency profile, Lip-sync delay ms, Limiter toggle, Test tone triggers).
-- Sub-agent: `inherit` (Systems & IPC Engineer).
+- [x] **Task 4: Pembaruan Indikator Status UI (`pc_stream_app/ui/index.html`)**
+  - **Acceptance:**
+    - Saat `installed == true` dan `visible == false` (RP2350 belum dicolok):
+      - Badge Header menampilkan **`Taskbar: Standby (RP2350 Off)`** (bukan `+ Pasang Driver Taskbar`).
+      - Kartu Settings menampilkan **`Terpasang — Siaga (Muncul Saat RP2350 Terhubung)`** beserta tombol manual **`Tampilkan Manual`** jika pengguna ingin menguji tanpa RP2350.
+    - Saat `installed == true` dan `visible == true` (RP2350 terhubung):
+      - Badge Header menampilkan **`Taskbar: LG HT306 Home Theater (5.1 Surround)`** berwarna hijau aktif.
+  - **Verify:** Verifikasi visual UI dan daftar Sound Output di Windows Taskbar.
+  - **Files:** `pc_stream_app/ui/index.html`, `pc_stream_app/src/main_webview.cpp`
 
-### Slice 4: Integrasi Core Audio WASAPI & WinUSB Transport
-- Menghubungkan `audio_capture.cpp` (WASAPI Loopback) dan `usb_transport.cpp` (WinUSB Bulk EP 0x03 OUT) ke host C++ baru.
-- Menghubungkan thread streaming audio ke lifecycle window desktop.
-- Sub-agent: `pro` (Audio & USB Pipeline Engineer).
+### Checkpoint 2: End-to-End Verification
+- [x] Saat RP2350 tidak dicolok: `LG HT306 Home Theater` tidak muncul di Windows Taskbar Sound Output, audio PC keluar lewat speaker bawaan.
+- [x] Saat RP2350 dicolok (atau disimulasikan aktif): `LG HT306 Home Theater (5.1 Surround)` muncul di Windows Taskbar dalam `< 200 ms` dan otomatis menjadi default speaker.
 
-### Slice 5: Verifikasi Menyeluruh, Benchmark RAM, & Dokumentasi
-- Verifikasi ke-7 tab (Dashboard, Mixer, Routing, Profiles, Test, Log, Settings).
-- Mengukur alokasi RAM pada kondisi idle dan streaming (target < 50 MB).
-- Memperbarui build system `CMakeLists.txt` untuk target `ht306_desktop_app.exe`.
-- Sub-agent: `flash` (QA & Verification).
+## Risks and Mitigations
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| Jeda propagasi `Audiosrv` (~20–80 ms) setelah `DeviceState` diubah ke `1` sebelum `IPolicyConfig::SetDefaultEndpoint` dipanggil | Medium | Menambahkan *short readiness polling* (maks 10 iterasi $\times$ 40 ms) di dalam `SwitchToHT306()` hingga `IMMDeviceEnumerator` melaporkan endpoint aktif. |
+| Aplikasi dimulai saat RP2350 tidak terhubung, tetapi dari sesi sebelumnya `LG HT306` masih berstatus default speaker (`m_saved_previous_device_id` kosong) | Medium | Menambahkan *Fallback Non-HT306 Speaker Finder* di `RestorePreviousDefault()` yang mencari endpoint aktif pertama selain VB-Cable/HT306 sebelum menyembunyikan endpoint HT306. |
+| Pengguna ingin melakukan pengujian *5.1 Acoustic Sweep Test* tanpa mencolokkan RP2350 | Low | Menyediakan tombol manual *"Tampilkan di Taskbar"* di tab Settings (dan generator Sweep Test tetap berjalan menggunakan QPC clock internal meskipun endpoint disembunyikan). |

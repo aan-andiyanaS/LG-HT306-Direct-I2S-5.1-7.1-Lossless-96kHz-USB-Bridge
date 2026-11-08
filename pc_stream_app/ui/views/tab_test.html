@@ -1,0 +1,596 @@
+      <div id="tab-test" class="tab-panel hidden">
+        <!-- Top Hero Header Bar -->
+<div class="flex flex-col md:flex-row items-start md:items-center justify-between pb-space-lg gap-space-md">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-space-sm">
+<span class="px-2 py-0.5 rounded-full bg-surface-2 font-code-sm text-code-sm text-primary font-semibold tracking-wider">
+          ACOUSTIC VERIFICATION / SEQUENCE ENGINE
+        </span>
+<span class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-surface-2 text-status-ok font-meter-num text-meter-num">
+<span class="w-1.5 h-1.5 rounded-full bg-status-ok"></span>
+          DA-I2S LOW-JITTER
+        </span>
+</div>
+<h1 class="font-headline-lg text-headline-lg text-text-primary tracking-tight">
+        5.1 Speaker Sweep &amp; Acoustic Alignment
+      </h1>
+<p class="font-body-sm text-body-sm text-text-secondary max-w-3xl">
+        Automated sequence sweep (FL → C → FR → SR → SL → LFE), pink noise calibration, and polarity verification to confirm physical speaker wiring and DAC line integrity.
+      </p>
+</div>
+<!-- Quick Action Controls -->
+<div class="flex items-center gap-space-xs self-stretch md:self-auto flex-wrap">
+<button class="flex items-center gap-space-xs px-space-lg py-2.5 rounded-full bg-primary-container hover:bg-lg-red-hover active:bg-lg-red-pressed text-text-primary font-body-sm font-semibold shadow-sm transition-all" id="sweep-trigger-btn">
+<span class="material-symbols-outlined text-[18px]">graphic_eq</span>
+<span>Start 5.1 Auto-Sweep</span>
+</button>
+<button class="flex items-center gap-space-xs px-space-md py-2.5 rounded-full bg-surface-2 hover:bg-surface-container-high text-status-error font-body-sm font-medium transition-all" onclick="window.testEngine.sweepRunning = true; window.testEngine.toggleSweep()">
+<span class="material-symbols-outlined text-[18px]">stop_circle</span>
+<span>Abort Test</span>
+</button>
+<button class="flex items-center gap-space-xs px-space-md py-2.5 rounded-full bg-surface-2 hover:bg-surface-container-highest text-text-secondary hover:text-text-primary font-body-sm transition-all">
+<span class="material-symbols-outlined text-[18px]">volume_off</span>
+<span>Mute All</span>
+</button>
+</div>
+</div>
+<!-- Section 2: Sweep & Signal Generator Controller Bar -->
+<div class="bg-surface rounded-xl p-space-lg mb-space-lg flex flex-col gap-space-md">
+<div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-space-md">
+<!-- Signal Pattern Selector Chips -->
+<div class="flex flex-col gap-1.5 w-full lg:w-auto">
+<span class="font-caption text-caption text-icon-gray font-semibold uppercase tracking-wider">Test Signal Excitation</span>
+<div class="flex flex-wrap items-center gap-1.5">
+<button class="px-space-md py-1.5 rounded-full bg-primary-container text-text-primary font-code-sm text-code-sm font-medium shadow-sm">
+            Chirp Sweep (20Hz - 20kHz)
+          </button>
+<button class="px-space-md py-1.5 rounded-full bg-surface-2 hover:bg-surface-container-high text-text-secondary hover:text-text-primary font-code-sm text-code-sm transition-colors">
+            Pink Noise (Uncorrelated)
+          </button>
+<button class="px-space-md py-1.5 rounded-full bg-surface-2 hover:bg-surface-container-high text-text-secondary hover:text-text-primary font-code-sm text-code-sm transition-colors">
+            Sine Tone (1 kHz Ref)
+          </button>
+<button class="px-space-md py-1.5 rounded-full bg-surface-2 hover:bg-surface-container-high text-text-secondary hover:text-text-primary font-code-sm text-code-sm transition-colors">
+            Dual-Tone IMD (60Hz + 7kHz)
+          </button>
+<button class="px-space-md py-1.5 rounded-full bg-surface-2 hover:bg-surface-container-high text-text-secondary hover:text-text-primary font-code-sm text-code-sm transition-colors">
+            Polarity Pulse (Phase)
+          </button>
+</div>
+</div>
+<!-- Reference Level Gauge Control -->
+<div class="flex items-center gap-space-lg w-full lg:w-auto justify-between lg:justify-end">
+<div class="flex flex-col gap-1">
+<span class="font-caption text-caption text-icon-gray font-semibold uppercase tracking-wider">Calibrated Test Output</span>
+<div class="flex items-center gap-2">
+<button class="w-7 h-7 rounded-full bg-surface-2 hover:bg-surface-container-high flex items-center justify-center text-text-secondary hover:text-text-primary transition-colors" onclick="window.testEngine.adjustLevel(-1.0)">
+<span class="font-meter-num text-caption">-1</span>
+</button>
+<div class="px-3 py-1 bg-surface-2 rounded-lg font-meter-num text-code-lg text-primary font-semibold min-w-[90px] text-center" id="dbfs-val">
+              -20.0 dBFS
+            </div>
+<button class="w-7 h-7 rounded-full bg-surface-2 hover:bg-surface-container-high flex items-center justify-center text-text-secondary hover:text-text-primary transition-colors" onclick="window.testEngine.adjustLevel(1.0)">
+<span class="font-meter-num text-caption">+1</span>
+</button>
+<div class="flex flex-col ml-1">
+<span class="font-caption text-[11px] text-status-warn flex items-center gap-1">
+<span class="material-symbols-outlined text-[13px]">shield</span> Safety Limiter @ -12 dBFS
+              </span>
+<span class="font-caption text-[10px] text-icon-gray">EBU R128 Reference</span>
+</div>
+</div>
+</div>
+<div class="hidden sm:flex flex-col gap-1">
+<span class="font-caption text-caption text-icon-gray font-semibold uppercase tracking-wider">Dwell Duration</span>
+<div class="flex items-center gap-1 bg-surface-2 p-1 rounded-full">
+<span class="px-2.5 py-0.5 rounded-full text-text-secondary font-code-sm text-code-sm hover:text-text-primary cursor-pointer">0.8s</span>
+<span class="px-2.5 py-0.5 rounded-full bg-surface-container-high text-primary font-code-sm text-code-sm font-semibold">1.5s</span>
+<span class="px-2.5 py-0.5 rounded-full text-text-secondary font-code-sm text-code-sm hover:text-text-primary cursor-pointer">3.0s</span>
+<span class="px-2.5 py-0.5 rounded-full text-text-secondary font-code-sm text-code-sm hover:text-text-primary cursor-pointer flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">repeat</span>Loop
+            </span>
+</div>
+</div>
+</div>
+</div>
+<!-- Auto-Advance Step Progress Bar Tracker -->
+<div class="bg-surface-2 rounded-lg p-space-sm flex flex-col gap-2">
+<div class="flex items-center justify-between text-caption font-caption text-text-secondary">
+<span class="flex items-center gap-1.5 font-code-sm">
+<span class="w-2 h-2 rounded-full bg-status-ok"></span>
+          ACTIVE EXECUTION: <span class="text-text-primary font-semibold" id="sweep-status-text">CHANNEL (C) PLAYING PINK NOISE</span>
+</span>
+<span class="font-meter-num text-meter-num text-icon-gray">SEQ 2 OF 6 • DWELL REMAINING: 0.9s</span>
+</div>
+<div class="grid grid-cols-6 gap-1.5">
+<!-- Step 1 FL -->
+<div class="flex flex-col gap-1 cursor-pointer" onclick="window.testEngine.setActiveSpeaker('FL')">
+<div class="h-1.5 w-full bg-status-ok rounded-full"></div>
+<div class="flex items-center justify-between px-1">
+<span class="font-code-sm text-[11px] text-status-ok font-semibold">1. FL</span>
+<span class="material-symbols-outlined text-[12px] text-status-ok">check</span>
+</div>
+</div>
+<!-- Step 2 C (Active) -->
+<div class="flex flex-col gap-1 cursor-pointer" onclick="window.testEngine.setActiveSpeaker('C')">
+<div class="h-1.5 w-full bg-primary-container rounded-full"></div>
+<div class="flex items-center justify-between px-1">
+<span class="font-code-sm text-[11px] text-text-primary font-bold">2. C</span>
+<span class="font-meter-num text-[10px] text-primary">LIVE</span>
+</div>
+</div>
+<!-- Step 3 FR -->
+<div class="flex flex-col gap-1 cursor-pointer" onclick="window.testEngine.setActiveSpeaker('FR')">
+<div class="h-1.5 w-full bg-surface-container-high rounded-full"></div>
+<div class="flex items-center justify-between px-1">
+<span class="font-code-sm text-[11px] text-text-secondary">3. FR</span>
+<span class="font-meter-num text-[10px] text-icon-gray">NEXT</span>
+</div>
+</div>
+<!-- Step 4 SR (Warning flagged) -->
+<div class="flex flex-col gap-1 cursor-pointer" onclick="window.testEngine.setActiveSpeaker('SR')">
+<div class="h-1.5 w-full bg-status-warn rounded-full"></div>
+<div class="flex items-center justify-between px-1">
+<span class="font-code-sm text-[11px] text-status-warn font-semibold">4. SR</span>
+<span class="material-symbols-outlined text-[12px] text-status-warn">warning</span>
+</div>
+</div>
+<!-- Step 5 SL -->
+<div class="flex flex-col gap-1 cursor-pointer" onclick="window.testEngine.setActiveSpeaker('SL')">
+<div class="h-1.5 w-full bg-surface-container-high rounded-full"></div>
+<div class="flex items-center justify-between px-1">
+<span class="font-code-sm text-[11px] text-text-secondary">5. SL</span>
+<span class="font-meter-num text-[10px] text-icon-gray">QUEUED</span>
+</div>
+</div>
+<!-- Step 6 LFE -->
+<div class="flex flex-col gap-1 cursor-pointer" onclick="window.testEngine.setActiveSpeaker('LFE')">
+<div class="h-1.5 w-full bg-surface-container-high rounded-full"></div>
+<div class="flex items-center justify-between px-1">
+<span class="font-code-sm text-[11px] text-text-secondary">6. LFE</span>
+<span class="font-meter-num text-[10px] text-icon-gray">QUEUED</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Section 3 & 4: Centerpiece Grid (Soundstage Visualizer & Verification Checklist) -->
+<div class="grid grid-cols-1 xl:grid-cols-12 gap-space-lg mb-space-lg">
+<!-- Left Hero: Interactive 5.1 Surround Soundstage Visualizer (7 Cols) -->
+<div class="xl:col-span-7 bg-surface rounded-xl p-space-lg flex flex-col justify-between relative overflow-hidden">
+<!-- Soundstage Header and Mode Badges -->
+<div class="flex items-center justify-between z-10">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-primary text-[22px]">surround_sound</span>
+<div>
+<h2 class="font-headline-md text-headline-md text-text-primary">5.1 Acoustic Soundstage</h2>
+<p class="font-caption text-caption text-text-secondary">ITU-R BS.775 Listening Angle Matrix &amp; Phase Coherence</p>
+</div>
+</div>
+<div class="flex items-center gap-1 bg-surface-2 px-2.5 py-1 rounded-full">
+<span class="font-caption text-caption text-icon-gray font-medium">Auditioning:</span>
+<span class="font-code-sm text-code-sm text-primary font-bold" id="current-channel-readout">C</span>
+</div>
+</div>
+<!-- Graphic Soundstage Canvas / Polar Projection Arena -->
+<div class="relative w-full h-[460px] my-space-md flex items-center justify-center">
+<!-- SVG Polar Soundstage Circles and Angle Rays -->
+<svg class="absolute inset-0 w-full h-full pointer-events-none text-surface-2" fill="none" viewbox="0 0 500 460">
+<!-- Room Boundaries -->
+<rect class="opacity-40" height="420" rx="20" stroke="currentColor" stroke-dasharray="4 4" stroke-width="1.5" width="460" x="20" y="20"></rect>
+<!-- Concentric Distance Rings from Sweetspot (250, 240) -->
+<circle class="opacity-20" cx="250" cy="240" r="190" stroke="currentColor" stroke-width="1"></circle>
+<circle class="opacity-30" cx="250" cy="240" r="130" stroke="currentColor" stroke-width="1"></circle>
+<circle class="opacity-20" cx="250" cy="240" r="70" stroke="currentColor" stroke-width="1"></circle>
+<!-- Polar Radial Rays for 5.1 ITU Positions -->
+<!-- Center 0 deg -->
+<line class="opacity-30" stroke="currentColor" stroke-width="1" x1="250" x2="250" y1="240" y2="52"></line>
+<!-- FL -30 deg -->
+<line class="opacity-30" stroke="currentColor" stroke-width="1" x1="250" x2="155" y1="240" y2="75"></line>
+<!-- FR +30 deg -->
+<line class="opacity-30" stroke="currentColor" stroke-width="1" x1="250" x2="345" y1="240" y2="75"></line>
+<!-- SL -110 deg -->
+<line class="opacity-30" stroke="currentColor" stroke-width="1" x1="250" x2="71" y1="240" y2="305"></line>
+<!-- SR +110 deg -->
+<line class="opacity-30" stroke="currentColor" stroke-width="1" x1="250" x2="429" y1="240" y2="305"></line>
+<!-- Subwoofer LFE Corner line -->
+<line class="opacity-20" stroke="currentColor" stroke-dasharray="2 2" stroke-width="1" x1="250" x2="65" y1="240" y2="105"></line>
+<!-- Active Soundwave Emission from Center (animated concentric wave) -->
+<circle class=" opacity-25" cx="250" cy="54" r="28" stroke="#A50034" stroke-width="2"></circle>
+<circle class="opacity-40" cx="250" cy="54" r="42" stroke="#A50034" stroke-width="1"></circle>
+</svg>
+<!-- Central Sweet Spot / Listener Representation -->
+<div class="absolute top-[215px] left-1/2 -translate-x-1/2 flex flex-col items-center justify-center z-10 pointer-events-none">
+<div class="w-14 h-14 rounded-full bg-surface-container-high flex items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-text-primary text-[28px]">airline_seat_recline_extra</span>
+</div>
+<span class="font-code-sm text-[11px] text-icon-gray mt-1 tracking-wider uppercase font-semibold">Sweet Spot</span>
+<span class="font-meter-num text-[10px] text-tertiary">0.0 ms DELAY REF</span>
+</div>
+<!-- Speaker Node 1: FRONT LEFT (FL -30°) -->
+<div class="absolute top-10 left-[18%] -translate-x-1/2 p-2.5 rounded-xl bg-surface-container-low hover:bg-surface-2 transition-all cursor-pointer shadow-sm group w-36 z-20" data-speaker-node="FL" onclick="window.testEngine.setActiveSpeaker('FL')">
+<div class="speaker-ping-ring absolute -inset-1 rounded-xl bg-primary-container opacity-0 transition-opacity pointer-events-none"></div>
+<div class="relative z-10 flex flex-col gap-1">
+<div class="flex items-center justify-between">
+<span class="font-code-lg text-code-lg font-bold text-text-primary">FL</span>
+<span class="font-caption text-[11px] text-icon-gray">-30°</span>
+</div>
+<div class="flex items-center justify-between text-[11px] font-meter-num">
+<span class="text-status-ok">Pin 22</span>
+<span class="text-tertiary-fixed font-semibold">0° POL</span>
+</div>
+<div class="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden mt-0.5">
+<div class="bg-status-ok h-full w-[82%]"></div>
+</div>
+<div class="flex items-center justify-between pt-1">
+<span class="speaker-active-tag hidden text-[10px] font-bold text-primary">AUDITION</span>
+<button class="ml-auto text-[11px] text-text-secondary hover:text-text-primary font-caption px-1.5 py-0.5 rounded bg-surface-2">Solo</button>
+</div>
+</div>
+</div>
+<!-- Speaker Node 2: CENTER (C 0°) [Currently Active Hero State] -->
+<div class="absolute top-2 left-1/2 -translate-x-1/2 p-2.5 rounded-xl bg-surface-2 ring-2 ring-primary-container transition-all cursor-pointer shadow-md group w-40 z-20" data-speaker-node="C" onclick="window.testEngine.setActiveSpeaker('C')">
+<div class="speaker-ping-ring absolute -inset-1 rounded-xl bg-primary-container opacity-20 pointer-events-none"></div>
+<div class="relative z-10 flex flex-col gap-1">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+<span class="font-code-lg text-code-lg font-bold text-primary">CENTER</span>
+</div>
+<span class="font-caption text-[11px] text-primary font-semibold">0° (C)</span>
+</div>
+<div class="flex items-center justify-between text-[11px] font-meter-num">
+<span class="text-primary font-medium">Pin 24 • DAC3</span>
+<span class="text-tertiary-fixed font-semibold">0° NORMAL</span>
+</div>
+<!-- Live Active Peak Level Bar -->
+<div class="w-full bg-surface-container-high h-2 rounded-full overflow-hidden mt-0.5 flex">
+<div class="bg-status-ok h-full w-[70%]"></div>
+<div class="bg-status-warn h-full w-[15%]"></div>
+</div>
+<div class="flex items-center justify-between pt-1">
+<span class="speaker-active-tag text-[10px] font-bold text-primary tracking-wide">ACTIVE TONE</span>
+<button class="text-[11px] text-text-primary font-caption px-2 py-0.5 rounded-full bg-primary-container font-medium">Playing</button>
+</div>
+</div>
+</div>
+<!-- Speaker Node 3: FRONT RIGHT (FR +30°) -->
+<div class="absolute top-10 right-[18%] translate-x-1/2 p-2.5 rounded-xl bg-surface-container-low hover:bg-surface-2 transition-all cursor-pointer shadow-sm group w-36 z-20" data-speaker-node="FR" onclick="window.testEngine.setActiveSpeaker('FR')">
+<div class="speaker-ping-ring absolute -inset-1 rounded-xl bg-primary-container opacity-0 transition-opacity pointer-events-none"></div>
+<div class="relative z-10 flex flex-col gap-1">
+<div class="flex items-center justify-between">
+<span class="font-code-lg text-code-lg font-bold text-text-primary">FR</span>
+<span class="font-caption text-[11px] text-icon-gray">+30°</span>
+</div>
+<div class="flex items-center justify-between text-[11px] font-meter-num">
+<span class="text-status-ok">Pin 23</span>
+<span class="text-tertiary-fixed font-semibold">0° POL</span>
+</div>
+<div class="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden mt-0.5">
+<div class="bg-status-ok h-full w-[79%]"></div>
+</div>
+<div class="flex items-center justify-between pt-1">
+<span class="speaker-active-tag hidden text-[10px] font-bold text-primary">AUDITION</span>
+<button class="ml-auto text-[11px] text-text-secondary hover:text-text-primary font-caption px-1.5 py-0.5 rounded bg-surface-2">Solo</button>
+</div>
+</div>
+</div>
+<!-- Speaker Node 4: SUBWOOFER / LFE (-45° Floor Placement) -->
+<div class="absolute top-[80px] left-[5%] p-2.5 rounded-xl bg-surface-container-low hover:bg-surface-2 transition-all cursor-pointer shadow-sm group w-36 z-20" data-speaker-node="LFE" onclick="window.testEngine.setActiveSpeaker('LFE')">
+<div class="speaker-ping-ring absolute -inset-1 rounded-xl bg-primary-container opacity-0 transition-opacity pointer-events-none"></div>
+<div class="relative z-10 flex flex-col gap-1">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1 text-secondary">
+<span class="material-symbols-outlined text-[16px]">speaker</span>
+<span class="font-code-lg text-code-lg font-bold">LFE .1</span>
+</div>
+<span class="font-caption text-[10px] text-secondary font-medium">80Hz X-OVER</span>
+</div>
+<div class="flex items-center justify-between text-[11px] font-meter-num">
+<span class="text-text-secondary">Pin 25</span>
+<span class="text-icon-gray">Sub Base</span>
+</div>
+<div class="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden mt-0.5">
+<div class="bg-secondary-container h-full w-[45%]"></div>
+</div>
+<div class="flex items-center justify-between pt-1">
+<span class="speaker-active-tag hidden text-[10px] font-bold text-primary">AUDITION</span>
+<button class="ml-auto text-[11px] text-text-secondary hover:text-text-primary font-caption px-1.5 py-0.5 rounded bg-surface-2">Solo</button>
+</div>
+</div>
+</div>
+<!-- Speaker Node 5: SURROUND LEFT (SL -110°) -->
+<div class="absolute bottom-6 left-[8%] p-2.5 rounded-xl bg-surface-container-low hover:bg-surface-2 transition-all cursor-pointer shadow-sm group w-36 z-20" data-speaker-node="SL" onclick="window.testEngine.setActiveSpeaker('SL')">
+<div class="speaker-ping-ring absolute -inset-1 rounded-xl bg-primary-container opacity-0 transition-opacity pointer-events-none"></div>
+<div class="relative z-10 flex flex-col gap-1">
+<div class="flex items-center justify-between">
+<span class="font-code-lg text-code-lg font-bold text-text-primary">SL</span>
+<span class="font-caption text-[11px] text-icon-gray">-110°</span>
+</div>
+<div class="flex items-center justify-between text-[11px] font-meter-num">
+<span class="text-text-secondary">Pin 26</span>
+<span class="text-tertiary-fixed font-semibold">0° POL</span>
+</div>
+<div class="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden mt-0.5">
+<div class="bg-surface-2 h-full w-[20%]"></div>
+</div>
+<div class="flex items-center justify-between pt-1">
+<span class="speaker-active-tag hidden text-[10px] font-bold text-primary">AUDITION</span>
+<button class="ml-auto text-[11px] text-text-secondary hover:text-text-primary font-caption px-1.5 py-0.5 rounded bg-surface-2">Solo</button>
+</div>
+</div>
+</div>
+<!-- Speaker Node 6: SURROUND RIGHT (SR +110°) [FLAGGED ISSUE CASE] -->
+<div class="absolute bottom-6 right-[8%] p-2.5 rounded-xl bg-surface-container-low hover:bg-surface-2 transition-all cursor-pointer shadow-sm group w-36 z-20" data-speaker-node="SR" onclick="window.testEngine.setActiveSpeaker('SR')">
+<div class="speaker-ping-ring absolute -inset-1 rounded-xl bg-status-warn opacity-0 transition-opacity pointer-events-none"></div>
+<div class="relative z-10 flex flex-col gap-1">
+<div class="flex items-center justify-between">
+<span class="font-code-lg text-code-lg font-bold text-status-warn">SR</span>
+<span class="font-caption text-[11px] text-icon-gray">+110°</span>
+</div>
+<div class="flex items-center justify-between text-[11px] font-meter-num">
+<span class="text-status-warn">Pin 27</span>
+<span class="text-status-warn font-semibold">SWAPPED?</span>
+</div>
+<div class="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden mt-0.5">
+<div class="bg-status-warn h-full w-[65%]"></div>
+</div>
+<div class="flex items-center justify-between pt-1">
+<span class="speaker-active-tag hidden text-[10px] font-bold text-status-warn">CHECK</span>
+<button class="ml-auto text-[11px] text-text-secondary hover:text-text-primary font-caption px-1.5 py-0.5 rounded bg-surface-2">Solo</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Soundstage Calibration Footer Info -->
+<div class="flex items-center justify-between pt-space-xs text-caption font-caption text-text-secondary border-t-0">
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-icon-gray">straighten</span>
+          Speaker Distance Compensation: <strong class="text-text-primary font-code-sm">2.40 m nominal</strong>
+</span>
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-icon-gray">swap_horiz</span>
+          Phase Inversion check: <strong class="text-status-ok font-code-sm">All In-Phase (0°)</strong>
+</span>
+</div>
+</div>
+<!-- Right Column: Verification Checklist & Troubleshooting Card (5 Cols) -->
+<div class="xl:col-span-5 flex flex-col gap-space-md">
+<!-- Main Verification Checklist Card -->
+<div class="bg-surface rounded-xl p-space-lg flex flex-col gap-space-md">
+<div class="flex items-start justify-between">
+<div class="flex flex-col gap-0.5">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary text-[20px]">fact_check</span>
+<h3 class="font-headline-md text-headline-md text-text-primary">Acoustic Checklist</h3>
+</div>
+<p class="font-caption text-caption text-text-secondary">Did every speaker play in the correct physical location?</p>
+</div>
+<span class="px-2 py-0.5 rounded bg-surface-2 text-status-warn font-code-sm text-code-sm font-semibold">1 Alert</span>
+</div>
+<!-- Checklist List Item Rows -->
+<div class="flex flex-col gap-2">
+<!-- FL Check -->
+<div class="flex items-center justify-between p-2.5 rounded-lg bg-surface-2 hover:bg-surface-container-high transition-colors">
+<div class="flex items-center gap-space-sm">
+<div class="w-6 h-6 rounded-full bg-status-ok/20 text-status-ok flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]">done</span>
+</div>
+<div class="flex flex-col">
+<span class="font-body-sm text-body-sm text-text-primary font-medium">Front Left (FL)</span>
+<span class="font-code-sm text-[11px] text-icon-gray">RP2350 Pin 22 • I2S_D0</span>
+</div>
+</div>
+<span class="font-meter-num text-meter-num text-status-ok bg-surface-container px-2 py-0.5 rounded">Verified OK</span>
+</div>
+<!-- C Check -->
+<div class="flex items-center justify-between p-2.5 rounded-lg bg-surface-2 hover:bg-surface-container-high transition-colors">
+<div class="flex items-center gap-space-sm">
+<div class="w-6 h-6 rounded-full bg-status-ok/20 text-status-ok flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]">done</span>
+</div>
+<div class="flex flex-col">
+<span class="font-body-sm text-body-sm text-text-primary font-medium">Center Channel (C)</span>
+<span class="font-code-sm text-[11px] text-icon-gray">RP2350 Pin 24 • I2S_D2</span>
+</div>
+</div>
+<span class="font-meter-num text-meter-num text-status-ok bg-surface-container px-2 py-0.5 rounded">Verified OK</span>
+</div>
+<!-- FR Check -->
+<div class="flex items-center justify-between p-2.5 rounded-lg bg-surface-2 hover:bg-surface-container-high transition-colors">
+<div class="flex items-center gap-space-sm">
+<div class="w-6 h-6 rounded-full bg-status-ok/20 text-status-ok flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]">done</span>
+</div>
+<div class="flex flex-col">
+<span class="font-body-sm text-body-sm text-text-primary font-medium">Front Right (FR)</span>
+<span class="font-code-sm text-[11px] text-icon-gray">RP2350 Pin 23 • I2S_D1</span>
+</div>
+</div>
+<span class="font-meter-num text-meter-num text-status-ok bg-surface-container px-2 py-0.5 rounded">Verified OK</span>
+</div>
+<!-- SR Check (WARNING / ERROR STATE) -->
+<div class="flex flex-col gap-2 p-2.5 rounded-lg bg-surface-container-high ring-1 ring-status-warn">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<div class="w-6 h-6 rounded-full bg-status-warn/20 text-status-warn flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]">priority_high</span>
+</div>
+<div class="flex flex-col">
+<span class="font-body-sm text-body-sm text-text-primary font-semibold">Surround Right (SR)</span>
+<span class="font-code-sm text-[11px] text-status-warn">Pin 27 • Heard from Left Rear!</span>
+</div>
+</div>
+<span class="font-meter-num text-meter-num text-status-warn bg-surface px-2 py-0.5 rounded font-bold">WIRING MISMATCH</span>
+</div>
+<!-- Contextual Quick Action Prompt per DESIGN.md §9.6 -->
+<div class="p-2 rounded bg-surface flex items-center justify-between gap-2 mt-1">
+<span class="font-caption text-[11px] text-text-secondary leading-tight">
+                SR tone was emitted from SL speaker hardware.
+              </span>
+<a class="px-2.5 py-1 rounded-full bg-primary-container hover:bg-lg-red-hover text-text-primary font-code-sm text-code-sm font-semibold flex items-center gap-1 transition-colors whitespace-nowrap" href="#" onclick="alert('Navigating to Channel Routing Matrix: Auto-Swapping SL and SR.'); return false;">
+<span>Swap SL ↔ SR</span>
+<span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</a>
+</div>
+</div>
+<!-- SL Check (Pending) -->
+<div class="flex items-center justify-between p-2.5 rounded-lg bg-surface-2 opacity-75">
+<div class="flex items-center gap-space-sm">
+<div class="w-6 h-6 rounded-full bg-surface-container-high text-icon-gray flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px]">radio_button_unchecked</span>
+</div>
+<div class="flex flex-col">
+<span class="font-body-sm text-body-sm text-text-secondary">Surround Left (SL)</span>
+<span class="font-code-sm text-[11px] text-icon-gray">RP2350 Pin 26 • I2S_D4</span>
+</div>
+</div>
+<span class="font-meter-num text-meter-num text-icon-gray">Pending Sweep</span>
+</div>
+<!-- LFE Check (Pending) -->
+<div class="flex items-center justify-between p-2.5 rounded-lg bg-surface-2 opacity-75">
+<div class="flex items-center gap-space-sm">
+<div class="w-6 h-6 rounded-full bg-surface-container-high text-icon-gray flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px]">radio_button_unchecked</span>
+</div>
+<div class="flex flex-col">
+<span class="font-body-sm text-body-sm text-text-secondary">Subwoofer (LFE .1)</span>
+<span class="font-code-sm text-[11px] text-icon-gray">RP2350 Pin 25 • I2S_D3</span>
+</div>
+</div>
+<span class="font-meter-num text-meter-num text-icon-gray">Pending Sweep</span>
+</div>
+</div>
+<!-- Verification Resolution Buttons -->
+<div class="flex items-center gap-space-xs pt-space-xs">
+<button class="flex-1 py-2 px-space-sm rounded-full bg-surface-2 hover:bg-surface-container-high text-text-secondary hover:text-text-primary font-body-sm font-medium transition-colors text-center" onclick="alert('Sweep restarted with 1.5s dwell per speaker.'); window.testEngine.toggleSweep();">
+            Re-run Full Sweep
+          </button>
+<button class="flex-1 py-2 px-space-sm rounded-full bg-tertiary-container hover:bg-opacity-90 text-on-tertiary-container font-body-sm font-semibold transition-colors text-center" onclick="alert('All channels confirmed. Acoustic profile saved to EEPROM.');">
+            Confirm &amp; Calibrate
+          </button>
+</div>
+</div>
+<!-- Quick Room Calibration Presets Card -->
+<div class="bg-surface rounded-xl p-space-md flex items-center justify-between">
+<div class="flex items-center gap-space-md">
+<div class="w-9 h-9 rounded-full bg-surface-2 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[20px]">tune</span>
+</div>
+<div class="flex flex-col">
+<span class="font-body-sm text-body-sm text-text-primary font-medium">HT306 DSP Mode</span>
+<span class="font-code-sm text-code-sm text-icon-gray">Direct Pass-Through • Bass Boost Flat</span>
+</div>
+</div>
+<button class="px-3 py-1 rounded-full bg-surface-2 hover:bg-surface-container-high text-text-primary font-code-sm text-code-sm transition-colors">
+          Configure DSP
+        </button>
+</div>
+</div>
+</div>
+<!-- Section 5: Real-Time FFT / RTA Spectrum & Hardware Diagnostics -->
+<div class="bg-surface rounded-xl p-space-lg flex flex-col gap-space-md">
+<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-space-xs">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-tertiary text-[20px]">equalizer</span>
+<div class="flex flex-col">
+<h3 class="font-headline-md text-headline-md text-text-primary">Real-Time Acoustic Telemetry &amp; RTA Spectrum</h3>
+<span class="font-caption text-caption text-text-secondary">Loopback Hardware Microphone Analyzer • 31-Band 1/3 Octave FFT Engine</span>
+</div>
+</div>
+<div class="flex items-center gap-space-md font-meter-num text-meter-num">
+<div class="flex items-center gap-1.5 bg-surface-2 px-2.5 py-1 rounded">
+<span class="text-icon-gray">PEAK:</span>
+<span class="text-status-ok font-semibold">-19.8 dBFS</span>
+</div>
+<div class="flex items-center gap-1.5 bg-surface-2 px-2.5 py-1 rounded">
+<span class="text-icon-gray">LOOPBACK DELAY:</span>
+<span class="text-tertiary font-semibold">3.8 ms</span>
+</div>
+</div>
+</div>
+<!-- 31-Band FFT RTA Graphic Bar Visualizer -->
+<div class="w-full bg-surface-2 rounded-lg p-space-md flex flex-col gap-2">
+<!-- Bars container -->
+<div class="h-28 w-full flex items-end justify-between gap-1 pt-2">
+<!-- 31 Spectrum Bars with varied heights depicting pink noise / acoustic response -->
+<div class="w-full bg-tertiary-container/30 rounded-t h-[38%] relative group"><div class="bg-tertiary w-full h-1 rounded-t absolute top-0"></div></div>
+<div class="w-full bg-tertiary-container/30 rounded-t h-[46%] relative"><div class="bg-tertiary w-full h-1 rounded-t absolute top-0"></div></div>
+<div class="w-full bg-tertiary-container/30 rounded-t h-[62%] relative"><div class="bg-tertiary w-full h-1 rounded-t absolute top-0"></div></div>
+<div class="w-full bg-tertiary-container/30 rounded-t h-[78%] relative"><div class="bg-tertiary w-full h-1 rounded-t absolute top-0"></div></div>
+<div class="w-full bg-tertiary-container/30 rounded-t h-[84%] relative"><div class="bg-tertiary w-full h-1 rounded-t absolute top-0"></div></div>
+<div class="w-full bg-tertiary-container/30 rounded-t h-[75%] relative"><div class="bg-tertiary w-full h-1 rounded-t absolute top-0"></div></div>
+<div class="w-full bg-tertiary-container/30 rounded-t h-[71%] relative"><div class="bg-tertiary w-full h-1 rounded-t absolute top-0"></div></div>
+<div class="w-full bg-tertiary-container/30 rounded-t h-[69%] relative"><div class="bg-tertiary w-full h-1 rounded-t absolute top-0"></div></div>
+<div class="w-full bg-tertiary-container/30 rounded-t h-[73%] relative"><div class="bg-tertiary w-full h-1 rounded-t absolute top-0"></div></div>
+<div class="w-full bg-tertiary-container/30 rounded-t h-[77%] relative"><div class="bg-tertiary w-full h-1 rounded-t absolute top-0"></div></div>
+<div class="w-full bg-tertiary-container/30 rounded-t h-[80%] relative"><div class="bg-tertiary w-full h-1 rounded-t absolute top-0"></div></div>
+<div class="w-full bg-tertiary-container/30 rounded-t h-[82%] relative"><div class="bg-tertiary w-full h-1 rounded-t absolute top-0"></div></div>
+<div class="w-full bg-tertiary-container/30 rounded-t h-[85%] relative"><div class="bg-status-ok w-full h-1 rounded-t absolute top-0"></div></div>
+<div class="w-full bg-tertiary-container/30 rounded-t h-[89%] relative"><div class="bg-status-ok w-full h-1 rounded-t absolute top-0"></div></div>
+<div class="w-full bg-tertiary-container/30 rounded-t h-[84%] relative"><div class="bg-status-ok w-full h-1 rounded-t absolute top-0"></div></div>
+<div class="w-full bg-tertiary-container/30 rounded-t h-[79%] relative"><div class="bg-tertiary w-full h-1 rounded-t absolute top-0"></div></div>
+<div class="w-full bg-tertiary-container/30 rounded-t h-[74%] relative"><div class="bg-tertiary w-full h-1 rounded-t absolute top-0"></div></div>
+<div class="w-full bg-tertiary-container/30 rounded-t h-[72%] relative"><div class="bg-tertiary w-full h-1 rounded-t absolute top-0"></div></div>
+<div class="w-full bg-tertiary-container/30 rounded-t h-[68%] relative"><div class="bg-tertiary w-full h-1 rounded-t absolute top-0"></div></div>
+<div class="w-full bg-tertiary-container/30 rounded-t h-[65%] relative"><div class="bg-tertiary w-full h-1 rounded-t absolute top-0"></div></div>
+<div class="w-full bg-tertiary-container/30 rounded-t h-[62%] relative"><div class="bg-tertiary w-full h-1 rounded-t absolute top-0"></div></div>
+<div class="w-full bg-tertiary-container/30 rounded-t h-[58%] relative"><div class="bg-tertiary w-full h-1 rounded-t absolute top-0"></div></div>
+<div class="w-full bg-tertiary-container/30 rounded-t h-[52%] relative"><div class="bg-tertiary w-full h-1 rounded-t absolute top-0"></div></div>
+<div class="w-full bg-tertiary-container/30 rounded-t h-[48%] relative"><div class="bg-tertiary w-full h-1 rounded-t absolute top-0"></div></div>
+<div class="w-full bg-tertiary-container/30 rounded-t h-[44%] relative"><div class="bg-tertiary w-full h-1 rounded-t absolute top-0"></div></div>
+<div class="w-full bg-tertiary-container/30 rounded-t h-[40%] relative"><div class="bg-tertiary w-full h-1 rounded-t absolute top-0"></div></div>
+<div class="w-full bg-tertiary-container/30 rounded-t h-[35%] relative"><div class="bg-tertiary w-full h-1 rounded-t absolute top-0"></div></div>
+<div class="w-full bg-tertiary-container/30 rounded-t h-[30%] relative"><div class="bg-tertiary w-full h-1 rounded-t absolute top-0"></div></div>
+<div class="w-full bg-tertiary-container/30 rounded-t h-[25%] relative"><div class="bg-tertiary w-full h-1 rounded-t absolute top-0"></div></div>
+<div class="w-full bg-tertiary-container/30 rounded-t h-[19%] relative"><div class="bg-tertiary w-full h-1 rounded-t absolute top-0"></div></div>
+<div class="w-full bg-tertiary-container/30 rounded-t h-[12%] relative"><div class="bg-tertiary w-full h-1 rounded-t absolute top-0"></div></div>
+</div>
+<!-- Frequency Frequency Axis Scale Labels -->
+<div class="flex items-center justify-between text-caption font-meter-num text-icon-gray px-1 pt-1">
+<span>20 Hz</span>
+<span>63 Hz</span>
+<span>125 Hz</span>
+<span>250 Hz</span>
+<span>500 Hz</span>
+<span>1 kHz</span>
+<span>2 kHz</span>
+<span>4 kHz</span>
+<span>8 kHz</span>
+<span>16 kHz</span>
+<span>20 kHz</span>
+</div>
+</div>
+<!-- Acoustic Engineering Metrics 4-Card Bento Segment -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-space-md pt-space-xs">
+<div class="bg-surface-2 rounded-lg p-space-sm flex flex-col gap-1">
+<span class="font-caption text-caption text-icon-gray uppercase tracking-wider">THD + Noise</span>
+<div class="flex items-baseline gap-1">
+<span class="font-meter-num text-headline-md text-status-ok font-bold">&lt; 0.0018%</span>
+</div>
+<span class="font-meter-num text-[11px] text-icon-gray">@ 1 kHz, 0 dBFS Ref</span>
+</div>
+<div class="bg-surface-2 rounded-lg p-space-sm flex flex-col gap-1">
+<span class="font-caption text-caption text-icon-gray uppercase tracking-wider">Dynamic Headroom</span>
+<div class="flex items-baseline gap-1">
+<span class="font-meter-num text-headline-md text-text-primary font-bold">+19.9 dB</span>
+</div>
+<span class="font-meter-num text-[11px] text-status-ok">No Clipping Detected</span>
+</div>
+<div class="bg-surface-2 rounded-lg p-space-sm flex flex-col gap-1">
+<span class="font-caption text-caption text-icon-gray uppercase tracking-wider">Phase Correlation</span>
+<div class="flex items-baseline gap-1">
+<span class="font-meter-num text-headline-md text-tertiary-fixed font-bold">+0.98</span>
+</div>
+<span class="font-meter-num text-[11px] text-status-ok">Optimal Stereo / Quad Coherence</span>
+</div>
+<div class="bg-surface-2 rounded-lg p-space-sm flex flex-col gap-1">
+<span class="font-caption text-caption text-icon-gray uppercase tracking-wider">Inter-Channel Crosstalk</span>
+<div class="flex items-baseline gap-1">
+<span class="font-meter-num text-headline-md text-text-primary font-bold">&lt; -94.2 dB</span>
+</div>
+<span class="font-meter-num text-[11px] text-icon-gray">Isolated RP2350 PIO lines</span>
+</div>
+</div>
+</div>
+      </div>

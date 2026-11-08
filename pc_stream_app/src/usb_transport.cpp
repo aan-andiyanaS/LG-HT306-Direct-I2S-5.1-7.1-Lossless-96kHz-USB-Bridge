@@ -1,5 +1,6 @@
 #include "usb_transport.h"
 #include "audio_policy_manager.h"
+#include "audio_endpoint_helper.h"
 #include <setupapi.h>
 #include <initguid.h>
 #include <iostream>
@@ -57,14 +58,6 @@ bool UsbTransport::CheckHardwarePresence() {
             }
         }
         SetupDiDestroyDeviceInfoList(dev_info);
-    }
-
-    if (!found) {
-        // Fallback: check if serial COM port is accessible
-        std::string test_com;
-        if (FindComPort(test_com)) {
-            found = true;
-        }
     }
 
     if (found) {
@@ -196,53 +189,12 @@ bool UsbTransport::FindComPort(std::string& out_com) {
         SetupDiDestroyDeviceInfoList(dev_info);
     }
 
-    // 2. Secondary check: Scan Windows Registry HARDWARE\DEVICEMAP\SERIALCOMM if not found yet
-    if (!found) {
-        HKEY hSerialComm = NULL;
-        if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, "HARDWARE\\DEVICEMAP\\SERIALCOMM", 0, KEY_READ, &hSerialComm) == ERROR_SUCCESS) {
-            char valName[256];
-            char valData[64];
-            DWORD valIndex = 0;
-            std::string usb_ser_port;
-            std::string any_com_port;
-
-            while (true) {
-                DWORD nameLen = sizeof(valName);
-                DWORD dataLen = sizeof(valData);
-                DWORD type = 0;
-                LONG res = RegEnumValueA(hSerialComm, valIndex++, valName, &nameLen, NULL, &type,
-                                         reinterpret_cast<LPBYTE>(valData), &dataLen);
-                if (res != ERROR_SUCCESS) break;
-
-                if (type == REG_SZ && dataLen > 0) {
-                    std::string dev_name(valName);
-                    std::string dev_upper = dev_name;
-                    std::transform(dev_upper.begin(), dev_upper.end(), dev_upper.begin(), ::toupper);
-                    if (dev_upper.find("USBSER") != std::string::npos) {
-                        usb_ser_port = valData;
-                    } else if (any_com_port.empty()) {
-                        any_com_port = valData;
-                    }
-                }
-            }
-            RegCloseKey(hSerialComm);
-
-            if (!usb_ser_port.empty()) {
-                out_com = usb_ser_port;
-                found = true;
-            } else if (!any_com_port.empty()) {
-                out_com = any_com_port;
-                found = true;
-            }
-        }
-    }
-
     if (found && !out_com.empty()) {
         m_state.hw_info.com_port = out_com;
         return true;
     }
 
-    // 3. Fallback to m_state.hw_info.com_port or "COM4"
+    // Fallback to m_state.hw_info.com_port or "COM4"
     if (!m_state.hw_info.com_port.empty()) {
         out_com = m_state.hw_info.com_port;
     } else {
@@ -385,6 +337,18 @@ void UsbTransport::PollSerial() {
     std::lock_guard<std::recursive_mutex> lock(m_serial_mutex);
     if (m_serial_handle == INVALID_HANDLE_VALUE) return;
 
+    // Immediately detect USB CDC surprise removal via ClearCommError
+    DWORD comm_errors = 0;
+    COMSTAT com_stat{};
+    if (!ClearCommError(m_serial_handle, &comm_errors, &com_stat)) {
+        CloseHandle(m_serial_handle);
+        m_serial_handle = INVALID_HANDLE_VALUE;
+        m_serial_connected_logged = false;
+        m_serial_line_buf.clear();
+        m_trigger_check.store(true);
+        return;
+    }
+
     char buffer[256];
     DWORD bytes_read = 0;
     if (ReadFile(m_serial_handle, buffer, sizeof(buffer) - 1, &bytes_read, NULL)) {
@@ -498,6 +462,7 @@ void UsbTransport::ParseSerialLine(const std::string& raw_line) {
 
 void UsbTransport::OnDeviceDisconnected() {
     bool was_open = m_is_open.exchange(false);
+    bool was_detected = m_state.hw_info.detected;
     CloseSerial();
     {
         std::lock_guard<std::recursive_mutex> lock(m_write_mutex);
@@ -514,10 +479,13 @@ void UsbTransport::OnDeviceDisconnected() {
     m_state.hw_info.detected = false;
     m_state.hw_info.heartbeat_ok = false;
 
-    if (was_open) {
+    if (was_open || was_detected) {
         m_state.AddLog(LogLevel::LOG_WARN, "WinUSB", "RP2350-Zero disconnected — waiting for reconnect...");
-        // Restore Windows default audio playback to previous PC speaker
-        audio::AudioPolicyManager::Instance().RestorePreviousDefault(m_state);
+        if (!audio::AudioPolicyManager::Instance().GetManualVisibilityOverride()) {
+            // Restore Windows default audio playback to previous PC speaker and hide HT306 from Taskbar
+            audio::AudioPolicyManager::Instance().RestorePreviousDefault(m_state);
+        }
+        audio::AudioEndpointHelper::EnumerateDevices(m_state);
     }
 }
 
@@ -634,10 +602,12 @@ DWORD WINAPI UsbTransport::WorkerThreadProc(LPVOID param) {
 void UsbTransport::WorkerLoop() {
     uint32_t loop_counter = 0;
     ULONGLONG last_reconnect_time = 0;
+    bool first_check = true;
+    bool was_hw_present = false;
 
     while (m_worker_running.load()) {
         ULONGLONG now = GetTickCount64();
-        bool check_now = m_trigger_check.exchange(false) || (now - last_reconnect_time >= 1000);
+        bool check_now = first_check || m_trigger_check.exchange(false) || (now - last_reconnect_time >= 1000);
 
         if (check_now) {
             last_reconnect_time = now;
@@ -655,11 +625,32 @@ void UsbTransport::WorkerLoop() {
                 if (!m_is_open.load()) {
                     Open();
                 }
+
+                // 3. Ensure HT306 Taskbar audio endpoint is surfaced & active when RP2350 is connected
+                auto drv_status = audio::AudioPolicyManager::Instance().GetCachedDriverStatus();
+                if (first_check || !was_hw_present || (drv_status.installed && !drv_status.endpoint_visible)) {
+                    audio::AudioPolicyManager::Instance().SetManualVisibilityOverride(false);
+                    audio::AudioPolicyManager::Instance().SwitchToHT306(m_state);
+                    audio::AudioEndpointHelper::EnumerateDevices(m_state);
+                }
             } else {
-                if (m_is_open.load() || m_serial_handle != INVALID_HANDLE_VALUE || m_state.hw_info.detected) {
+                if (m_is_open.load() || m_serial_handle != INVALID_HANDLE_VALUE || m_state.hw_info.detected || was_hw_present) {
                     OnDeviceDisconnected();
                 }
+                auto drv_status = audio::AudioPolicyManager::Instance().GetCachedDriverStatus();
+                bool debug_override = audio::AudioPolicyManager::Instance().GetManualVisibilityOverride();
+                if (!debug_override && (first_check || drv_status.endpoint_visible)) {
+                    // Ensure HT306 endpoint is hidden from Taskbar whenever RP2350 is unplugged and Debug Mode is OFF
+                    audio::AudioPolicyManager::Instance().RestorePreviousDefault(m_state);
+                    audio::AudioEndpointHelper::EnumerateDevices(m_state);
+                } else if (debug_override && drv_status.installed && !drv_status.endpoint_visible) {
+                    // Ensure HT306 endpoint stays surfaced when Debug Mode is ON even without RP2350
+                    audio::AudioPolicyManager::Instance().SwitchToHT306(m_state);
+                    audio::AudioEndpointHelper::EnumerateDevices(m_state);
+                }
             }
+            was_hw_present = hw_present;
+            first_check = false;
         }
 
         // Poll serial data if connected

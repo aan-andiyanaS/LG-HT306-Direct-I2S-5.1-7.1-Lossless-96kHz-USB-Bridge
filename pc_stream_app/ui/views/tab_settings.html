@@ -1,0 +1,418 @@
+      <div id="tab-settings" class="tab-panel hidden">
+        <!-- Interactive Toast Feedback Banner -->
+<div class="fixed bottom-6 right-8 bg-surface border border-status-ok/40 px-space-md py-space-sm rounded-lg shadow-xl flex items-center gap-space-sm z-50 transform translate-y-20 opacity-0 pointer-events-none transition-all duration-300" id="saveToast">
+<span class="w-2.5 h-2.5 rounded-full bg-status-ok"></span>
+<span class="font-code-sm text-code-sm text-text-primary">Configuration saved &amp; synced to hardware bridge</span>
+</div>
+<!-- Header Section with Metainfo & Global Actions -->
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-md pb-space-lg mb-space-md border-b border-border">
+<div class="flex flex-col gap-0.5">
+<div class="flex items-center gap-space-sm">
+<span class="font-headline-lg text-headline-lg text-text-primary tracking-tight">Settings &amp; System Preferences</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-2 border border-border text-icon-gray font-code-sm text-code-sm">v1.3.0-RC4</span>
+</div>
+<p class="font-body-sm text-body-sm text-text-secondary max-w-3xl">
+        Configure audio buffer latency, startup behaviors, global hotkeys, toast alerts, and RP2350-Zero firmware maintenance.
+      </p>
+<div class="flex items-center gap-2 mt-1">
+<span class="material-symbols-outlined text-icon-gray text-[15px]">sync_saved_locally</span>
+<span class="font-code-sm text-code-sm text-icon-gray">Config:</span>
+<span class="font-code-sm text-code-sm text-text-secondary bg-surface-2 px-1.5 py-0.5 rounded border border-border/60">%APPDATA%\HT306Bridge\config.json</span>
+<span class="inline-flex items-center gap-1 text-status-ok font-code-sm text-code-sm ml-1">
+<span class="w-1.5 h-1.5 rounded-full bg-status-ok"></span>
+          Synced
+        </span>
+</div>
+</div>
+<!-- Header Actions -->
+<div class="flex items-center gap-space-sm shrink-0">
+<button class="px-space-lg py-2 rounded-full font-body-sm text-body-sm text-text-secondary bg-surface-2 border border-border hover:bg-surface-variant hover:text-text-primary transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm" id="resetDefaultsBtn">
+<span class="material-symbols-outlined text-[17px]">restart_alt</span>
+        Restore Defaults
+      </button>
+<button class="px-space-xl py-2 rounded-full font-body-sm text-body-sm font-semibold text-text-primary bg-primary-container hover:bg-lg-red-hover active:bg-lg-red-pressed transition-colors cursor-pointer flex items-center gap-2 shadow-sm ring-1 ring-primary-container/40" id="saveConfigBtn">
+<span class="material-symbols-outlined text-[17px]">save</span>
+        Save Changes
+      </button>
+</div>
+</div>
+<!-- Main Grid Layout: 2-Column Responsive Workspace -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg">
+<!-- LEFT COLUMN: Performance & Hardware (Width 7/12) -->
+<div class="lg:col-span-7 flex flex-col gap-space-lg">
+<!-- SECTION 1: Audio Engine & Buffer Latency -->
+<section class="bg-surface rounded-xl border border-border p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex items-center justify-between border-b border-border/70 pb-space-sm">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary-fixed-dim text-[20px]">tune</span>
+<h2 class="font-headline-md text-headline-md text-text-primary">Audio Engine &amp; Buffer Latency</h2>
+</div>
+<span class="font-code-sm text-code-sm px-2 py-0.5 rounded bg-surface-2 border border-border text-tertiary">WASAPI Direct</span>
+</div>
+<!-- Capture Device Selector -->
+<div class="flex flex-col gap-1.5">
+<label class="font-caption text-caption text-text-secondary uppercase tracking-wider font-semibold">Capture Stream Source</label>
+<div class="flex items-center gap-space-sm">
+<div class="relative flex-1">
+<select id="setting-device-select" class="w-full appearance-none bg-surface-2 border border-border rounded-lg px-space-md py-2 text-text-primary font-body-sm text-body-sm focus:outline-none focus:border-primary-fixed-dim cursor-pointer pr-10">
+<option selected="">Default Windows Loopback (WASAPI Shared)</option>
+<option>Speakers (Realtek(R) High Definition Audio) - Loopback</option>
+<option>LG HT306 Bridge (Virtual Cable ASIO 2.0)</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-2.5 pointer-events-none text-text-secondary text-[20px]">expand_more</span>
+</div>
+<label class="flex items-center gap-2 px-space-md py-2 bg-surface-2 border border-border rounded-lg cursor-pointer hover:bg-surface-variant transition-colors shrink-0">
+<input checked="" class="w-4 h-4 rounded accent-primary-container bg-surface border-border cursor-pointer" type="checkbox"/>
+<span class="font-code-sm text-code-sm text-text-primary">Follow Default</span>
+</label>
+</div>
+<!-- Virtual Cable Driver Action -->
+<div class="flex items-center justify-between p-2.5 bg-surface-2 rounded-lg border border-border mt-2">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-tertiary">install_desktop</span>
+<div class="flex flex-col">
+<div class="flex items-center gap-2">
+  <span class="font-body-sm text-body-sm text-text-primary font-medium">Taskbar Audio Endpoint</span>
+  <span id="setting-driver-status" class="font-caption text-caption px-1.5 py-0.2 rounded bg-surface border border-border text-icon-gray">Memeriksa...</span>
+</div>
+<span class="font-caption text-caption text-text-secondary">WHQL Virtual Endpoint 5.1 agar suara Windows otomatis mengalir ke LG HT306</span>
+</div>
+</div>
+<button id="btn-install-vbcable" class="px-space-md py-1.5 bg-primary-container hover:bg-lg-red-hover text-text-primary rounded-lg font-caption text-caption font-semibold flex items-center gap-1.5 transition-colors cursor-pointer" type="button" onclick="window.handleInstallCableClick(event)">
+<span class="material-symbols-outlined text-[16px]">open_in_new</span>
+<span>Driver Taskbar</span>
+</button>
+</div>
+<!-- Debug Audio Device Without RP2350 Toggle -->
+<div class="flex items-center justify-between p-2.5 bg-surface-2 rounded-lg border border-border mt-1.5">
+<div class="flex items-center gap-2 pr-3">
+<span class="material-symbols-outlined text-[18px] text-status-warn">bug_report</span>
+<div class="flex flex-col">
+<div class="flex items-center gap-2">
+  <span class="font-body-sm text-body-sm text-text-primary font-medium">Mode Debug: Aktifkan Audio Device Tanpa RP2350</span>
+  <span id="setting-debug-audio-badge" class="font-code-sm text-[10px] text-icon-gray px-1.5 py-0.2 rounded bg-surface border border-border">OFF</span>
+</div>
+<span class="font-caption text-caption text-text-secondary">Memunculkan LG HT306 Home Theater (5.1 Surround) di Windows Taskbar meskipun RP2350-Zero sedang tidak dicolokkan</span>
+</div>
+</div>
+<label class="relative inline-flex items-center cursor-pointer shrink-0">
+<input id="setting-debug-audio-toggle" class="sr-only peer" type="checkbox" onchange="window.handleDebugAudioToggle(event)"/>
+<div class="w-11 h-6 bg-surface border border-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text-secondary after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-container peer-checked:after:bg-text-primary"></div>
+</label>
+</div>
+
+</div>
+<!-- Buffer Mode Segmented Selector -->
+<div class="flex flex-col gap-1.5">
+<div class="flex items-center justify-between">
+<label class="font-caption text-caption text-text-secondary uppercase tracking-wider font-semibold">Buffer Latency Profile</label>
+<span class="font-code-sm text-code-sm text-icon-gray">Est. DSP Jitter: &lt;0.12 ms</span>
+</div>
+<div class="grid grid-cols-3 gap-2 bg-surface-2 p-1.5 rounded-lg border border-border">
+<button class="buffer-mode-tab py-2 px-space-sm rounded-md font-body-sm text-body-sm font-medium transition-all text-center flex flex-col items-center justify-center bg-primary-container text-text-primary shadow-sm" data-mode="auto" type="button">
+<span class="font-semibold text-[13px]">Auto</span>
+<span class="font-code-sm text-[10px] opacity-80">Dynamic Link</span>
+</button>
+<button class="buffer-mode-tab py-2 px-space-sm rounded-md font-body-sm text-body-sm font-medium transition-all text-center flex flex-col items-center justify-center text-text-secondary hover:text-text-primary hover:bg-surface-variant" data-mode="low" type="button">
+<span class="font-semibold text-[13px]">Low Latency</span>
+<span class="font-code-sm text-[10px] opacity-80">3.8 ms / 128 smp</span>
+</button>
+<button class="buffer-mode-tab py-2 px-space-sm rounded-md font-body-sm text-body-sm font-medium transition-all text-center flex flex-col items-center justify-center text-text-secondary hover:text-text-primary hover:bg-surface-variant" data-mode="safe" type="button">
+<span class="font-semibold text-[13px]">Safe Mode</span>
+<span class="font-code-sm text-[10px] opacity-80">10.0 ms / 512 smp</span>
+</button>
+</div>
+</div>
+<!-- Resampling Quality -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-md pt-1">
+<div class="flex flex-col gap-1.5">
+<label class="font-caption text-caption text-text-secondary uppercase tracking-wider font-semibold">DSP Resampling Headroom</label>
+<div class="relative">
+<select class="w-full appearance-none bg-surface-2 border border-border rounded-lg px-space-md py-2 text-text-primary font-body-sm text-body-sm focus:outline-none focus:border-primary-fixed-dim cursor-pointer pr-10">
+<option selected="">Bit-Perfect Pass (No SRC)</option>
+<option>High-Fidelity Sinc Interpolator</option>
+<option>Linear Polyphase (Low CPU)</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-2.5 pointer-events-none text-text-secondary text-[20px]">expand_more</span>
+</div>
+</div>
+<div class="flex flex-col justify-end">
+<div class="p-2.5 bg-surface-2 rounded-lg border border-border flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-code-sm text-code-sm text-text-primary">I2S Master Clock</span>
+<span class="font-code-sm text-[11px] text-icon-gray">RP2350 SysPLL Sync</span>
+</div>
+<span class="font-meter-num text-meter-num text-tertiary px-2 py-0.5 rounded bg-surface border border-border/80">24.576 MHz</span>
+</div>
+</div>
+</div>
+<!-- Toggle Controls: Dynamic Downgrade & 32-bit Transport -->
+<div class="flex flex-col gap-space-sm pt-2 border-t border-border/60">
+<!-- Switch 1 -->
+<div class="flex items-center justify-between p-space-sm bg-surface-2 rounded-lg border border-border hover:border-icon-gray/50 transition-colors">
+<div class="flex flex-col pr-4">
+<div class="flex items-center gap-2">
+<span class="font-body-sm text-body-sm font-medium text-text-primary">Allow Dynamic Quality Downgrade</span>
+<span class="font-code-sm text-[10px] text-status-warn px-1.5 py-0.2 rounded bg-surface border border-status-warn/30">30s hysteresis</span>
+</div>
+<span class="font-caption text-caption text-text-secondary mt-0.5">Steps down to 24-bit or 48 kHz if Full-Speed USB link frame drops are detected.</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer shrink-0">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-11 h-6 bg-surface border border-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text-secondary after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-container peer-checked:after:bg-text-primary"></div>
+</label>
+</div>
+<!-- Switch 2 -->
+<div class="flex items-center justify-between p-space-sm bg-surface-2 rounded-lg border border-border hover:border-icon-gray/50 transition-colors">
+<div class="flex flex-col pr-4">
+<div class="flex items-center gap-2">
+<span class="font-body-sm text-body-sm font-medium text-text-primary">Smart 32-bit Transport Safeguard</span>
+<span class="font-code-sm text-[10px] text-tertiary px-1.5 py-0.2 rounded bg-surface border border-tertiary/30">Bandwidth Opt</span>
+</div>
+<span class="font-caption text-caption text-text-secondary mt-0.5">Inspects sub-24-bit content and pads zero bytes on RP2350 PIO to save 25% USB bandwidth.</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer shrink-0">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-11 h-6 bg-surface border border-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text-secondary after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-container peer-checked:after:bg-text-primary"></div>
+</label>
+</div>
+</div>
+</section>
+<!-- SECTION 5: Firmware Maintenance & Hardware Bridge (RP2350-Zero) -->
+<section class="bg-surface rounded-xl border border-border p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex items-center justify-between border-b border-border/70 pb-space-sm">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary-fixed-dim text-[20px]">memory</span>
+<h2 class="font-headline-md text-headline-md text-text-primary">Firmware &amp; Hardware Bridge</h2>
+</div>
+<span class="font-code-sm text-code-sm px-2 py-0.5 rounded bg-surface-2 border border-border text-text-secondary">RP2350-Zero</span>
+</div>
+<!-- Telemetry Diagnostics Board -->
+<div class="bg-surface-2 p-space-md rounded-lg border border-border grid grid-cols-1 md:grid-cols-2 gap-space-md">
+<div class="flex flex-col gap-1">
+<span class="font-caption text-caption text-icon-gray uppercase font-semibold">Active Device</span>
+<span class="font-body-sm text-body-sm font-medium text-text-primary">RP2350-Zero Direct-I2S Bridge</span>
+<span class="font-code-sm text-code-sm text-text-secondary">WinUSB Bulk EP 0x03 OUT</span>
+</div>
+<div class="flex flex-col gap-1">
+<span class="font-caption text-caption text-icon-gray uppercase font-semibold">Firmware Version</span>
+<div class="flex items-center gap-2">
+<span class="font-code-sm text-code-sm text-text-primary font-medium">v1.3.0-RC4 (Build 2025-02-18)</span>
+<span class="flex items-center gap-1 font-caption text-[11px] text-status-ok bg-surface px-1.5 py-0.5 rounded border border-status-ok/30">
+<span class="w-1.5 h-1.5 rounded-full bg-status-ok"></span> Up to Date
+              </span>
+</div>
+<span class="font-code-sm text-code-sm text-icon-gray">Protocol: Serial COM4 @ 115200</span>
+</div>
+<div class="md:col-span-2 pt-2 border-t border-border/60 flex items-center justify-between text-icon-gray">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-tertiary">check_circle</span>
+<span class="font-code-sm text-code-sm text-text-secondary">Bootloader: RP2350 UF2 Mass Storage Mode Supported</span>
+</div>
+<span class="font-code-sm text-code-sm text-text-secondary">Flash: 4MB QSPI</span>
+</div>
+</div>
+<!-- Maintenance Action Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+<button class="py-2.5 px-space-md bg-surface-2 hover:bg-surface-variant border border-border rounded-lg font-body-sm text-body-sm text-text-primary flex items-center justify-center gap-2 transition-colors cursor-pointer">
+<span class="material-symbols-outlined text-[18px] text-text-secondary">update</span>
+            Check for Updates...
+          </button>
+<button class="py-2.5 px-space-md bg-surface-2 hover:bg-surface-variant border border-border rounded-lg font-body-sm text-body-sm text-text-primary flex items-center justify-center gap-2 transition-colors cursor-pointer">
+<span class="material-symbols-outlined text-[18px] text-text-secondary">system_update_alt</span>
+            Flash Firmware (.uf2)
+          </button>
+<button id="reboot-bootsel-btn" class="py-2.5 px-space-md bg-surface-2 hover:bg-surface-variant border border-border rounded-lg font-body-sm text-body-sm text-text-primary flex items-center justify-center gap-2 transition-colors cursor-pointer group" title="Reboot into ROM bootloader for firmware flashing without opening chassis">
+<span class="material-symbols-outlined text-[18px] text-status-warn group-hover:scale-110 transition-transform">restart_alt</span>
+            Reboot to BOOTSEL
+          </button>
+<button class="py-2.5 px-space-md bg-surface-2 hover:bg-error-container/20 border border-status-error/40 rounded-lg font-body-sm text-body-sm text-status-error flex items-center justify-center gap-2 transition-colors cursor-pointer">
+<span class="material-symbols-outlined text-[18px]">warning</span>
+            Factory Reset EEPROM
+          </button>
+</div>
+<!-- Flash Dropzone Subtle Notice -->
+<div class="border border-dashed border-border/80 rounded-lg p-space-sm text-center bg-surface-container-lowest/40">
+<span class="font-caption text-caption text-icon-gray">Drag &amp; drop compiled <code class="font-code-sm text-text-secondary">firmware.uf2</code> onto this window to begin automatic hot-flash.</span>
+</div>
+</section>
+</div>
+<!-- RIGHT COLUMN: Windows Integration, Hotkeys & OSD (Width 5/12) -->
+<div class="lg:col-span-5 flex flex-col gap-space-lg">
+<!-- SECTION 2: Windows Integration & Behavior -->
+<section class="bg-surface rounded-xl border border-border p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex items-center justify-between border-b border-border/70 pb-space-sm">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary-fixed-dim text-[20px]">desktop_windows</span>
+<h2 class="font-headline-md text-headline-md text-text-primary">Windows Integration</h2>
+</div>
+<span class="font-code-sm text-code-sm px-2 py-0.5 rounded bg-surface-2 border border-border text-tertiary">Mutex Active</span>
+</div>
+<!-- Start with Windows -->
+<div class="flex flex-col gap-2 p-space-sm bg-surface-2 rounded-lg border border-border">
+<div class="flex items-center justify-between">
+<span class="font-body-sm text-body-sm font-medium text-text-primary">Start HT306 with Windows</span>
+<label class="relative inline-flex items-center cursor-pointer shrink-0">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-11 h-6 bg-surface border border-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text-secondary after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-container peer-checked:after:bg-text-primary"></div>
+</label>
+</div>
+<label class="flex items-center gap-2 pl-1 cursor-pointer">
+<input checked="" class="w-3.5 h-3.5 rounded accent-primary-container bg-surface border-border cursor-pointer" type="checkbox"/>
+<span class="font-caption text-caption text-text-secondary">Start minimized to System Tray</span>
+</label>
+</div>
+<!-- Close Button Behavior -->
+<div class="flex flex-col gap-1.5">
+<span class="font-caption text-caption text-text-secondary uppercase tracking-wider font-semibold">Close Button (✕) Action</span>
+<div class="grid grid-cols-2 gap-2">
+<label class="flex items-center gap-2 p-2 bg-surface-2 rounded-lg border border-border cursor-pointer hover:bg-surface-variant transition-colors">
+<input checked="" class="w-3.5 h-3.5 accent-primary-container" name="closeAction" type="radio"/>
+<span class="font-caption text-caption text-text-primary font-medium">To System Tray</span>
+</label>
+<label class="flex items-center gap-2 p-2 bg-surface-2 rounded-lg border border-border cursor-pointer hover:bg-surface-variant transition-colors">
+<input class="w-3.5 h-3.5 accent-primary-container" name="closeAction" type="radio"/>
+<span class="font-caption text-caption text-text-secondary">Exit Entirely</span>
+</label>
+</div>
+</div>
+<!-- Localization & UI Language -->
+<div class="flex flex-col gap-1.5">
+<label class="font-caption text-caption text-text-secondary uppercase tracking-wider font-semibold">Console Language</label>
+<div class="relative">
+<select class="w-full appearance-none bg-surface-2 border border-border rounded-lg px-space-md py-2 text-text-primary font-body-sm text-body-sm focus:outline-none focus:border-primary-fixed-dim cursor-pointer pr-10">
+<option selected="">English (US)</option>
+<option>Bahasa Indonesia</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-2.5 pointer-events-none text-text-secondary text-[20px]">expand_more</span>
+</div>
+</div>
+<!-- Visual Theme Selection -->
+<div class="flex flex-col gap-1.5">
+<label class="font-caption text-caption text-text-secondary uppercase tracking-wider font-semibold">UI Appearance Theme</label>
+<div class="grid grid-cols-2 gap-2">
+<button class="theme-btn flex items-center gap-2 p-2 rounded-lg border-2 border-primary-container bg-surface-2 text-text-primary text-left cursor-pointer transition-colors shadow-sm" type="button">
+<span class="w-3 h-3 rounded-full bg-background border border-primary-container"></span>
+<span class="font-body-sm text-body-sm font-medium">Dark (Default)</span>
+</button>
+<button class="theme-btn flex items-center gap-2 p-2 rounded-lg border border-border bg-surface-2 text-text-secondary hover:text-text-primary text-left cursor-pointer transition-colors" type="button">
+<span class="w-3 h-3 rounded-full bg-white border border-border"></span>
+<span class="font-body-sm text-body-sm">Light</span>
+</button>
+<button class="theme-btn flex items-center gap-2 p-2 rounded-lg border border-border bg-surface-2 text-text-secondary hover:text-text-primary text-left cursor-pointer transition-colors" type="button">
+<span class="material-symbols-outlined text-[15px]">contrast</span>
+<span class="font-body-sm text-body-sm">Follow System</span>
+</button>
+<button class="theme-btn flex items-center gap-2 p-2 rounded-lg border border-border bg-surface-2 text-text-secondary hover:text-text-primary text-left cursor-pointer transition-colors" type="button">
+<span class="material-symbols-outlined text-[15px] text-tertiary">graphic_eq</span>
+<span class="font-body-sm text-body-sm">Studio Contrast</span>
+</button>
+</div>
+</div>
+</section>
+<!-- SECTION 3: Global Hotkeys -->
+<section class="bg-surface rounded-xl border border-border p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex items-center justify-between border-b border-border/70 pb-space-sm">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary-fixed-dim text-[20px]">keyboard</span>
+<h2 class="font-headline-md text-headline-md text-text-primary">Global Hotkeys</h2>
+</div>
+<span class="font-code-sm text-code-sm px-2 py-0.5 rounded bg-surface-2 border border-border text-icon-gray">4 Configured</span>
+</div>
+<div class="flex flex-col gap-2">
+<!-- Hotkey Row 1 -->
+<div class="flex items-center justify-between p-2 bg-surface-2 rounded-lg border border-border hover:border-icon-gray/50 transition-colors">
+<span class="font-body-sm text-body-sm text-text-primary font-medium">Master Mute / Unmute</span>
+<div class="flex items-center gap-2">
+<kbd class="font-code-sm text-code-sm px-2 py-1 rounded bg-surface border border-border text-text-primary font-semibold shadow-inner">Ctrl + Alt + M</kbd>
+<button class="p-1 rounded text-icon-gray hover:text-text-primary hover:bg-surface transition-colors cursor-pointer" title="Remap chord">
+<span class="material-symbols-outlined text-[16px]">edit</span>
+</button>
+</div>
+</div>
+<!-- Hotkey Row 2 -->
+<div class="flex items-center justify-between p-2 bg-surface-2 rounded-lg border border-border hover:border-icon-gray/50 transition-colors">
+<span class="font-body-sm text-body-sm text-text-primary font-medium">Toggle Mode (Desktop/Bit-Perfect)</span>
+<div class="flex items-center gap-2">
+<kbd class="font-code-sm text-code-sm px-2 py-1 rounded bg-surface border border-border text-text-primary font-semibold shadow-inner">Ctrl + Alt + B</kbd>
+<button class="p-1 rounded text-icon-gray hover:text-text-primary hover:bg-surface transition-colors cursor-pointer" title="Remap chord">
+<span class="material-symbols-outlined text-[16px]">edit</span>
+</button>
+</div>
+</div>
+<!-- Hotkey Row 3 -->
+<div class="flex items-center justify-between p-2 bg-surface-2 rounded-lg border border-border hover:border-icon-gray/50 transition-colors">
+<span class="font-body-sm text-body-sm text-text-primary font-medium">Run 5.1 Speaker Sweep Test</span>
+<div class="flex items-center gap-2">
+<kbd class="font-code-sm text-code-sm px-2 py-1 rounded bg-surface border border-border text-text-primary font-semibold shadow-inner">Ctrl + Alt + T</kbd>
+<button class="p-1 rounded text-icon-gray hover:text-text-primary hover:bg-surface transition-colors cursor-pointer" title="Remap chord">
+<span class="material-symbols-outlined text-[16px]">edit</span>
+</button>
+</div>
+</div>
+<!-- Hotkey Row 4 -->
+<div class="flex items-center justify-between p-2 bg-surface-2 rounded-lg border border-border hover:border-icon-gray/50 transition-colors">
+<span class="font-body-sm text-body-sm text-text-primary font-medium">Swap Surround Channels (SL ↔ SR)</span>
+<div class="flex items-center gap-2">
+<kbd class="font-code-sm text-code-sm px-2 py-1 rounded bg-surface border border-border text-text-primary font-semibold shadow-inner">Ctrl + Alt + S</kbd>
+<button class="p-1 rounded text-icon-gray hover:text-text-primary hover:bg-surface transition-colors cursor-pointer" title="Remap chord">
+<span class="material-symbols-outlined text-[16px]">edit</span>
+</button>
+</div>
+</div>
+</div>
+<label class="flex items-center gap-2 pt-1 cursor-pointer">
+<input checked="" class="w-3.5 h-3.5 rounded accent-primary-container bg-surface border-border cursor-pointer" type="checkbox"/>
+<span class="font-caption text-caption text-text-secondary">Enable global hotkeys when games/apps are in exclusive fullscreen</span>
+</label>
+</section>
+<!-- SECTION 4: Toast Notifications & OSD -->
+<section class="bg-surface rounded-xl border border-border p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex items-center justify-between border-b border-border/70 pb-space-sm">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary-fixed-dim text-[20px]">notifications_active</span>
+<h2 class="font-headline-md text-headline-md text-text-primary">Toast Notifications &amp; OSD</h2>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-10 h-5 bg-surface border border-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[1px] after:left-[2px] after:bg-text-secondary after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary-container peer-checked:after:bg-text-primary"></div>
+</label>
+</div>
+<!-- Triggers Checkbox Group -->
+<div class="flex flex-col gap-2">
+<span class="font-caption text-caption text-text-secondary uppercase tracking-wider font-semibold">Notification Triggers</span>
+<label class="flex items-center gap-2.5 p-1.5 rounded hover:bg-surface-2 transition-colors cursor-pointer">
+<input checked="" class="w-4 h-4 rounded accent-primary-container bg-surface border-border" type="checkbox"/>
+<span class="font-body-sm text-body-sm text-text-primary">Hardware Connect / Disconnect events</span>
+</label>
+<label class="flex items-center gap-2.5 p-1.5 rounded hover:bg-surface-2 transition-colors cursor-pointer">
+<input checked="" class="w-4 h-4 rounded accent-primary-container bg-surface border-border" type="checkbox"/>
+<span class="font-body-sm text-body-sm text-text-primary">Automatic Profile Switches (e.g. VLC foreground)</span>
+</label>
+<label class="flex items-center gap-2.5 p-1.5 rounded hover:bg-surface-2 transition-colors cursor-pointer">
+<input checked="" class="w-4 h-4 rounded accent-primary-container bg-surface border-border" type="checkbox"/>
+<span class="font-body-sm text-body-sm text-text-primary">Buffer Underrun / Bandwidth Warnings</span>
+</label>
+<label class="flex items-center gap-2.5 p-1.5 rounded hover:bg-surface-2 transition-colors cursor-pointer">
+<input class="w-4 h-4 rounded accent-primary-container bg-surface border-border" type="checkbox"/>
+<span class="font-body-sm text-body-sm text-text-secondary">Sample Rate / Format Changes</span>
+</label>
+</div>
+<!-- OSD Display Style -->
+<div class="flex flex-col gap-1.5 pt-2 border-t border-border/60">
+<span class="font-caption text-caption text-text-secondary uppercase tracking-wider font-semibold">Presentation Style</span>
+<div class="grid grid-cols-2 gap-2">
+<label class="flex items-center gap-2 p-2 bg-surface-2 rounded-lg border border-border cursor-pointer hover:bg-surface-variant transition-colors">
+<input checked="" class="w-3.5 h-3.5 accent-primary-container" name="toastStyle" type="radio"/>
+<span class="font-caption text-caption text-text-primary">Native Win11 Toast</span>
+</label>
+<label class="flex items-center gap-2 p-2 bg-surface-2 rounded-lg border border-border cursor-pointer hover:bg-surface-variant transition-colors">
+<input class="w-3.5 h-3.5 accent-primary-container" name="toastStyle" type="radio"/>
+<span class="font-caption text-caption text-text-secondary">Borderless OSD</span>
+</label>
+</div>
+</div>
+</section>
+</div>
+</div>
+      </div>

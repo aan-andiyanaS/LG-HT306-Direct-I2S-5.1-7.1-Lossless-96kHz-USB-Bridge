@@ -59,6 +59,16 @@ else()
     target_link_options(ht306_desktop_app PRIVATE -mwindows -static-libgcc -static-libstdc++)
 endif()
 
+find_package(Python3 COMPONENTS Interpreter QUIET)
+if(Python3_FOUND AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/tools/bundle_ui.py)
+    add_custom_target(bundle_ui
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/bundle_ui.py
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        COMMENT "Assembling modular UI views and scripts into index.html"
+    )
+    add_dependencies(ht306_desktop_app bundle_ui)
+endif()
+
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui)
     add_custom_command(TARGET ht306_desktop_app POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory

@@ -253,3 +253,101 @@ aw_st = transport.state; st = raw_st() if callable(raw_st) else raw_st).
     3. **Verifikasi Live di Mesin Pengguna**:
        - Diverifikasi langsung melalui `IMMDeviceEnumerator::EnumAudioEndpoints`: `CABLE In 16ch` hilang dari daftar aktif Windows Taskbar, dan perangkat utama tampil sebagai `LG HT306 Home Theater (5.1 Surround)`.
   - Files: `pc_stream_app/src/audio_policy_manager.cpp`, `pc_stream_app/src/main_webview.cpp`, `Sinkronkan_Nama_HT306.bat`, `pc_stream_app/tools/Sinkronkan_Nama_HT306.bat`, `tasks/todo.md`
+
+- [x] **Slice 23: Dynamic Audio Endpoint Presence (Muncul Hanya Saat RP2350 Terhubung & Otomatis Tersembunyi Saat Dicabut)**
+  - Acceptance:
+    1. **Pemisahan Status `installed` vs `endpoint_visible` (`audio_policy_manager.h/cpp`)**:
+       - Menambahkan `bool endpoint_visible` pada `AudioDriverStatus`.
+       - Memfilter ghost endpoint yang telah di-uninstall (`DEVICE_STATE_NOTPRESENT` / low nibble `0x04`) pada `SyncEndpointNames()` sehingga hanya endpoint aktif (`0x01`) atau standby/hidden (`0x02`) yang dilacak.
+    2. **Zero-UAC Real-Time `SetEndpointVisibility(bool visible)` + `IPolicyConfig::SetEndpointVisibility` (`audio_policy_manager.cpp`)**:
+       - Menggabungkan penulisan `DeviceState = 0x00000001` via `RegOpenKeyExW(..., KEY_SET_VALUE)` dengan pemanggilan COM `IPolicyConfig::SetEndpointVisibility(endpoint_id, visible ? 1 : 0)` sehingga `Audiosrv` langsung menyiarkan event `OnDeviceStateChanged` ke Windows 11 Taskbar secara *real-time* tanpa perlu restart service.
+       - Menyembunyikan sub-endpoint `CABLE In 16ch` secara langsung via `IPolicyConfig::SetEndpointVisibility(id16ch, 0)` dan mengunci `DeviceState = 0x10000002`.
+       - Menambahkan `FindFallbackNonHT306EndpointId()` agar saat RP2350 dicabut atau belum dicolok ketika startup, Windows otomatis beralih ke speaker PC aktif pertama (`Speakers (Realtek(R) Audio)`) sebelum menyembunyikan endpoint HT306.
+    3. **Integrasi Lifecycle USB & UI (`usb_transport.cpp`, `main_webview.cpp`, `ui/index.html`)**:
+       - Menyinkronkan visibilitas endpoint dengan `CheckHardwarePresence()` pada saat startup (`WinMain`), saat `app_ready`, di dalam `UsbTransport::WorkerLoop()` (termasuk auto-heal jika `hw_present && !endpoint_visible`), saat `OnDeviceDisconnected()`, dan setelah `StopWorker()` saat aplikasi ditutup.
+       - Menampilkan status **`Taskbar: Standby (RP2350 Off)`** di header utama dan menyediakan tombol **`Tampilkan Manual`** di tab Settings jika pengguna ingin menguji tanpa RP2350.
+    4. **Perbaikan Hot-Unplug Saat Aplikasi Terbuka & Mode Debug Audio Tanpa RP2350**:
+       - Menghapus fallback pembacaan `HKLM\HARDWARE\DEVICEMAP\SERIALCOMM` di `CheckHardwarePresence()` dan `FindComPort()` yang sebelumnya menyebabkan *deadlock* deteksi saat RP2350 dicabut (karena `\Device\USBSER000 = COM4` tetap tertahan di Registry selama `m_serial_handle` belum ditutup oleh aplikasi).
+       - Menambahkan pemeriksaan `ClearCommError(m_serial_handle, ...)` di `UsbTransport::PollSerial()` untuk mendeteksi *USB Surprise Removal* secara instan (< 50 ms) dan langsung menutup handle serial + menyembunyikan endpoint dari Windows Taskbar.
+       - Menambahkan fitur **Debug Audio Device (Tanpa RP2350)** (`toggle_debug_audio` / `debug_override`) pada:
+         1. Tombol **`Debug Audio: OFF / ON (Tanpa RP2350)`** di kartu utama Dashboard (`#btn-debug-audio`).
+         2. Toggle switch **`Mode Debug: Aktifkan Audio Device Tanpa RP2350`** di tab Settings (`#setting-debug-audio-toggle`).
+         3. Klik langsung pada badge **`Taskbar: Standby (RP2350 Off)`** di Header atas maupun menu klik-kanan System Tray (`Debug: Aktifkan Audio Tanpa RP2350`).
+    5. **Verifikasi Live di Mesin Pengguna (RP2350 Terhubung & Tidak Terhubung)**:
+       - Terverifikasi melalui `IMMDeviceEnumerator::EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE)`:
+         - Saat RP2350 tidak terhubung / dicabut ketika aplikasi terbuka: `LG HT306 Home Theater` langsung hilang dari Windows Taskbar dan output default kembali ke `Speakers (Realtek(R) Audio)`.
+         - Begitu `ht306_desktop_app.exe` dibuka dengan RP2350 terhubung (`COM4` + `VID_2E8A&PID_4306`) atau tombol **Debug Audio** diaktifkan: `LG HT306 Home Theater (5.1 Surround)` langsung muncul otomatis di Windows Taskbar dan terpilih sebagai **Default Output**.
+  - Files: `pc_stream_app/src/audio_policy_manager.h`, `pc_stream_app/src/audio_policy_manager.cpp`, `pc_stream_app/src/usb_transport.cpp`, `pc_stream_app/src/main_webview.cpp`, `pc_stream_app/ui/index.html`, `tasks/plan.md`, `tasks/todo.md`
+
+
+- [x] **Slice 24: Audit Komprehensif Multi-Skill & MCP, Resolusi Concurrency/IPC/Lifecycle, dan Optimasi `ponytail` (Ultra-Lightweight)**
+  - Acceptance:
+    1. **Resolusi Data Race & Thread-Safety (`app_state.h/cpp`, `audio_endpoint_helper.h/cpp`, `audio_policy_manager.h/cpp`, `usb_transport.h/cpp`)**:
+       - Menambahkan `state_mutex` (`GetHwInfoSnapshot()`, `GetSettingsSnapshot()`) dan `devices_mutex` (`GetAvailableDevicesSnapshot()`, `SetAvailableDevices()`) serta mengubah `active_device_index` dan `m_manual_visibility_override` menjadi `std::atomic` untuk mengeliminasi *data race* / *use-after-free* lintas 5 thread (`WinMain`, `UsbTransport::WorkerLoop`, `AudioCapture::CaptureLoop`, `TelemetryLoop`, dan worker driver).
+       - Melindungi seluruh akses `m_serial_handle` dengan `m_serial_mutex` (`IsSerialOpen()`).
+       - Mengubah `WaitForSingleObject` pada `UsbTransport::StopWorker()` dan `AudioCapture::Stop()` menjadi `INFINITE` serta menghentikan seluruh worker background sebelum memanggil `RestorePreviousDefault` tepat 1 kali saat aplikasi keluar.
+    2. **Proteksi Real-Time Audio Thread & Perbaikan Lifecycle Default Audio (`usb_transport.cpp`, `audio_policy_manager.cpp`, `audio_capture.cpp`)**:
+       - Melepas `m_write_mutex` di `UsbTransport::Open()` sebelum memanggil `SwitchToHT306()` agar thread audio real-time MMCSS tidak pernah tertahan oleh operasi COM/Registry.
+       - Memindahkan eksekusi `OnDeviceDisconnected()` dari `WritePacket()` (thread audio real-time) ke `UsbTransport::WorkerLoop()` melalui flag `m_trigger_check`.
+       - Memperbaiki bug di `RestorePreviousDefault()` agar **hanya** mengubah perangkat playback default Windows jika `m_switched_to_ht306` bernilai `true` atau `LG HT306` sedang menjadi default aktif (tidak pernah membajak speaker default pengguna saat startup tanpa RP2350).
+       - Menambahkan validasi format sampel (`ReadPcmSampleAsFloat` untuk 32-bit IEEE Float, 16-bit, 24-bit, dan 32-bit PCM), *ring buffer* Lip-Sync Delay `0–200 ms`, `7.1 -> 5.1` surround fold-down, serta generator sinyal uji 1 kHz Sine & Polarity Pulse di `AudioCapture`.
+    3. **Optimasi `ponytail` & Performa Sistem Lebih Ringan (`main_webview.cpp`, `usb_transport.cpp`, `app_state.cpp`)**:
+       - Menghapus `TrimWorkingSetTree()` (yang sebelumnya memicu `CreateToolhelp32Snapshot` setiap 80–330 ms saat idle dan menyebabkan *page-fault thrashing* V8/Blink) serta `KillOrphanWebViewProcesses()` (yang berisiko mematikan proses WebView2 aplikasi lain); manajemen memori WebView2 ditangani secara native oleh `COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_LOW`.
+       - Menggabungkan `CheckHardwarePresence()` dan `FindComPort()` menjadi satu pemindaian cepat `ScanUsbHardware()` dengan filter enumerator `"USB"` (`SetupDiGetClassDevsA(NULL, "USB", ...)` — memindai ~10 perangkat USB alih-alih 500+ perangkat seluruh kelas sistem, ~50x lebih ringan).
+       - Memindahkan pemindaian `WM_DEVICECHANGE` dari Win32 UI thread ke `UsbTransport::WorkerLoop` via `TriggerCheck()`.
+       - Mengganti `std::vector<LogEntry>` (`O(N)` erase) dengan `std::deque<LogEntry>` (`O(1)` `pop_front()`) dan menghapus struktur mock/dead code (`profiles`, `app_rules`, `Utf8ToWide`).
+       - Mengoptimalkan `TelemetryLoop` agar array statis (`devices`, `logs`, `trims_db`, `routing_map`) hanya diserialisasi saat terjadi perubahan state, memangkas >80% alokasi string JSON saat streaming 28.5 Hz.
+    4. **Perbaikan Kontrak IPC, XSS, & Event Listener Frontend (`ui/index.html`)**:
+       - Menghapus pengiriman IPC ganda (`sendNativeCommand` + `sendConfigUpdate` -> `update_config`) di setiap interaksi slider/tombol (memangkas 50% trafik IPC UI).
+       - Menghapus *duplicate event listener* (`onclick` inline + `addEventListener`) pada `#header-audio-badge`, `#btn-install-vbcable`, `[data-speaker-node]`, dan tombol Swap SL/SR.
+       - Menyelaraskan 9 nama aksi/payload IPC (`select_audio_device`, `set_limiter`, `set_lipsync_delay`, `set_routing_matrix` dengan array 6 elemen, `select_profile`, `restore_default_audio`, `reset_all_settings`, `set_test_signal`), memperbaiki DOM XSS pada `audioDriverState.name`, menampilkan timestamp asli log C++, serta menyinkronkan fader Mixer saat ganti profil/reset.
+  - Files: `pc_stream_app/src/app_state.h`, `pc_stream_app/src/app_state.cpp`, `pc_stream_app/src/audio_endpoint_helper.h`, `pc_stream_app/src/audio_endpoint_helper.cpp`, `pc_stream_app/src/audio_policy_manager.h`, `pc_stream_app/src/audio_policy_manager.cpp`, `pc_stream_app/src/usb_transport.h`, `pc_stream_app/src/usb_transport.cpp`, `pc_stream_app/src/audio_capture.h`, `pc_stream_app/src/audio_capture.cpp`, `pc_stream_app/src/main_webview.cpp`, `pc_stream_app/ui/index.html`, `tasks/todo.md`
+
+
+- [x] **Slice 25: Restorasi ke State Slice 23 (Pre-Audit/Ponytail) & Penyelarasan Dynamic Endpoint Hiding dan Debug Audio Toggle**
+  - Acceptance:
+    1. **Analisis Komparatif:** Mengidentifikasi bahwa audit dan ponytail pada Slice 24 mengubah mekanisme GUID caching, `std::recursive_mutex`, penulisan registry `DeviceState (0x10000002)`, dan watchdog `WorkerLoop`, yang merusak fungsi hiding dinamis saat mode debug dimatikan atau aplikasi ditutup.
+    2. **Restorasi State Slice 23:** Mengembalikan 12 file C++ dan UI ke basis Slice 23 yang telah dikonfirmasi bekerja dengan baik oleh pengguna.
+    3. **Penyelarasan Kontrak Payload:** Menambahkan pengecekan boolean `enable` dan `enabled` pada `toggle_debug_audio` di `main_webview.cpp`.
+    4. **Verifikasi Fungsionalitas:**
+       - Menghidupkan Mode Debug: `LG HT306 Home Theater` langsung muncul di Windows Taskbar dan terpilih sebagai default audio output (`Installed: 1, Visible: 1, Default: 1`).
+       - Mematikan Mode Debug: `LG HT306 Home Theater` langsung menghilang dari Windows Taskbar dan default audio output kembali ke PC Speaker (`Speakers (Realtek(R) Audio)`).
+       - Menutup Aplikasi: Endpoint HT306 otomatis disembunyikan dan PC Speaker kembali menjadi default audio output.
+  - Files: `pc_stream_app/src/audio_policy_manager.h`, `pc_stream_app/src/audio_policy_manager.cpp`, `pc_stream_app/src/usb_transport.cpp`, `pc_stream_app/src/main_webview.cpp`, `pc_stream_app/ui/index.html`, `tasks/todo.md`
+
+
+- [x] **Slice 26: Modularisasi UI (Pemisahan 7 Tab HTML & 8 Modul JS), Pemasangan RTK (Rust Token Kit), dan Knowledge Graph Codebase via Graphify**
+  - Acceptance:
+    1. **Pemasangan & Konfigurasi RTK (Rust Token Kit)**:
+       - Menginisialisasi `rtk init --agent antigravity` dan menghasilkan konfigurasi aturan `.agents/rules/antigravity-rtk-rules.md`.
+    2. **Knowledge Graph Codebase via Graphify (`/graphify`)**:
+       - Berhasil memindai 96 file (49 file kode, 40 dokumen, 7 gambar) di seluruh repositori proyek `HomeTheather`.
+       - Mengekstrak 1.092 AST nodes, 2.256 graph edges, dan 61 graph communities.
+       - Menghasilkan knowledge graph interaktif dan laporan arsitektur di `graphify-out/graph.html`, `graphify-out/GRAPH_REPORT.md`, dan `graphify-out/graph.json`.
+    3. **Modularisasi Total Antarmuka Web (`pc_stream_app/ui/`)**:
+       - Menguraikan file `index.html` monolitik (5.256 baris) menjadi modul-modul terpisah:
+         - Shell template: `pc_stream_app/ui/shell.html` (231 baris).
+         - 7 file HTML Tab Komponen di `pc_stream_app/ui/views/`:
+           - `tab_dashboard.html` (431 baris)
+           - `tab_mixer.html` (477 baris)
+           - `tab_routing.html` (322 baris)
+           - `tab_profiles.html` (766 baris)
+           - `tab_test.html` (596 baris)
+           - `tab_log.html` (415 baris)
+           - `tab_settings.html` (418 baris)
+         - 8 file modul JavaScript di `pc_stream_app/ui/js/`:
+           - `ipc.js` (IPC bridge ke C++)
+           - `telemetry.js` (Telemetri 28 Hz & VU meter rendering)
+           - `mixer.js` (Kontrol 6-channel fader, dB math, solo/mute)
+           - `routing.js` (Matriks 6x6 & channel routing presets)
+           - `profiles.js` (Preset manager)
+           - `test.js` (Generator uji akustik 5.1 & sweep chirp)
+           - `settings.js` (Audio device & debug audio toggle)
+           - `app.js` (Inisialisasi DOM, tab navigation, window control)
+    4. **Otomasi Build Assembler (`bundle_ui.py` & CMake)**:
+       - Mengembangkan assembler `pc_stream_app/tools/bundle_ui.py` untuk memverifikasi integritas 115 element ID dan menggabungkan view serta modul JS.
+       - Menambahkan target CMake `bundle_ui` pada `pc_stream_app/CMakeLists.txt` sehingga setiap kompilasi otomatis merakit dan menyinkronkan UI ke `pc_stream_app/build/ui/index.html`.
+    5. **Verifikasi Build & Eksekusi Aplikasi**:
+       - Kompilasi `ht306_desktop_app.exe` sukses 100% dengan `cmake --build`.
+       - Menjalankan tes subprocess runtime: aplikasi berjalan normal dengan PID valid, antarmuka WebView2 termuat mulus tanpa crash, dan proses berhenti secara bersih.
+  - Files: `pc_stream_app/CMakeLists.txt`, `pc_stream_app/tools/bundle_ui.py`, `pc_stream_app/ui/shell.html`, `pc_stream_app/ui/views/tab_*.html`, `pc_stream_app/ui/js/*.js`, `pc_stream_app/ui/index.html`, `.agents/rules/antigravity-rtk-rules.md`, `graphify-out/*`, `tasks/todo.md`

@@ -19,6 +19,7 @@ namespace ht306::audio {
 
 struct AudioDriverStatus {
     bool installed = false;
+    bool endpoint_visible = false;
     bool is_default = false;
     std::string endpoint_name;
     std::wstring endpoint_id;
@@ -40,14 +41,24 @@ public:
     // Sync and auto-rename audio endpoints in Windows registry and hide 16ch
     bool SyncEndpointNames();
 
+    // Show or hide the LG HT306 Home Theater endpoint in Windows Taskbar (zero-UAC KEY_SET_VALUE + IPolicyConfig)
+    bool SetEndpointVisibility(bool visible);
+
+    // Find first active non-HT306 playback endpoint (e.g. Realtek Speakers) as fallback
+    std::wstring FindFallbackNonHT306EndpointId();
+
     // Switch default audio playback device in Windows taskbar
     bool SetDefaultEndpoint(const std::wstring& device_id);
 
-    // Auto-switch to LG HT306 when hardware is connected
+    // Auto-switch to LG HT306 when hardware is connected (shows endpoint & sets default)
     bool SwitchToHT306(AppState& state);
 
-    // Restore previous playback device when hardware is disconnected
+    // Restore previous playback device when hardware is disconnected (restores PC speaker & hides endpoint)
     bool RestorePreviousDefault(AppState& state);
+
+    // Manual override control from UI Settings when testing without RP2350 hardware
+    void SetManualVisibilityOverride(bool override_enabled) { m_manual_visibility_override = override_enabled; }
+    bool GetManualVisibilityOverride() const { return m_manual_visibility_override; }
 
     // Get current Windows default audio endpoint ID
     std::wstring GetCurrentDefaultEndpointId();
@@ -66,7 +77,10 @@ private:
 
     std::recursive_mutex m_mutex;
     std::wstring m_saved_previous_device_id;
+    std::wstring m_ht306_guid;
+    DWORD m_ht306_reg_state = 1;
     bool m_switched_to_ht306 = false;
+    bool m_manual_visibility_override = false;
     AudioDriverStatus m_cached_status;
     uint64_t m_last_check_tick = 0;
 };

@@ -1,0 +1,477 @@
+      <div id="tab-mixer" class="tab-panel hidden">
+        <!-- Top Section: Header & Mode Control -->
+<div class="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-space-md bg-surface p-space-lg rounded-xl shadow-md">
+<div class="flex flex-col gap-0.5">
+<div class="flex items-center gap-space-sm">
+<span class="px-2 py-0.5 rounded bg-primary-container text-text-primary font-code-sm text-code-sm tracking-wide uppercase font-semibold">RP2350 PIO I2S</span>
+<h1 class="font-headline-md text-headline-md text-text-primary tracking-tight">DSP Multi-Channel Mixer &amp; Alignment</h1>
+</div>
+<p class="font-body-sm text-body-sm text-text-secondary">Independent per-channel gain trimming, phase inversion, solo/mute matrix, and AV lip-sync delay compensation.</p>
+</div>
+<!-- Operating Mode Selector & Master Peak Limiter -->
+<div class="flex flex-wrap items-center gap-space-md">
+<div class="flex items-center bg-surface-2 p-1 rounded-full shadow-inner">
+<button class="px-space-md py-1 rounded-full font-code-sm text-code-sm font-medium transition-all bg-primary-container text-text-primary shadow-sm" id="mode-desktop-btn" type="button">
+          Desktop (OS Linked)
+        </button>
+<button class="px-space-md py-1 rounded-full font-code-sm text-code-sm text-text-secondary hover:text-text-primary transition-all" id="mode-passthrough-btn" type="button">
+          Bit-Perfect Pass-thru
+        </button>
+</div>
+<!-- DSP Warning Pill (hidden by default) -->
+<div class="hidden items-center gap-1.5 px-space-sm py-1 rounded-full bg-surface-container-high text-status-warn" id="dsp-bypass-pill">
+<span class="material-symbols-outlined text-[16px]">warning</span>
+<span class="font-code-sm text-code-sm font-semibold">DSP Trim Bypass Active</span>
+</div>
+<!-- Master Soft Limiter Switch -->
+<div class="flex items-center gap-space-sm px-space-md py-1.5 rounded-full bg-surface-2">
+<label class="flex items-center gap-2 cursor-pointer">
+<input checked="" class="sr-only peer" id="limiter-toggle" type="checkbox"/>
+<div class="w-8 h-4 bg-surface-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-text-primary after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text-primary after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-primary-container relative"></div>
+<span class="font-code-sm text-code-sm text-text-primary font-medium">True-Peak Limiter</span>
+</label>
+<span class="px-1.5 py-0.5 rounded bg-tertiary-container text-tertiary font-meter-num text-meter-num" id="limiter-status">-0.1 dBFS / 1.2ms</span>
+</div>
+</div>
+</div>
+<!-- Master Output & AV Lip-Sync Split Row -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg">
+<!-- Master Volume Strip (5 Cols) -->
+<div class="lg:col-span-5 bg-surface p-space-lg rounded-xl shadow-md flex flex-col justify-between gap-space-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-primary-container text-[20px]">tune</span>
+<span class="font-headline-md text-headline-md text-text-primary text-base">Master Output Level</span>
+</div>
+<div class="flex items-center gap-space-xs">
+<button class="px-space-sm py-0.5 rounded font-code-sm text-code-sm bg-surface-2 hover:bg-surface-variant text-text-secondary hover:text-text-primary transition-colors" id="master-zero-btn" type="button">
+            0.0 dB
+          </button>
+<button class="flex items-center gap-1 px-space-md py-0.5 rounded-full font-code-sm text-code-sm bg-surface-2 hover:bg-surface-variant text-text-secondary transition-all" id="master-mute-btn" type="button">
+<span class="material-symbols-outlined text-[16px]">volume_off</span>
+<span>Mute</span>
+</button>
+</div>
+</div>
+<div class="flex items-center gap-space-lg bg-surface-2 p-space-md rounded-xl">
+<!-- Big Numerical Readout -->
+<div class="flex flex-col items-center justify-center min-w-[90px] py-1 bg-surface rounded-lg shadow-sm">
+<span class="font-caption text-caption text-icon-gray uppercase tracking-wider">Level</span>
+<span class="font-code-lg text-code-lg text-text-primary font-semibold text-xl" id="master-vol-num">0.0 dB</span>
+<span class="font-meter-num text-meter-num text-tertiary">UNITY</span>
+</div>
+<!-- Master Slider with Integrated Visual Meter Track -->
+<div class="flex-1 flex flex-col gap-1.5">
+<div class="flex justify-between font-meter-num text-meter-num text-icon-gray">
+<span>-60 dB</span>
+<span>-24 dB</span>
+<span>-12 dB</span>
+<span class="text-text-primary font-bold">0 dB</span>
+<span class="text-status-warn">+6 dB</span>
+</div>
+<input class="w-full accent-primary-container cursor-pointer h-2 bg-surface rounded-lg appearance-none" id="master-slider" max="6" min="-60" step="0.5" type="range" value="0"/>
+<div class="w-full h-1.5 bg-surface rounded-full overflow-hidden flex">
+<div class="h-full bg-status-ok transition-all duration-75" id="master-meter-bar" style="width: 78%;"></div>
+</div>
+</div>
+</div>
+<!-- Quick Volume Jump Matrix -->
+<div class="flex items-center justify-between text-icon-gray font-code-sm text-code-sm pt-space-xs">
+<span class="text-text-secondary">Snapshots:</span>
+<div class="flex gap-1.5">
+<button class="px-2 py-0.5 rounded bg-surface-2 hover:bg-surface-variant text-text-secondary hover:text-text-primary transition-colors" onclick="setMasterDb(-18)" type="button">-18 dB</button>
+<button class="px-2 py-0.5 rounded bg-surface-2 hover:bg-surface-variant text-text-secondary hover:text-text-primary transition-colors" onclick="setMasterDb(-12)" type="button">-12 dB</button>
+<button class="px-2 py-0.5 rounded bg-surface-2 hover:bg-surface-variant text-text-secondary hover:text-text-primary transition-colors" onclick="setMasterDb(-6)" type="button">-6 dB</button>
+<button class="px-2 py-0.5 rounded bg-primary-container text-text-primary font-medium" onclick="setMasterDb(0)" type="button">0 dB</button>
+<button class="px-2 py-0.5 rounded bg-surface-2 hover:bg-surface-variant text-status-warn transition-colors" onclick="setMasterDb(3)" type="button">+3 dB</button>
+</div>
+</div>
+</div>
+<!-- Lip-Sync Delay Compensation Card (7 Cols) -->
+<div class="lg:col-span-7 bg-surface p-space-lg rounded-xl shadow-md flex flex-col justify-between gap-space-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-primary-container text-[20px]">sync</span>
+<span class="font-headline-md text-headline-md text-text-primary text-base">AV Lip-Sync Delay Engine</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="font-meter-num text-meter-num px-2 py-0.5 rounded bg-surface-2 text-text-secondary">DMA Ring: 19200 Samples</span>
+<span class="w-2 h-2 rounded-full bg-status-ok"></span>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-space-md items-center">
+<!-- Interactive Value Display with Steppers -->
+<div class="md:col-span-5 flex flex-col gap-space-xs bg-surface-2 p-space-md rounded-xl">
+<div class="flex items-center justify-between">
+<span class="font-caption text-caption text-icon-gray">Global Audio Lag</span>
+<span class="font-meter-num text-meter-num text-tertiary" id="lipsync-subframes">8 subframes / 1.44 frames @ 60Hz</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="font-code-lg text-code-lg text-text-primary text-2xl font-bold tracking-tight" id="lipsync-display">24 ms</span>
+<div class="flex items-center gap-1">
+<button class="w-7 h-7 rounded bg-surface hover:bg-surface-variant flex items-center justify-center font-code-sm text-code-sm text-text-secondary hover:text-text-primary" onclick="adjustDelay(-10)" type="button">-10</button>
+<button class="w-7 h-7 rounded bg-surface hover:bg-surface-variant flex items-center justify-center font-code-sm text-code-sm text-text-secondary hover:text-text-primary" onclick="adjustDelay(-1)" type="button">-1</button>
+<button class="w-7 h-7 rounded bg-surface hover:bg-surface-variant flex items-center justify-center font-code-sm text-code-sm text-text-secondary hover:text-text-primary" onclick="adjustDelay(1)" type="button">+1</button>
+<button class="w-7 h-7 rounded bg-surface hover:bg-surface-variant flex items-center justify-center font-code-sm text-code-sm text-text-secondary hover:text-text-primary" onclick="adjustDelay(10)" type="button">+10</button>
+</div>
+</div>
+</div>
+<!-- Timeline / Buffer visualization -->
+<div class="md:col-span-7 flex flex-col gap-2">
+<!-- Timeline SVG diagram -->
+<div class="bg-surface-2 p-2 rounded-xl flex flex-col gap-1">
+<div class="flex justify-between items-center text-[10px] font-code-sm text-icon-gray px-1">
+<span>VIDEO SCAN (0 ms)</span>
+<span class="text-primary">AUDIO FIFO LEAD (+24 ms)</span>
+<span>BUFFER LIMIT (200 ms)</span>
+</div>
+<div class="relative w-full h-7 bg-surface rounded overflow-hidden flex items-center px-1">
+<!-- Video baseline hash lines -->
+<div class="absolute inset-0 opacity-15 flex justify-between px-2">
+<span class="w-[1px] h-full bg-text-primary"></span>
+<span class="w-[1px] h-full bg-text-primary"></span>
+<span class="w-[1px] h-full bg-text-primary"></span>
+<span class="w-[1px] h-full bg-text-primary"></span>
+<span class="w-[1px] h-full bg-text-primary"></span>
+<span class="w-[1px] h-full bg-text-primary"></span>
+<span class="w-[1px] h-full bg-text-primary"></span>
+<span class="w-[1px] h-full bg-text-primary"></span>
+</div>
+<!-- Delayed audio packet bar -->
+<div class="h-4 bg-primary-container rounded flex items-center px-1.5 transition-all duration-150 z-10" id="timeline-delay-block" style="width: 24%; margin-left: 0%;">
+<span class="text-[9px] font-code-sm text-text-primary font-bold tracking-widest truncate">SYNCED I2S FIFO</span>
+</div>
+</div>
+</div>
+<!-- Slider -->
+<input class="w-full accent-primary-container cursor-pointer h-1.5 bg-surface-2 rounded appearance-none" id="lipsync-slider" max="200" min="0" step="1" type="range" value="24"/>
+</div>
+</div>
+<!-- Presets Pill row -->
+<div class="flex flex-wrap items-center gap-space-xs pt-space-xs">
+<span class="font-caption text-caption text-icon-gray">Profiles:</span>
+<button class="delay-pill px-space-md py-0.5 rounded-full bg-surface-2 hover:bg-surface-variant font-code-sm text-code-sm text-text-secondary transition-colors" data-val="0" onclick="setDelay(0)" type="button">Bypass (0 ms)</button>
+<button class="delay-pill px-space-md py-0.5 rounded-full bg-surface-2 hover:bg-surface-variant font-code-sm text-code-sm text-text-secondary transition-colors" data-val="12" onclick="setDelay(12)" type="button">Gaming (12 ms)</button>
+<button class="delay-pill px-space-md py-0.5 rounded-full bg-primary-container text-text-primary font-code-sm text-code-sm font-semibold transition-colors" data-val="24" onclick="setDelay(24)" type="button">Movie/Streaming (24 ms)</button>
+<button class="delay-pill px-space-md py-0.5 rounded-full bg-surface-2 hover:bg-surface-variant font-code-sm text-code-sm text-text-secondary transition-colors" data-val="65" onclick="setDelay(65)" type="button">Projector / eARC (65 ms)</button>
+</div>
+</div>
+</div>
+<!-- 6-Channel Mixer Strip Console -->
+<div class="bg-surface p-space-lg rounded-xl shadow-md flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-primary-container text-[20px]">equalizer</span>
+<h2 class="font-headline-md text-headline-md text-text-primary text-base">Channel Alignment Console (TAS5508 Core)</h2>
+</div>
+<div class="flex items-center gap-space-md">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-status-ok"></span>
+<span class="font-code-sm text-code-sm text-text-secondary">6x Direct PCM Output Channels Active</span>
+</div>
+</div>
+</div>
+<!-- 6 Channel Grid -->
+<div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-space-md">
+<!-- Channel 1: Front Left (FL) -->
+<div class="channel-card flex flex-col items-center bg-surface-container-low p-space-md rounded-xl transition-all shadow-sm" data-ch="FL">
+<!-- Strip Header -->
+<div class="w-full flex items-center justify-between pb-space-xs">
+<span class="px-2 py-0.5 rounded bg-surface-2 text-text-primary font-code-lg text-code-lg font-bold">FL</span>
+<span class="font-meter-num text-meter-num text-icon-gray truncate">AD0-L</span>
+</div>
+<span class="font-caption text-caption text-text-secondary w-full text-left truncate">Front Left</span>
+<!-- Meter + Fader Area -->
+<div class="w-full my-space-md flex items-center justify-center gap-space-md h-52 bg-surface-2 p-2 rounded-lg">
+<!-- Live VU Meter -->
+<div class="flex flex-col items-center h-full w-4 bg-surface rounded overflow-hidden justify-end p-0.5">
+<div class="w-full bg-surface-variant rounded-sm h-full flex flex-col justify-end overflow-hidden">
+<div class="vu-bar w-full bg-status-ok rounded-b-sm transition-all duration-75" style="height: 62%;"></div>
+</div>
+</div>
+<!-- Vertical Gain Slider -->
+<div class="relative flex flex-col items-center h-full justify-center">
+<input class="ch-fader w-36 h-2 -rotate-90 accent-primary-container bg-surface rounded cursor-pointer appearance-none" max="12" min="-12" step="0.5" type="range" value="0"/>
+</div>
+<!-- Scale Hash Marks -->
+<div class="flex flex-col justify-between h-full font-meter-num text-meter-num text-icon-gray text-[9px] py-1 select-none">
+<span class="text-status-warn">+12</span>
+<span>+6</span>
+<span class="text-text-primary font-bold">0</span>
+<span>-6</span>
+<span>-12</span>
+</div>
+</div>
+<!-- Precision Value Readout & Stepper -->
+<div class="w-full flex items-center justify-between bg-surface-2 px-2 py-1 rounded mb-space-sm">
+<button class="step-dec text-text-secondary hover:text-text-primary font-bold text-xs" type="button">▼</button>
+<span class="ch-readout font-code-sm text-code-sm text-text-primary font-semibold">0.0 dB</span>
+<button class="step-inc text-text-secondary hover:text-text-primary font-bold text-xs" type="button">▲</button>
+</div>
+<!-- Action Control Buttons -->
+<div class="w-full grid grid-cols-3 gap-1 mb-2">
+<button class="btn-solo py-1 rounded bg-surface-2 hover:bg-surface-variant font-code-sm text-code-sm font-bold text-text-secondary transition-colors" title="Solo" type="button">S</button>
+<button class="btn-mute py-1 rounded bg-surface-2 hover:bg-surface-variant font-code-sm text-code-sm font-bold text-text-secondary transition-colors" title="Mute" type="button">M</button>
+<button class="btn-phase py-1 rounded bg-surface-2 hover:bg-surface-variant font-code-sm text-code-sm text-text-secondary transition-colors" title="Phase Invert 180°" type="button">Ø</button>
+</div>
+<!-- Channel Footer / Quick Reset -->
+<button class="btn-zero w-full py-0.5 rounded bg-surface-2 hover:bg-surface-variant font-caption text-caption text-icon-gray hover:text-text-primary transition-colors" type="button">
+          Reset 0 dB
+        </button>
+</div>
+<!-- Channel 2: Front Right (FR) -->
+<div class="channel-card flex flex-col items-center bg-surface-container-low p-space-md rounded-xl transition-all shadow-sm" data-ch="FR">
+<div class="w-full flex items-center justify-between pb-space-xs">
+<span class="px-2 py-0.5 rounded bg-surface-2 text-text-primary font-code-lg text-code-lg font-bold">FR</span>
+<span class="font-meter-num text-meter-num text-icon-gray truncate">AD0-R</span>
+</div>
+<span class="font-caption text-caption text-text-secondary w-full text-left truncate">Front Right</span>
+<div class="w-full my-space-md flex items-center justify-center gap-space-md h-52 bg-surface-2 p-2 rounded-lg">
+<div class="flex flex-col items-center h-full w-4 bg-surface rounded overflow-hidden justify-end p-0.5">
+<div class="w-full bg-surface-variant rounded-sm h-full flex flex-col justify-end overflow-hidden">
+<div class="vu-bar w-full bg-status-ok rounded-b-sm transition-all duration-75" style="height: 58%;"></div>
+</div>
+</div>
+<div class="relative flex flex-col items-center h-full justify-center">
+<input class="ch-fader w-36 h-2 -rotate-90 accent-primary-container bg-surface rounded cursor-pointer appearance-none" max="12" min="-12" step="0.5" type="range" value="0"/>
+</div>
+<div class="flex flex-col justify-between h-full font-meter-num text-meter-num text-icon-gray text-[9px] py-1 select-none">
+<span class="text-status-warn">+12</span>
+<span>+6</span>
+<span class="text-text-primary font-bold">0</span>
+<span>-6</span>
+<span>-12</span>
+</div>
+</div>
+<div class="w-full flex items-center justify-between bg-surface-2 px-2 py-1 rounded mb-space-sm">
+<button class="step-dec text-text-secondary hover:text-text-primary font-bold text-xs" type="button">▼</button>
+<span class="ch-readout font-code-sm text-code-sm text-text-primary font-semibold">0.0 dB</span>
+<button class="step-inc text-text-secondary hover:text-text-primary font-bold text-xs" type="button">▲</button>
+</div>
+<div class="w-full grid grid-cols-3 gap-1 mb-2">
+<button class="btn-solo py-1 rounded bg-surface-2 hover:bg-surface-variant font-code-sm text-code-sm font-bold text-text-secondary transition-colors" type="button">S</button>
+<button class="btn-mute py-1 rounded bg-surface-2 hover:bg-surface-variant font-code-sm text-code-sm font-bold text-text-secondary transition-colors" type="button">M</button>
+<button class="btn-phase py-1 rounded bg-surface-2 hover:bg-surface-variant font-code-sm text-code-sm text-text-secondary transition-colors" type="button">Ø</button>
+</div>
+<button class="btn-zero w-full py-0.5 rounded bg-surface-2 hover:bg-surface-variant font-caption text-caption text-icon-gray hover:text-text-primary transition-colors" type="button">
+          Reset 0 dB
+        </button>
+</div>
+<!-- Channel 3: Center (C) -->
+<div class="channel-card flex flex-col items-center bg-surface-container-low p-space-md rounded-xl transition-all shadow-sm" data-ch="C">
+<div class="w-full flex items-center justify-between pb-space-xs">
+<span class="px-2 py-0.5 rounded bg-surface-2 text-text-primary font-code-lg text-code-lg font-bold">C</span>
+<span class="font-meter-num text-meter-num text-icon-gray truncate">AD1-L</span>
+</div>
+<div class="w-full flex items-center justify-between">
+<span class="font-caption text-caption text-text-secondary truncate">Center Voice</span>
+<span class="font-meter-num text-meter-num text-tertiary font-bold">+Clarity</span>
+</div>
+<div class="w-full my-space-md flex items-center justify-center gap-space-md h-52 bg-surface-2 p-2 rounded-lg">
+<div class="flex flex-col items-center h-full w-4 bg-surface rounded overflow-hidden justify-end p-0.5">
+<div class="w-full bg-surface-variant rounded-sm h-full flex flex-col justify-end overflow-hidden">
+<div class="vu-bar w-full bg-status-ok rounded-b-sm transition-all duration-75" style="height: 74%;"></div>
+</div>
+</div>
+<div class="relative flex flex-col items-center h-full justify-center">
+<input class="ch-fader w-36 h-2 -rotate-90 accent-primary-container bg-surface rounded cursor-pointer appearance-none" max="12" min="-12" step="0.5" type="range" value="1.5"/>
+</div>
+<div class="flex flex-col justify-between h-full font-meter-num text-meter-num text-icon-gray text-[9px] py-1 select-none">
+<span class="text-status-warn">+12</span>
+<span>+6</span>
+<span class="text-text-primary font-bold">0</span>
+<span>-6</span>
+<span>-12</span>
+</div>
+</div>
+<div class="w-full flex items-center justify-between bg-surface-2 px-2 py-1 rounded mb-space-sm">
+<button class="step-dec text-text-secondary hover:text-text-primary font-bold text-xs" type="button">▼</button>
+<span class="ch-readout font-code-sm text-code-sm text-text-primary font-semibold">+1.5 dB</span>
+<button class="step-inc text-text-secondary hover:text-text-primary font-bold text-xs" type="button">▲</button>
+</div>
+<div class="w-full grid grid-cols-3 gap-1 mb-2">
+<button class="btn-solo py-1 rounded bg-surface-2 hover:bg-surface-variant font-code-sm text-code-sm font-bold text-text-secondary transition-colors" type="button">S</button>
+<button class="btn-mute py-1 rounded bg-surface-2 hover:bg-surface-variant font-code-sm text-code-sm font-bold text-text-secondary transition-colors" type="button">M</button>
+<button class="btn-phase py-1 rounded bg-surface-2 hover:bg-surface-variant font-code-sm text-code-sm text-text-secondary transition-colors" type="button">Ø</button>
+</div>
+<button class="btn-zero w-full py-0.5 rounded bg-surface-2 hover:bg-surface-variant font-caption text-caption text-icon-gray hover:text-text-primary transition-colors" type="button">
+          Reset 0 dB
+        </button>
+</div>
+<!-- Channel 4: Subwoofer (LFE / Sub 120Hz) -->
+<div class="channel-card flex flex-col items-center bg-surface-container-low p-space-md rounded-xl transition-all shadow-sm" data-ch="SW">
+<div class="w-full flex items-center justify-between pb-space-xs">
+<span class="px-2 py-0.5 rounded bg-surface-2 text-text-primary font-code-lg text-code-lg font-bold">LFE</span>
+<span class="font-meter-num text-meter-num text-icon-gray truncate">AD1-R</span>
+</div>
+<div class="w-full flex items-center justify-between">
+<span class="font-caption text-caption text-text-secondary truncate">Subwoofer</span>
+<!-- LPF toggle pill -->
+<button class="px-1.5 py-0.2 rounded bg-surface-2 hover:bg-surface-variant font-meter-num text-meter-num text-status-warn" id="lfe-cutoff-btn" type="button">
+            120Hz LP
+          </button>
+</div>
+<div class="w-full my-space-md flex items-center justify-center gap-space-md h-52 bg-surface-2 p-2 rounded-lg">
+<div class="flex flex-col items-center h-full w-4 bg-surface rounded overflow-hidden justify-end p-0.5">
+<div class="w-full bg-surface-variant rounded-sm h-full flex flex-col justify-end overflow-hidden">
+<div class="vu-bar w-full bg-status-warn rounded-b-sm transition-all duration-75" style="height: 81%;"></div>
+</div>
+</div>
+<div class="relative flex flex-col items-center h-full justify-center">
+<input class="ch-fader w-36 h-2 -rotate-90 accent-primary-container bg-surface rounded cursor-pointer appearance-none" max="12" min="-12" step="0.5" type="range" value="0.0"/>
+</div>
+<div class="flex flex-col justify-between h-full font-meter-num text-meter-num text-icon-gray text-[9px] py-1 select-none">
+<span class="text-status-warn">+12</span>
+<span>+6</span>
+<span class="text-text-primary font-bold">0</span>
+<span>-6</span>
+<span>-12</span>
+</div>
+</div>
+<div class="w-full flex items-center justify-between bg-surface-2 px-2 py-1 rounded mb-space-sm">
+<button class="step-dec text-text-secondary hover:text-text-primary font-bold text-xs" type="button">▼</button>
+<span class="ch-readout font-code-sm text-code-sm text-text-primary font-semibold">0.0 dB</span>
+<button class="step-inc text-text-secondary hover:text-text-primary font-bold text-xs" type="button">▲</button>
+</div>
+<div class="w-full grid grid-cols-3 gap-1 mb-2">
+<button class="btn-solo py-1 rounded bg-surface-2 hover:bg-surface-variant font-code-sm text-code-sm font-bold text-text-secondary transition-colors" type="button">S</button>
+<button class="btn-mute py-1 rounded bg-surface-2 hover:bg-surface-variant font-code-sm text-code-sm font-bold text-text-secondary transition-colors" type="button">M</button>
+<button class="btn-phase py-1 rounded bg-surface-2 hover:bg-surface-variant font-code-sm text-code-sm text-text-secondary transition-colors" type="button">Ø</button>
+</div>
+<button class="btn-zero w-full py-0.5 rounded bg-surface-2 hover:bg-surface-variant font-caption text-caption text-icon-gray hover:text-text-primary transition-colors" type="button">
+          Reset 0 dB
+        </button>
+</div>
+<!-- Channel 5: Surround Left (SL) -->
+<div class="channel-card flex flex-col items-center bg-surface-container-low p-space-md rounded-xl transition-all shadow-sm" data-ch="SL">
+<div class="w-full flex items-center justify-between pb-space-xs">
+<span class="px-2 py-0.5 rounded bg-surface-2 text-text-primary font-code-lg text-code-lg font-bold">SL</span>
+<span class="font-meter-num text-meter-num text-icon-gray truncate">AD2-L</span>
+</div>
+<span class="font-caption text-caption text-text-secondary w-full text-left truncate">Surround Left</span>
+<div class="w-full my-space-md flex items-center justify-center gap-space-md h-52 bg-surface-2 p-2 rounded-lg">
+<div class="flex flex-col items-center h-full w-4 bg-surface rounded overflow-hidden justify-end p-0.5">
+<div class="w-full bg-surface-variant rounded-sm h-full flex flex-col justify-end overflow-hidden">
+<div class="vu-bar w-full bg-status-ok rounded-b-sm transition-all duration-75" style="height: 44%;"></div>
+</div>
+</div>
+<div class="relative flex flex-col items-center h-full justify-center">
+<input class="ch-fader w-36 h-2 -rotate-90 accent-primary-container bg-surface rounded cursor-pointer appearance-none" max="12" min="-12" step="0.5" type="range" value="-1.0"/>
+</div>
+<div class="flex flex-col justify-between h-full font-meter-num text-meter-num text-icon-gray text-[9px] py-1 select-none">
+<span class="text-status-warn">+12</span>
+<span>+6</span>
+<span class="text-text-primary font-bold">0</span>
+<span>-6</span>
+<span>-12</span>
+</div>
+</div>
+<div class="w-full flex items-center justify-between bg-surface-2 px-2 py-1 rounded mb-space-sm">
+<button class="step-dec text-text-secondary hover:text-text-primary font-bold text-xs" type="button">▼</button>
+<span class="ch-readout font-code-sm text-code-sm text-text-primary font-semibold">-1.0 dB</span>
+<button class="step-inc text-text-secondary hover:text-text-primary font-bold text-xs" type="button">▲</button>
+</div>
+<div class="w-full grid grid-cols-3 gap-1 mb-2">
+<button class="btn-solo py-1 rounded bg-surface-2 hover:bg-surface-variant font-code-sm text-code-sm font-bold text-text-secondary transition-colors" type="button">S</button>
+<button class="btn-mute py-1 rounded bg-surface-2 hover:bg-surface-variant font-code-sm text-code-sm font-bold text-text-secondary transition-colors" type="button">M</button>
+<button class="btn-phase py-1 rounded bg-surface-2 hover:bg-surface-variant font-code-sm text-code-sm text-text-secondary transition-colors" type="button">Ø</button>
+</div>
+<button class="btn-zero w-full py-0.5 rounded bg-surface-2 hover:bg-surface-variant font-caption text-caption text-icon-gray hover:text-text-primary transition-colors" type="button">
+          Reset 0 dB
+        </button>
+</div>
+<!-- Channel 6: Surround Right (SR) -->
+<div class="channel-card flex flex-col items-center bg-surface-container-low p-space-md rounded-xl transition-all shadow-sm" data-ch="SR">
+<div class="w-full flex items-center justify-between pb-space-xs">
+<span class="px-2 py-0.5 rounded bg-surface-2 text-text-primary font-code-lg text-code-lg font-bold">SR</span>
+<span class="font-meter-num text-meter-num text-icon-gray truncate">AD2-R</span>
+</div>
+<span class="font-caption text-caption text-text-secondary w-full text-left truncate">Surround Right</span>
+<div class="w-full my-space-md flex items-center justify-center gap-space-md h-52 bg-surface-2 p-2 rounded-lg">
+<div class="flex flex-col items-center h-full w-4 bg-surface rounded overflow-hidden justify-end p-0.5">
+<div class="w-full bg-surface-variant rounded-sm h-full flex flex-col justify-end overflow-hidden">
+<div class="vu-bar w-full bg-status-ok rounded-b-sm transition-all duration-75" style="height: 46%;"></div>
+</div>
+</div>
+<div class="relative flex flex-col items-center h-full justify-center">
+<input class="ch-fader w-36 h-2 -rotate-90 accent-primary-container bg-surface rounded cursor-pointer appearance-none" max="12" min="-12" step="0.5" type="range" value="-1.0"/>
+</div>
+<div class="flex flex-col justify-between h-full font-meter-num text-meter-num text-icon-gray text-[9px] py-1 select-none">
+<span class="text-status-warn">+12</span>
+<span>+6</span>
+<span class="text-text-primary font-bold">0</span>
+<span>-6</span>
+<span>-12</span>
+</div>
+</div>
+<div class="w-full flex items-center justify-between bg-surface-2 px-2 py-1 rounded mb-space-sm">
+<button class="step-dec text-text-secondary hover:text-text-primary font-bold text-xs" type="button">▼</button>
+<span class="ch-readout font-code-sm text-code-sm text-text-primary font-semibold">-1.0 dB</span>
+<button class="step-inc text-text-secondary hover:text-text-primary font-bold text-xs" type="button">▲</button>
+</div>
+<div class="w-full grid grid-cols-3 gap-1 mb-2">
+<button class="btn-solo py-1 rounded bg-surface-2 hover:bg-surface-variant font-code-sm text-code-sm font-bold text-text-secondary transition-colors" type="button">S</button>
+<button class="btn-mute py-1 rounded bg-surface-2 hover:bg-surface-variant font-code-sm text-code-sm font-bold text-text-secondary transition-colors" type="button">M</button>
+<button class="btn-phase py-1 rounded bg-surface-2 hover:bg-surface-variant font-code-sm text-code-sm text-text-secondary transition-colors" type="button">Ø</button>
+</div>
+<button class="btn-zero w-full py-0.5 rounded bg-surface-2 hover:bg-surface-variant font-caption text-caption text-icon-gray hover:text-text-primary transition-colors" type="button">
+          Reset 0 dB
+        </button>
+</div>
+</div>
+</div>
+<!-- Quick Utilities & Global DSP Actions Bar -->
+<div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-space-md bg-surface p-space-md rounded-xl shadow-md">
+<div class="flex flex-wrap items-center gap-space-sm">
+<button class="flex items-center gap-1.5 px-space-md py-1.5 rounded-full bg-surface-2 hover:bg-surface-variant text-text-secondary hover:text-text-primary font-body-sm text-body-sm transition-all shadow-sm" id="reset-all-btn" type="button">
+<span class="material-symbols-outlined text-[16px]">restart_alt</span>
+<span>Reset All to 0 dB</span>
+</button>
+<button class="flex items-center gap-1.5 px-space-md py-1.5 rounded-full bg-surface-2 hover:bg-surface-variant text-text-secondary hover:text-text-primary font-body-sm text-body-sm transition-all shadow-sm" id="link-front-btn" type="button">
+<span class="material-symbols-outlined text-[16px]">link</span>
+<span>Link Front Pair (FL/FR)</span>
+</button>
+<button class="flex items-center gap-1.5 px-space-md py-1.5 rounded-full bg-surface-2 hover:bg-surface-variant text-text-secondary hover:text-text-primary font-body-sm text-body-sm transition-all shadow-sm" id="link-surround-btn" type="button">
+<span class="material-symbols-outlined text-[16px]">link</span>
+<span>Link Surround (SL/SR)</span>
+</button>
+<button class="flex items-center gap-1.5 px-space-md py-1.5 rounded-full bg-surface-2 hover:bg-surface-variant text-text-secondary hover:text-text-primary font-body-sm text-body-sm transition-all shadow-sm" id="save-preset-btn" type="button">
+<span class="material-symbols-outlined text-[16px]">save</span>
+<span>Save as Preset...</span>
+</button>
+</div>
+<div>
+<a class="flex items-center justify-center gap-2 px-space-lg py-1.5 rounded-full bg-primary-container hover:bg-lg-red-hover text-text-primary font-body-sm text-body-sm font-semibold transition-all shadow-md" href="#">
+<span class="material-symbols-outlined text-[18px]">volume_up</span>
+<span>Speaker Sweep Test</span>
+</a>
+</div>
+</div>
+<!-- Footer Telemetry Status Bar -->
+<div class="flex flex-col sm:flex-row items-center justify-between gap-space-sm bg-surface-container-low px-space-lg py-2 rounded-xl text-icon-gray font-code-sm text-code-sm shadow-inner">
+<div class="flex flex-wrap items-center gap-space-md">
+<div class="flex items-center gap-1.5">
+<span class="font-caption text-caption text-text-secondary uppercase">DSP Engine:</span>
+<span class="text-tertiary font-medium">96.000 kHz / 32-bit Container</span>
+</div>
+<span class="text-surface-variant">|</span>
+<div class="flex items-center gap-1.5">
+<span class="font-caption text-caption text-text-secondary uppercase">HW Latency:</span>
+<span class="text-text-primary font-medium">0.2 ms</span>
+</div>
+<span class="text-surface-variant">|</span>
+<div class="flex items-center gap-1.5">
+<span class="font-caption text-caption text-text-secondary uppercase">Jitter:</span>
+<span class="text-status-ok font-medium">&lt; 1.8 ps RMS</span>
+</div>
+</div>
+<div class="flex items-center gap-space-md">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-status-ok"></span>
+<span class="text-text-primary font-medium">WinUSB Stream Active</span>
+</div>
+<span class="text-surface-variant">|</span>
+<span class="font-meter-num text-meter-num text-icon-gray">0 Underruns / 0 Overruns</span>
+</div>
+</div>
+      </div>

@@ -83,6 +83,7 @@ AudioDriverStatus AudioPolicyManager::CheckDriverStatus() {
 
     AudioDriverStatus status;
     status.installed = false;
+    status.endpoint_visible = false;
     status.is_default = false;
 
     HRESULT hrCom = CoInitializeEx(NULL, COINIT_MULTITHREADED);
@@ -99,52 +100,105 @@ AudioDriverStatus AudioPolicyManager::CheckDriverStatus() {
     );
 
     if (SUCCEEDED(hr) && enumerator) {
-        IMMDeviceCollection* collection = NULL;
-        hr = enumerator->EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE, &collection);
-        if (SUCCEEDED(hr) && collection) {
-            UINT count = 0;
-            collection->GetCount(&count);
+        // 1. Direct O(1) lookup by resolved VB-Cable GUID if available from SyncEndpointNames()
+        if (!m_ht306_guid.empty()) {
+            std::wstring target_id = L"{0.0.0.00000000}." + m_ht306_guid;
+            IMMDevice* device = NULL;
+            if (SUCCEEDED(enumerator->GetDevice(target_id.c_str(), &device)) && device) {
+                DWORD dwState = 0;
+                device->GetState(&dwState);
+                status.installed = true;
+                status.endpoint_visible = (dwState == DEVICE_STATE_ACTIVE);
+                status.endpoint_id = target_id;
+                status.endpoint_name = "LG HT306 Home Theater (5.1 Surround)";
 
-            for (UINT i = 0; i < count; ++i) {
-                IMMDevice* device = NULL;
-                if (SUCCEEDED(collection->Item(i, &device)) && device) {
-                    LPWSTR dev_id = NULL;
-                    device->GetId(&dev_id);
-
-                    IPropertyStore* props = NULL;
-                    if (SUCCEEDED(device->OpenPropertyStore(STGM_READ, &props)) && props) {
-                        PROPVARIANT var_name;
-                        PropVariantInit(&var_name);
-                        if (SUCCEEDED(props->GetValue(PKEY_Device_FriendlyName, &var_name)) && var_name.pwszVal) {
-                            std::string name = WideToUtf8(var_name.pwszVal);
-                            
-                            // Check specifically for LG HT306 or VB-CABLE Input (avoid matching VoiceMeeter / Hi-Fi cable)
-                            if (name.find("HT306") != std::string::npos ||
-                                name.find("CABLE Input") != std::string::npos) {
-                                
-                                status.installed = true;
-                                status.endpoint_name = name;
-                                if (dev_id) status.endpoint_id = dev_id;
-                                if (!current_default.empty() && dev_id && current_default == dev_id) {
-                                    status.is_default = true;
-                                }
-                                PropVariantClear(&var_name);
-                                props->Release();
-                                if (dev_id) CoTaskMemFree(dev_id);
-                                device->Release();
-                                break;
-                            }
+                IPropertyStore* props = NULL;
+                if (SUCCEEDED(device->OpenPropertyStore(STGM_READ, &props)) && props) {
+                    PROPVARIANT var_name;
+                    PropVariantInit(&var_name);
+                    if (SUCCEEDED(props->GetValue(PKEY_Device_FriendlyName, &var_name)) && var_name.pwszVal) {
+                        std::string name = WideToUtf8(var_name.pwszVal);
+                        if (!name.empty()) {
+                            status.endpoint_name = name;
                         }
-                        PropVariantClear(&var_name);
-                        props->Release();
                     }
-                    if (dev_id) CoTaskMemFree(dev_id);
-                    device->Release();
+                    PropVariantClear(&var_name);
+                    props->Release();
                 }
+
+                if (status.endpoint_visible && !current_default.empty() && current_default == target_id) {
+                    status.is_default = true;
+                }
+                device->Release();
             }
-            collection->Release();
+        }
+
+        // 2. Fallback enumeration if direct GUID lookup did not resolve
+        if (!status.installed) {
+            IMMDeviceCollection* collection = NULL;
+            hr = enumerator->EnumAudioEndpoints(eRender, DEVICE_STATEMASK_ALL, &collection);
+            if (SUCCEEDED(hr) && collection) {
+                UINT count = 0;
+                collection->GetCount(&count);
+
+                for (UINT i = 0; i < count; ++i) {
+                    IMMDevice* device = NULL;
+                    if (SUCCEEDED(collection->Item(i, &device)) && device) {
+                        LPWSTR dev_id = NULL;
+                        device->GetId(&dev_id);
+
+                        DWORD dwState = 0;
+                        device->GetState(&dwState);
+
+                        IPropertyStore* props = NULL;
+                        if (SUCCEEDED(device->OpenPropertyStore(STGM_READ, &props)) && props) {
+                            PROPVARIANT var_name;
+                            PropVariantInit(&var_name);
+                            if (SUCCEEDED(props->GetValue(PKEY_Device_FriendlyName, &var_name)) && var_name.pwszVal) {
+                                std::string name = WideToUtf8(var_name.pwszVal);
+                                
+                                // Check specifically for LG HT306 or VB-CABLE Input (exclude 16ch sub-endpoint)
+                                if ((name.find("HT306") != std::string::npos ||
+                                     name.find("CABLE Input") != std::string::npos) &&
+                                    name.find("16ch") == std::string::npos &&
+                                    (dwState == DEVICE_STATE_ACTIVE || dwState == DEVICE_STATE_DISABLED)) {
+                                    
+                                    status.installed = true;
+                                    status.endpoint_visible = (dwState == DEVICE_STATE_ACTIVE);
+                                    status.endpoint_name = name;
+                                    if (dev_id) status.endpoint_id = dev_id;
+                                    if (status.endpoint_visible && !current_default.empty() && dev_id && current_default == dev_id) {
+                                        status.is_default = true;
+                                    }
+                                    PropVariantClear(&var_name);
+                                    props->Release();
+                                    if (dev_id) CoTaskMemFree(dev_id);
+                                    device->Release();
+                                    break;
+                                }
+                            }
+                            PropVariantClear(&var_name);
+                            props->Release();
+                        }
+                        if (dev_id) CoTaskMemFree(dev_id);
+                        device->Release();
+                    }
+                }
+                collection->Release();
+            }
         }
         enumerator->Release();
+    }
+
+    // Fallback to Registry scan result from SyncEndpointNames() when endpoint is hidden
+    if (!status.installed && !m_ht306_guid.empty()) {
+        status.installed = true;
+        status.endpoint_visible = (m_ht306_reg_state == 0x00000001);
+        status.endpoint_id = L"{0.0.0.00000000}." + m_ht306_guid;
+        status.endpoint_name = "LG HT306 Home Theater (5.1 Surround)";
+        if (status.endpoint_visible && !current_default.empty() && current_default == status.endpoint_id) {
+            status.is_default = true;
+        }
     }
 
     if (SUCCEEDED(hrCom)) {
@@ -163,6 +217,120 @@ AudioDriverStatus AudioPolicyManager::GetCachedDriverStatus() {
         return CheckDriverStatus();
     }
     return m_cached_status;
+}
+
+std::wstring AudioPolicyManager::FindFallbackNonHT306EndpointId() {
+    HRESULT hrCom = CoInitializeEx(NULL, COINIT_MULTITHREADED);
+    std::wstring fallback_id;
+
+    IMMDeviceEnumerator* enumerator = NULL;
+    HRESULT hr = CoCreateInstance(
+        __uuidof(MMDeviceEnumerator),
+        NULL,
+        CLSCTX_ALL,
+        __uuidof(IMMDeviceEnumerator),
+        (void**)&enumerator
+    );
+
+    if (SUCCEEDED(hr) && enumerator) {
+        IMMDeviceCollection* collection = NULL;
+        if (SUCCEEDED(enumerator->EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE, &collection)) && collection) {
+            UINT count = 0;
+            collection->GetCount(&count);
+            for (UINT i = 0; i < count; ++i) {
+                IMMDevice* device = NULL;
+                if (SUCCEEDED(collection->Item(i, &device)) && device) {
+                    LPWSTR dev_id = NULL;
+                    device->GetId(&dev_id);
+
+                    IPropertyStore* props = NULL;
+                    if (SUCCEEDED(device->OpenPropertyStore(STGM_READ, &props)) && props) {
+                        PROPVARIANT var_name;
+                        PropVariantInit(&var_name);
+                        if (SUCCEEDED(props->GetValue(PKEY_Device_FriendlyName, &var_name)) && var_name.pwszVal) {
+                            std::string name = WideToUtf8(var_name.pwszVal);
+                            if (name.find("HT306") == std::string::npos &&
+                                name.find("CABLE") == std::string::npos &&
+                                name.find("VB-Audio") == std::string::npos) {
+                                if (dev_id) fallback_id = dev_id;
+                            }
+                        }
+                        PropVariantClear(&var_name);
+                        props->Release();
+                    }
+                    if (dev_id) CoTaskMemFree(dev_id);
+                    device->Release();
+                    if (!fallback_id.empty()) break;
+                }
+            }
+            collection->Release();
+        }
+        enumerator->Release();
+    }
+
+    if (SUCCEEDED(hrCom)) {
+        CoUninitialize();
+    }
+    return fallback_id;
+}
+
+bool AudioPolicyManager::SetEndpointVisibility(bool visible) {
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
+    if (m_ht306_guid.empty()) {
+        SyncEndpointNames();
+    }
+    if (m_ht306_guid.empty()) {
+        return false;
+    }
+
+    std::wstring endpoint_id = L"{0.0.0.00000000}." + m_ht306_guid;
+    std::wstring subPath = L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\MMDevices\\Audio\\Render\\" + m_ht306_guid;
+
+    // 1. If surfacing, ensure low nibble of DeviceState in Registry is 0x01 (DEVICE_STATE_ACTIVE)
+    // in case it was previously set to 0x10000002 (DEVICE_STATE_DISABLED).
+    if (visible) {
+        HKEY hSubKeyWrite = NULL;
+        if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, subPath.c_str(), 0, KEY_SET_VALUE, &hSubKeyWrite) == ERROR_SUCCESS) {
+            DWORD activeState = 0x00000001;
+            RegSetValueExW(hSubKeyWrite, L"DeviceState", 0, REG_DWORD, (const BYTE*)&activeState, sizeof(activeState));
+            RegCloseKey(hSubKeyWrite);
+        }
+    }
+
+    // 2. Notify Audiosrv in real-time via IPolicyConfig::SetEndpointVisibility so Windows 11 Taskbar
+    // immediately shows or hides the endpoint without needing an Audiosrv restart.
+    HRESULT hrCom = CoInitializeEx(NULL, COINIT_MULTITHREADED);
+    bool ok = false;
+
+    IPolicyConfig* pPolicyConfig = NULL;
+    HRESULT hr = CoCreateInstance(
+        CLSID_CPolicyConfigClient,
+        NULL,
+        CLSCTX_ALL,
+        IID_IPolicyConfig,
+        (void**)&pPolicyConfig
+    );
+
+    if (SUCCEEDED(hr) && pPolicyConfig) {
+        if (visible) {
+            // Toggle 0 -> 1 to force Audiosrv to reload Registry DeviceState and broadcast OnDeviceStateChanged
+            pPolicyConfig->SetEndpointVisibility(endpoint_id.c_str(), 0);
+            HRESULT hrVis = pPolicyConfig->SetEndpointVisibility(endpoint_id.c_str(), 1);
+            ok = SUCCEEDED(hrVis);
+        } else {
+            HRESULT hrVis = pPolicyConfig->SetEndpointVisibility(endpoint_id.c_str(), 0);
+            ok = SUCCEEDED(hrVis);
+        }
+        pPolicyConfig->Release();
+    }
+
+    if (SUCCEEDED(hrCom)) {
+        CoUninitialize();
+    }
+
+    m_ht306_reg_state = visible ? 0x00000001 : 0x10000001;
+    m_last_check_tick = 0; // Invalidate cache
+    return ok;
 }
 
 bool AudioPolicyManager::SetDefaultEndpoint(const std::wstring& device_id) {
@@ -206,14 +374,31 @@ bool AudioPolicyManager::SwitchToHT306(AppState& state) {
         return false;
     }
 
+    // Save current non-HT306 default playback endpoint before surfacing HT306
     std::wstring current_def = GetCurrentDefaultEndpointId();
-    if (current_def != status.endpoint_id) {
+    if (!current_def.empty() && current_def != status.endpoint_id) {
         m_saved_previous_device_id = current_def;
+    }
+
+    // 1. Ensure the LG HT306 Home Theater endpoint is visible in Windows Taskbar (DeviceState = 1)
+    if (!status.endpoint_visible) {
+        SetEndpointVisibility(true);
+        // Poll up to 400ms (10 x 40ms) for Audiosrv to register the newly activated endpoint
+        for (int attempt = 0; attempt < 10; ++attempt) {
+            Sleep(40);
+            status = CheckDriverStatus();
+            if (status.endpoint_visible) break;
+        }
+    }
+
+    // 2. Switch default audio output to LG HT306 Home Theater
+    current_def = GetCurrentDefaultEndpointId();
+    if (current_def != status.endpoint_id) {
         bool ok = SetDefaultEndpoint(status.endpoint_id);
         if (ok) {
             m_switched_to_ht306 = true;
             state.AddLog(LogLevel::LOG_INFO, "AudioPolicy", 
-                "Windows default audio device automatically switched to: " + status.endpoint_name);
+                "RP2350 connected: Surfaced & switched Windows Taskbar audio to " + status.endpoint_name);
         } else {
             state.AddLog(LogLevel::LOG_ERROR, "AudioPolicy", "Failed to switch default audio device via IPolicyConfig");
             return false;
@@ -222,10 +407,11 @@ bool AudioPolicyManager::SwitchToHT306(AppState& state) {
         m_switched_to_ht306 = true;
     }
 
-    // Configure 5.1 surround 96kHz format
+    // 3. Configure 5.1 surround 96kHz format
     ConfigureEndpointSurround96k(status.endpoint_id);
+    CheckDriverStatus(); // Refresh cached status
 
-    // Sync active_device_index in state to the HT306 endpoint
+    // 4. Sync active_device_index in state to the HT306 endpoint
     for (size_t i = 0; i < state.available_devices.size(); ++i) {
         if (!state.available_devices[i].id.empty() && state.available_devices[i].id == status.endpoint_id) {
             state.active_device_index = (int)i;
@@ -239,15 +425,31 @@ bool AudioPolicyManager::SwitchToHT306(AppState& state) {
 bool AudioPolicyManager::RestorePreviousDefault(AppState& state) {
     std::lock_guard<std::recursive_mutex> lock(m_mutex);
 
-    if (m_switched_to_ht306 && !m_saved_previous_device_id.empty()) {
-        bool ok = SetDefaultEndpoint(m_saved_previous_device_id);
-        if (ok) {
-            state.AddLog(LogLevel::LOG_INFO, "AudioPolicy", 
-                "Hardware disconnected: Restored Windows default audio playback to previous PC speaker");
-        }
-        m_switched_to_ht306 = false;
-        m_saved_previous_device_id.clear();
+    AudioDriverStatus status = CheckDriverStatus();
+    if (!status.installed) {
+        return false;
     }
+
+    // 1. Determine fallback speaker if saved previous ID is empty or points to HT306
+    if (m_saved_previous_device_id.empty() || m_saved_previous_device_id == status.endpoint_id) {
+        m_saved_previous_device_id = FindFallbackNonHT306EndpointId();
+    }
+
+    // 2. Switch default playback back to PC speaker before hiding HT306
+    if (!m_saved_previous_device_id.empty()) {
+        SetDefaultEndpoint(m_saved_previous_device_id);
+    }
+    m_switched_to_ht306 = false;
+
+    // 3. Hide LG HT306 Home Theater from Windows Taskbar unless manual override is active
+    if (!m_manual_visibility_override) {
+        if (SetEndpointVisibility(false) && status.endpoint_visible) {
+            state.AddLog(LogLevel::LOG_INFO, "AudioPolicy", 
+                "RP2350 disconnected: Restored PC speaker and hid LG HT306 Home Theater from Windows Taskbar");
+        }
+    }
+
+    CheckDriverStatus(); // Refresh cached status
     state.active_device_index = 0; // Default endpoint
     return true;
 }
@@ -323,7 +525,7 @@ bool AudioPolicyManager::SyncEndpointNames() {
         return false;
     }
 
-    bool modified = false;
+    m_ht306_guid.clear();
     wchar_t subKeyName[256];
     DWORD index = 0;
     DWORD nameLen = 256;
@@ -334,6 +536,20 @@ bool AudioPolicyManager::SyncEndpointNames() {
 
         std::wstring subPath = std::wstring(renderPath) + L"\\" + subKeyName;
         std::wstring propPath = subPath + L"\\Properties";
+
+        HKEY hSubKeyRead = NULL;
+        DWORD currentState = 0;
+        DWORD cbState = sizeof(currentState);
+        if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, subPath.c_str(), 0, KEY_QUERY_VALUE, &hSubKeyRead) == ERROR_SUCCESS) {
+            RegQueryValueExW(hSubKeyRead, L"DeviceState", NULL, NULL, (LPBYTE)&currentState, &cbState);
+            RegCloseKey(hSubKeyRead);
+        }
+
+        // Skip uninstalled / non-present ghost endpoints (low nibble 0x04 = DEVICE_STATE_NOTPRESENT)
+        DWORD stateLow = currentState & 0x0F;
+        if (stateLow != DEVICE_STATE_ACTIVE && stateLow != DEVICE_STATE_DISABLED) {
+            continue;
+        }
 
         HKEY hPropKey = NULL;
         if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, propPath.c_str(), 0, KEY_QUERY_VALUE, &hPropKey) == ERROR_SUCCESS) {
@@ -359,6 +575,7 @@ bool AudioPolicyManager::SyncEndpointNames() {
 
             bool isVbCable = (wHwId.find(L"VBAudioVACWDM") != std::wstring::npos) ||
                              (wDesc.find(L"CABLE") != std::wstring::npos) ||
+                             (wDesc == L"LG HT306 Home Theater") ||
                              (wIfName.find(L"VB-Audio") != std::wstring::npos);
 
             if (isVbCable) {
@@ -368,38 +585,44 @@ bool AudioPolicyManager::SyncEndpointNames() {
                               (wSubType.find(L"dff21fe3") != std::wstring::npos);
 
                 if (is16ch) {
-                    HKEY hSubKeyRead = NULL;
-                    DWORD currentState = 1;
-                    DWORD cbState = sizeof(currentState);
-                    if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, subPath.c_str(), 0, KEY_QUERY_VALUE, &hSubKeyRead) == ERROR_SUCCESS) {
-                        RegQueryValueExW(hSubKeyRead, L"DeviceState", NULL, NULL, (LPBYTE)&currentState, &cbState);
-                        RegCloseKey(hSubKeyRead);
-                    }
-                    if (currentState == 1) {
+                    if (currentState != 0x10000002) {
+                        // Hide 16ch endpoint live via IPolicyConfig::SetEndpointVisibility(0) and lock Registry to 0x10000002
+                        HRESULT hrCom = CoInitializeEx(NULL, COINIT_MULTITHREADED);
+                        IPolicyConfig* pPC = NULL;
+                        if (SUCCEEDED(CoCreateInstance(CLSID_CPolicyConfigClient, NULL, CLSCTX_ALL, IID_IPolicyConfig, (void**)&pPC)) && pPC) {
+                            std::wstring id16ch = std::wstring(L"{0.0.0.00000000}.") + subKeyName;
+                            pPC->SetEndpointVisibility(id16ch.c_str(), 0);
+                            pPC->Release();
+                        }
+                        if (SUCCEEDED(hrCom)) CoUninitialize();
+
                         HKEY hSubKeyWrite = NULL;
                         if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, subPath.c_str(), 0, KEY_SET_VALUE, &hSubKeyWrite) == ERROR_SUCCESS) {
                             DWORD disabledState = 0x10000002;
-                            if (RegSetValueExW(hSubKeyWrite, L"DeviceState", 0, REG_DWORD, (const BYTE*)&disabledState, sizeof(disabledState)) == ERROR_SUCCESS) {
-                                modified = true;
-                            }
+                            RegSetValueExW(hSubKeyWrite, L"DeviceState", 0, REG_DWORD, (const BYTE*)&disabledState, sizeof(disabledState));
                             RegCloseKey(hSubKeyWrite);
                         }
                     }
                 } else {
+                    m_ht306_guid = subKeyName;
+                    m_ht306_reg_state = currentState;
+
                     if (wDesc != L"LG HT306 Home Theater" || wIfName != L"5.1 Surround") {
                         HKEY hPropWrite = NULL;
                         if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, propPath.c_str(), 0, KEY_SET_VALUE, &hPropWrite) == ERROR_SUCCESS) {
                             const wchar_t* newDesc = L"LG HT306 Home Theater";
                             const wchar_t* newIfName = L"5.1 Surround";
+                            const wchar_t* newFriendly = L"LG HT306 Home Theater (5.1 Surround)";
                             const wchar_t* speakerIcon = L"%windir%\\system32\\mmres.dll,-3010";
                             RegSetValueExW(hPropWrite, L"{a45c254e-df1c-4efd-8020-67d146a850e0},2", 0, REG_SZ,
                                            (const BYTE*)newDesc, (DWORD)((wcslen(newDesc) + 1) * sizeof(wchar_t)));
                             RegSetValueExW(hPropWrite, L"{b3f8fa53-0004-438e-9003-51a46e139bfc},6", 0, REG_SZ,
                                            (const BYTE*)newIfName, (DWORD)((wcslen(newIfName) + 1) * sizeof(wchar_t)));
+                            RegSetValueExW(hPropWrite, L"{a45c254e-df1c-4efd-8020-67d146a850e0},14", 0, REG_SZ,
+                                           (const BYTE*)newFriendly, (DWORD)((wcslen(newFriendly) + 1) * sizeof(wchar_t)));
                             RegSetValueExW(hPropWrite, L"{259abffc-50a7-47ce-af08-68c9a7d73366},12", 0, REG_SZ,
                                            (const BYTE*)speakerIcon, (DWORD)((wcslen(speakerIcon) + 1) * sizeof(wchar_t)));
                             RegCloseKey(hPropWrite);
-                            modified = true;
                         }
                     }
                 }
@@ -409,7 +632,7 @@ bool AudioPolicyManager::SyncEndpointNames() {
 
     RegCloseKey(hRenderKey);
     m_last_check_tick = 0; // Invalidate cache so next check reads updated names
-    return true;
+    return !m_ht306_guid.empty();
 }
 
 static std::string FindVBCableSetupExe() {

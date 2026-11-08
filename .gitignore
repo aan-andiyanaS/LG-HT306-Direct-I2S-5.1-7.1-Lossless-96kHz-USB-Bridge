@@ -33,6 +33,10 @@ Thumbs.db
 
 # Scratch & Temporary
 scratch/
+*.bak
+pc_stream_app/ui/*_script.js
+graphify-out/cache/
+graphify-out/.*
 
 # Large Service Manuals & Temporary Extractions
 *.pdf

@@ -494,15 +494,43 @@ void HandleNativeCommand(const std::string& raw_json_str) {
             g_TelemetryDirty.store(true);
         }).detach();
     }
-    else if (action == "switch_to_ht306" || action == "set_taskbar_default") {
+    else if (action == "switch_to_ht306" || action == "set_taskbar_default" || action == "force_show_ht306") {
+        if (!g_State.hw_info.detected) {
+            ht306::audio::AudioPolicyManager::Instance().SetManualVisibilityOverride(true);
+        }
         bool ok = ht306::audio::AudioPolicyManager::Instance().SwitchToHT306(g_State);
+        ht306::audio::AudioEndpointHelper::EnumerateDevices(g_State);
         if (ok) {
             g_State.AddLog(ht306::LogLevel::LOG_INFO, "AudioPolicy", "Switched Windows taskbar default audio device to LG HT306");
         }
         g_TelemetryDirty.store(true);
     }
-    else if (action == "restore_default_playback") {
+    else if (action == "restore_default_playback" || action == "hide_ht306_endpoint") {
+        ht306::audio::AudioPolicyManager::Instance().SetManualVisibilityOverride(false);
         ht306::audio::AudioPolicyManager::Instance().RestorePreviousDefault(g_State);
+        ht306::audio::AudioEndpointHelper::EnumerateDevices(g_State);
+        g_TelemetryDirty.store(true);
+    }
+    else if (action == "toggle_debug_audio" || action == "set_debug_audio") {
+        bool cur_override = ht306::audio::AudioPolicyManager::Instance().GetManualVisibilityOverride();
+        bool next_override = !cur_override;
+        JsonGetBool(json, "enabled", next_override);
+        JsonGetBool(json, "enable", next_override);
+        ht306::audio::AudioPolicyManager::Instance().SetManualVisibilityOverride(next_override);
+        if (next_override) {
+            bool ok = ht306::audio::AudioPolicyManager::Instance().SwitchToHT306(g_State);
+            if (ok) {
+                g_State.AddLog(ht306::LogLevel::LOG_INFO, "DebugAudio", "Mode Debug Aktif: LG HT306 Home Theater diaktifkan tanpa RP2350");
+            }
+        } else {
+            if (!g_UsbTransport.CheckHardwarePresence()) {
+                ht306::audio::AudioPolicyManager::Instance().RestorePreviousDefault(g_State);
+                g_State.AddLog(ht306::LogLevel::LOG_INFO, "DebugAudio", "Mode Debug Nonaktif: LG HT306 Home Theater disembunyikan dari Taskbar");
+            } else {
+                g_State.AddLog(ht306::LogLevel::LOG_INFO, "DebugAudio", "Mode Debug Nonaktif (RP2350 masih terhubung)");
+            }
+        }
+        ht306::audio::AudioEndpointHelper::EnumerateDevices(g_State);
         g_TelemetryDirty.store(true);
     }
     else if (action == "reboot_bootsel") {
@@ -689,6 +717,7 @@ void HandleNativeCommand(const std::string& raw_json_str) {
         }
     }
     else if (action == "app_ready") {
+        g_UsbTransport.TriggerCheck();
         g_TelemetryDirty.store(true);
         // Staged post-boot trim after initial telemetry & Blink DOM layout finish rendering
         std::thread([]() {
@@ -711,6 +740,7 @@ void HandleNativeCommand(const std::string& raw_json_str) {
 #define ID_TRAY_TOGGLE_STREAM 1002
 #define ID_TRAY_BITPERFECT 1003
 #define ID_TRAY_EXIT 1004
+#define ID_TRAY_DEBUG_AUDIO 1005
 
 static WNDPROC g_OrigWndProc = NULL;
 static NOTIFYICONDATAA g_Nid = { 0 };
@@ -738,6 +768,10 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                 UINT bpFlags = MF_BYPOSITION | MF_STRING | (bitperfect ? MF_CHECKED : MF_UNCHECKED);
                 InsertMenuA(hMenu, -1, bpFlags, ID_TRAY_BITPERFECT, "Bit-Perfect Mode");
 
+                bool debugAudio = ht306::audio::AudioPolicyManager::Instance().GetManualVisibilityOverride();
+                UINT dbgFlags = MF_BYPOSITION | MF_STRING | (debugAudio ? MF_CHECKED : MF_UNCHECKED);
+                InsertMenuA(hMenu, -1, dbgFlags, ID_TRAY_DEBUG_AUDIO, "Debug: Aktifkan Audio Tanpa RP2350");
+
                 InsertMenuA(hMenu, -1, MF_BYPOSITION | MF_SEPARATOR, 0, NULL);
                 InsertMenuA(hMenu, -1, MF_BYPOSITION | MF_STRING, ID_TRAY_EXIT, "Exit");
 
@@ -755,7 +789,10 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                     bool new_bp = !g_State.settings.bit_perfect_mode;
                     std::string cmd_str = "{\"action\":\"set_mode\",\"bit_perfect_mode\":" + std::string(new_bp ? "true" : "false") + "}";
                     HandleNativeCommand(cmd_str);
+                } else if (cmd == ID_TRAY_DEBUG_AUDIO) {
+                    HandleNativeCommand("{\"action\":\"toggle_debug_audio\"}");
                 } else if (cmd == ID_TRAY_EXIT) {
+                    ht306::audio::AudioPolicyManager::Instance().SetManualVisibilityOverride(false);
                     ht306::audio::AudioPolicyManager::Instance().RestorePreviousDefault(g_State);
                     PostMessage(hwnd, WM_CLOSE, 0, 0);
                 }
@@ -770,8 +807,10 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         g_TelemetryDirty.store(true);
         return TRUE;
     } else if (uMsg == WM_CLOSE) {
+        ht306::audio::AudioPolicyManager::Instance().SetManualVisibilityOverride(false);
         ht306::audio::AudioPolicyManager::Instance().RestorePreviousDefault(g_State);
     } else if (uMsg == WM_DESTROY) {
+        ht306::audio::AudioPolicyManager::Instance().SetManualVisibilityOverride(false);
         ht306::audio::AudioPolicyManager::Instance().RestorePreviousDefault(g_State);
         Shell_NotifyIconA(NIM_DELETE, &g_Nid);
     }
@@ -789,7 +828,9 @@ void TelemetryLoop() {
     std::string last_hb;
     size_t last_log_count = 0;
     bool last_drv_installed = false;
+    bool last_drv_visible = false;
     bool last_drv_default = false;
+    bool last_drv_debug = false;
     std::string last_drv_name;
 
     while (g_Running.load()) {
@@ -807,11 +848,16 @@ void TelemetryLoop() {
         bool drv_changed = false;
         if (counter <= 2 || counter % 16 == 0) {
             auto drv = ht306::audio::AudioPolicyManager::Instance().GetCachedDriverStatus();
+            bool cur_drv_debug = ht306::audio::AudioPolicyManager::Instance().GetManualVisibilityOverride();
             if (drv.installed != last_drv_installed ||
+                drv.endpoint_visible != last_drv_visible ||
                 drv.is_default != last_drv_default ||
+                cur_drv_debug != last_drv_debug ||
                 drv.endpoint_name != last_drv_name) {
                 last_drv_installed = drv.installed;
+                last_drv_visible = drv.endpoint_visible;
                 last_drv_default = drv.is_default;
+                last_drv_debug = cur_drv_debug;
                 last_drv_name = drv.endpoint_name;
                 ht306::audio::AudioEndpointHelper::EnumerateDevices(g_State);
                 drv_changed = true;
@@ -934,7 +980,9 @@ void TelemetryLoop() {
         ss << "],"
            << "\"audio_driver\":{"
            << "\"installed\":" << (ht306::audio::AudioPolicyManager::Instance().GetCachedDriverStatus().installed ? "true" : "false") << ","
+           << "\"visible\":" << (ht306::audio::AudioPolicyManager::Instance().GetCachedDriverStatus().endpoint_visible ? "true" : "false") << ","
            << "\"is_default\":" << (ht306::audio::AudioPolicyManager::Instance().GetCachedDriverStatus().is_default ? "true" : "false") << ","
+           << "\"debug_override\":" << (ht306::audio::AudioPolicyManager::Instance().GetManualVisibilityOverride() ? "true" : "false") << ","
            << "\"name\":\"" << EscapeJsonString(ht306::audio::AudioPolicyManager::Instance().GetCachedDriverStatus().endpoint_name) << "\""
            << "},"
            << "\"devices\":[";
@@ -1054,6 +1102,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     if (GetLastError() == ERROR_ALREADY_EXISTS) {
         HWND existingHwnd = FindWindowA(NULL, "LG HT306 Audio Bridge \xE2\x80\x94 Direct I2S 96kHz Lossless");
         if (existingHwnd) {
+            ShowWindow(existingHwnd, SW_SHOW);
             ShowWindow(existingHwnd, SW_RESTORE);
             SetForegroundWindow(existingHwnd);
         }
@@ -1064,8 +1113,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // Clean up any lingering WebView2 processes from previous ungraceful exits
     KillOrphanWebViewProcesses();
 
-    // 1. Initialize audio endpoint helper and detect device (auto-sync VB-Cable name first)
+    // 1. Initialize audio endpoint helper and sync visibility with RP2350 hardware presence
     ht306::audio::AudioPolicyManager::Instance().CheckDriverStatus();
+    if (g_UsbTransport.CheckHardwarePresence()) {
+        ht306::audio::AudioPolicyManager::Instance().SwitchToHT306(g_State);
+    } else {
+        ht306::audio::AudioPolicyManager::Instance().RestorePreviousDefault(g_State);
+    }
     ht306::audio::AudioEndpointHelper::EnumerateDevices(g_State);
     g_UsbTransport.StartWorker();
 
@@ -1086,7 +1140,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             "--disable-sync "
             "--disable-features=TranslateUI,AutofillServerCommunication,CalculateNativeWinOcclusion,SpareRendererForSitePerProcess "
             "--disable-default-apps "
-            "--disable-extensions"
+            "--disable-extensions --allow-file-access-from-files"
         );
 
         // debug = false to disable full Chromium DevTools backend (~60MB RAM savings)
@@ -1197,6 +1251,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     g_AudioCapture.Stop();
     g_UsbTransport.StopWorker();
     g_UsbTransport.Close();
+    ht306::audio::AudioPolicyManager::Instance().SetManualVisibilityOverride(false);
+    ht306::audio::AudioPolicyManager::Instance().RestorePreviousDefault(g_State);
 
     if (hMutex) {
         ReleaseMutex(hMutex);
