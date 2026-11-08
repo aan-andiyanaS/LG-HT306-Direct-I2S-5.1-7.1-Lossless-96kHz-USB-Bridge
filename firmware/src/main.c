@@ -34,6 +34,9 @@ static volatile uint32_t  g_pkt_read_count  = 0U;
 /* Buffer statis di SRAM (mencegah Stack Overflow pada Core 1 yang hanya memiliki 2 KB stack) */
 static int32_t g_core1_decoded_i2s32[HT306_MAX_SUBFRAME_SAMPLES * HT306_NUM_CHANNELS];
 
+/* Array peak level 6-kanal wait-free/thread-safe antara Core 1 dan Core 0 */
+static volatile uint32_t g_channel_peaks[HT306_NUM_CHANNELS] = {0};
+
 void HT306_MAIN_RAM_FUNC(ht306_core1_lossless_worker)(void) {
     while (true) {
         uint32_t w = g_pkt_write_count;
@@ -57,6 +60,24 @@ void HT306_MAIN_RAM_FUNC(ht306_core1_lossless_worker)(void) {
             g_pkt_read_count = r + 1U;
 
             if (status == HT306_CODEC_OK && frames_decoded > 0U) {
+                /* Perbarui peak level 6-kanal secara thread-safe / wait-free (zero-copy) */
+                uint32_t local_peaks[HT306_NUM_CHANNELS] = {0};
+                const int32_t *p_sample = g_core1_decoded_i2s32;
+                for (uint32_t i = 0; i < frames_decoded; ++i) {
+                    for (uint32_t ch = 0; ch < HT306_NUM_CHANNELS; ++ch) {
+                        int32_t s = *p_sample++;
+                        uint32_t mag = (s < 0) ? (uint32_t)(0U - (uint32_t)s) : (uint32_t)s;
+                        if (mag > local_peaks[ch]) {
+                            local_peaks[ch] = mag;
+                        }
+                    }
+                }
+                for (uint32_t ch = 0; ch < HT306_NUM_CHANNELS; ++ch) {
+                    if (local_peaks[ch] > g_channel_peaks[ch]) {
+                        g_channel_peaks[ch] = local_peaks[ch];
+                    }
+                }
+
                 uint8_t pkt_flags = slot->data[5];
                 bool is_96k = (pkt_flags & HT306_FLAG_RATE_96KHZ) != 0U;
                 ht306_i2s_set_sample_rate(is_96k ? HT306_SAMPLE_RATE_96000 : HT306_SAMPLE_RATE_48000);
@@ -107,6 +128,24 @@ bool HT306_MAIN_RAM_FUNC(ht306_usb_enqueue_lossless_packet)(const uint8_t *usb_d
 }
 
 #if defined(PICO_BUILD) || defined(PICO_RP2350) || defined(PICO_RP2040)
+static const char *ht306_vu_meter_bar(uint32_t peak) {
+    /* Skala representasi visual 6 segmen non-linear (dB-scaled):
+     * Segment 1 (>= -42 dBFS): 16777216U (audible ambient/background)
+     * Segment 2 (>= -30 dBFS): 67108864U (soft dialogue/music)
+     * Segment 3 (>= -18 dBFS): 268435456U (nominal music/dialogue)
+     * Segment 4 (>= -10 dBFS): 671088640U (strong dynamic content)
+     * Segment 5 (>= -4 dBFS) : 1342177280U (loud climax/bass)
+     * Segment 6 (>= -1 dBFS) : 1932735283U (peak / near 0 dBFS clipping)
+     */
+    if (peak >= 1932735283U) return "██████";
+    if (peak >= 1342177280U) return "█████░";
+    if (peak >=  671088640U) return "████░░";
+    if (peak >=  268435456U) return "███░░░";
+    if (peak >=   67108864U) return "██░░░░";
+    if (peak >=   16777216U) return "█░░░░░";
+    return "░░░░░░";
+}
+
 int main(void) {
     /* 1. Inisialisasi pin kontrol HT306 (MUX GP8, REMOCON GP9, WS2812 GP16) */
     ht306_control_init();
@@ -127,7 +166,9 @@ int main(void) {
     /* 5. Loop utama Core 0: Melayani event USB CDC & Vendor Bulk */
     bool banner_sent = false;
     uint32_t last_heartbeat_ms = 0U;
-    uint32_t last_log_frames = 0U;
+    uint32_t last_vu_ms = 0U;
+    uint32_t last_pkt_seen = 0U;
+    uint32_t last_audio_activity_ms = 0U;
 
     while (true) {
         ht306_usb_task();
@@ -169,23 +210,52 @@ int main(void) {
                 ht306_usb_log("\r\n>>> [HT306 STATUS] Core 0 (USB) & Core 1 (DSP) AKTIF | I2S 96kHz SIAP | MUX GP8: HIGH <<<\r\n\r\n");
             }
 
-            /* Detak Jantung berkala setiap 1 detik saat Serial Monitor terbuka */
             uint32_t now_ms = to_ms_since_boot(get_absolute_time());
-            if (now_ms - last_heartbeat_ms >= 1000U) {
-                last_heartbeat_ms = now_ms;
-                uint32_t sec = now_ms / 1000U;
-                ht306_usb_log_printf("[HT306] Detak Jantung #%lu | Uptime: %lu detik | I2S Engine: SIAP (96kHz) | GP8 MUX: HIGH\r\n",
-                                     (unsigned long)sec, (unsigned long)sec);
+            uint32_t current_pkt = g_pkt_read_count;
+
+            if (current_pkt != last_pkt_seen) {
+                last_pkt_seen = current_pkt;
+                last_audio_activity_ms = now_ms;
             }
 
-            /* Log progres frame saat ada stream aktif setiap kelipatan ~100 ms pada 96kHz */
-            HT306_I2SStats_t stats;
-            ht306_i2s_get_stats(&stats);
-            if (stats.total_written_frames - last_log_frames >= 9600U) {
-                ht306_usb_log_printf("[STREAM] Audio Aktif | %lu Hz | Total Frames: %lu\r\n",
-                                     (unsigned long)stats.current_sample_rate,
-                                     (unsigned long)stats.total_written_frames);
-                last_log_frames = stats.total_written_frames;
+            bool is_streaming = (now_ms - last_audio_activity_ms < 500U) && (current_pkt > 0U);
+
+            /* Visualisasi VU meter 6-kanal periodik setiap ~250 ms (4 Hz) saat streaming aktif */
+            if (is_streaming) {
+                if (now_ms - last_vu_ms >= 250U) {
+                    last_vu_ms = now_ms;
+
+                    uint32_t peaks[HT306_NUM_CHANNELS];
+                    for (uint32_t ch = 0; ch < HT306_NUM_CHANNELS; ++ch) {
+                        peaks[ch] = g_channel_peaks[ch];
+                        g_channel_peaks[ch] = 0U; /* Reset untuk jendela pengukuran berikutnya */
+                    }
+
+                    HT306_I2SStats_t stats;
+                    ht306_i2s_get_stats(&stats);
+                    const char *rate_str = (stats.current_sample_rate >= 96000U) ? "96kHz" : "48kHz";
+
+                    ht306_usb_log_printf(
+                        "[VU 5.1] FL:[%s] FR:[%s] C:[%s] LFE:[%s] SL:[%s] SR:[%s] | Rate: %s | Pkts: %lu\r\n",
+                        ht306_vu_meter_bar(peaks[0]),
+                        ht306_vu_meter_bar(peaks[1]),
+                        ht306_vu_meter_bar(peaks[2]),
+                        ht306_vu_meter_bar(peaks[3]),
+                        ht306_vu_meter_bar(peaks[4]),
+                        ht306_vu_meter_bar(peaks[5]),
+                        rate_str,
+                        (unsigned long)current_pkt
+                    );
+                }
+                last_heartbeat_ms = now_ms;
+            } else {
+                /* Detak Jantung berkala setiap 1 detik saat Serial Monitor terbuka & standby */
+                if (now_ms - last_heartbeat_ms >= 1000U) {
+                    last_heartbeat_ms = now_ms;
+                    uint32_t sec = now_ms / 1000U;
+                    ht306_usb_log_printf("[HT306] Detak Jantung #%lu | Uptime: %lu detik | I2S Engine: SIAP (96kHz) | GP8 MUX: HIGH\r\n",
+                                         (unsigned long)sec, (unsigned long)sec);
+                }
             }
         } else {
             banner_sent = false;

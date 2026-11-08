@@ -286,7 +286,7 @@ void ht306_usb_log(const char *msg) {
 void ht306_usb_log_printf(const char *fmt, ...) {
     if (fmt == NULL) return;
     if (tud_cdc_connected()) {
-        char buf[160];
+        char buf[256];
         va_list args;
         va_start(args, fmt);
         int n = vsnprintf(buf, sizeof(buf), fmt, args);
