@@ -60,6 +60,7 @@ private:
     std::atomic<bool> m_worker_running{false};
     std::atomic<bool> m_trigger_check{true};
     HANDLE m_worker_thread = NULL;
+    int m_consecutive_disconnect_count = 0;
 
     static DWORD WINAPI WorkerThreadProc(LPVOID param);
     void WorkerLoop();

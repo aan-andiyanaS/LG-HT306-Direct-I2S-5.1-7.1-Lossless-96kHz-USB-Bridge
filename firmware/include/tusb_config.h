@@ -39,7 +39,7 @@ extern "C" {
 #define CFG_TUD_CDC_EP_BUFSIZE      64U
 
 /* Buffer FIFO Endpoint Vendor (Mode 96 kHz Lossless & 48 kHz PCM) */
-#define CFG_TUD_VENDOR_RX_BUFSIZE   1024U
+#define CFG_TUD_VENDOR_RX_BUFSIZE   4096U
 #define CFG_TUD_VENDOR_TX_BUFSIZE   64U
 #define CFG_TUD_VENDOR_EPSIZE       64U
 

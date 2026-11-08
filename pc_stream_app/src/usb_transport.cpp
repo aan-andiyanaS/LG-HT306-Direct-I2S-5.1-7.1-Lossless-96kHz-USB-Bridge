@@ -567,10 +567,9 @@ bool UsbTransport::WritePacket(const uint8_t* data, size_t length, uint32_t time
     BOOL res = WinUsb_WritePipe(m_winusb_handle, m_bulk_out_pipe, (PUCHAR)data, (ULONG)length, &bytes_written, NULL);
 
     if (!res) {
-        DWORD err = GetLastError();
-        if (err == ERROR_DEVICE_NOT_CONNECTED || err == ERROR_GEN_FAILURE || err == ERROR_FILE_NOT_FOUND) {
-            // Hardware disconnected during packet transmission
-            OnDeviceDisconnected();
+        // Transient write failure or pipe stall: reset pipe to clear stall, DO NOT trigger full device disconnect!
+        if (m_winusb_handle) {
+            WinUsb_ResetPipe(m_winusb_handle, m_bulk_out_pipe);
         }
         return false;
     }
@@ -614,6 +613,8 @@ void UsbTransport::WorkerLoop() {
             bool hw_present = CheckHardwarePresence();
 
             if (hw_present) {
+                m_consecutive_disconnect_count = 0;
+
                 // 1. Ensure CDC serial port is open & monitored
                 if (m_serial_handle == INVALID_HANDLE_VALUE) {
                     std::string com_port;
@@ -634,19 +635,23 @@ void UsbTransport::WorkerLoop() {
                     audio::AudioEndpointHelper::EnumerateDevices(m_state);
                 }
             } else {
-                if (m_is_open.load() || m_serial_handle != INVALID_HANDLE_VALUE || m_state.hw_info.detected || was_hw_present) {
-                    OnDeviceDisconnected();
-                }
-                auto drv_status = audio::AudioPolicyManager::Instance().GetCachedDriverStatus();
-                bool debug_override = audio::AudioPolicyManager::Instance().GetManualVisibilityOverride();
-                if (!debug_override && (first_check || drv_status.endpoint_visible)) {
-                    // Ensure HT306 endpoint is hidden from Taskbar whenever RP2350 is unplugged and Debug Mode is OFF
-                    audio::AudioPolicyManager::Instance().RestorePreviousDefault(m_state);
-                    audio::AudioEndpointHelper::EnumerateDevices(m_state);
-                } else if (debug_override && drv_status.installed && !drv_status.endpoint_visible) {
-                    // Ensure HT306 endpoint stays surfaced when Debug Mode is ON even without RP2350
-                    audio::AudioPolicyManager::Instance().SwitchToHT306(m_state);
-                    audio::AudioEndpointHelper::EnumerateDevices(m_state);
+                m_consecutive_disconnect_count++;
+                // Debounce: require 3 consecutive failed checks (3 seconds) before concluding physical disconnect
+                if (m_consecutive_disconnect_count >= 3) {
+                    if (m_is_open.load() || m_serial_handle != INVALID_HANDLE_VALUE || m_state.hw_info.detected || was_hw_present) {
+                        OnDeviceDisconnected();
+                    }
+                    auto drv_status = audio::AudioPolicyManager::Instance().GetCachedDriverStatus();
+                    bool debug_override = audio::AudioPolicyManager::Instance().GetManualVisibilityOverride();
+                    if (!debug_override && (first_check || drv_status.endpoint_visible)) {
+                        // Ensure HT306 endpoint is restored only after confirmed physical disconnect
+                        audio::AudioPolicyManager::Instance().RestorePreviousDefault(m_state);
+                        audio::AudioEndpointHelper::EnumerateDevices(m_state);
+                    } else if (debug_override && drv_status.installed && !drv_status.endpoint_visible) {
+                        // Ensure HT306 endpoint stays surfaced when Debug Mode is ON even without RP2350
+                        audio::AudioPolicyManager::Instance().SwitchToHT306(m_state);
+                        audio::AudioEndpointHelper::EnumerateDevices(m_state);
+                    }
                 }
             }
             was_hw_present = hw_present;

@@ -258,7 +258,7 @@ void HT306_USB_RAM_FUNC(ht306_usb_task)(void) {
     tud_task();
 
     while (tud_vendor_available() > 0U) {
-        uint8_t chunk[64];
+        uint8_t chunk[256];
         uint32_t n = tud_vendor_read(chunk, sizeof(chunk));
         if (n > 0U) {
             ht306_usb_process_vendor_stream(chunk, n);

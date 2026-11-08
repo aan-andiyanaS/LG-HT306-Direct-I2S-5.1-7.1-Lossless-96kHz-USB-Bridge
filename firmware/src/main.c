@@ -20,7 +20,7 @@
 /**
  * Antrian Paket 96 kHz Lossless Wait-Free SPSC antara Core 0 (USB) dan Core 1 (Unpacker).
  */
-#define HT306_PACKET_QUEUE_DEPTH  8U
+#define HT306_PACKET_QUEUE_DEPTH  32U
 
 typedef struct {
     uint8_t  data[HT306_MAX_PACKET_BYTES];
