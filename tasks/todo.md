@@ -319,7 +319,8 @@ aw_st = transport.state; st = raw_st() if callable(raw_st) else raw_st).
 - [x] **Slice 26: Modularisasi UI (Pemisahan 7 Tab HTML & 8 Modul JS), Pemasangan RTK (Rust Token Kit), dan Knowledge Graph Codebase via Graphify**
   - Acceptance:
     1. **Pemasangan & Konfigurasi RTK (Rust Token Kit)**:
-       - Menginisialisasi `rtk init --agent antigravity` dan menghasilkan konfigurasi aturan `.agents/rules/antigravity-rtk-rules.md`.
+       - Menginisialisasi `rtk init --agent antigravity` dan meng-upgrade ke **RTK v1.1.0** dengan integrasi plugin native Antigravity (`PreToolUse` hook di `.agents/plugins/rtk/`).
+       - Memasang plugin RTK secara lokal di workspace (`.agents/plugins/rtk/`) dan secara global (`~/.gemini/config/plugins/rtk/`).
     2. **Knowledge Graph Codebase via Graphify (`/graphify`)**:
        - Berhasil memindai 96 file (49 file kode, 40 dokumen, 7 gambar) di seluruh repositori proyek `HomeTheather`.
        - Mengekstrak 1.092 AST nodes, 2.256 graph edges, dan 61 graph communities.
