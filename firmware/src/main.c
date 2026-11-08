@@ -249,6 +249,9 @@ int main(void) {
                 }
                 last_heartbeat_ms = now_ms;
             } else {
+                /* Otomatis kembalikan indikator LED ke Standby (Biru) saat stream idle/berhenti */
+                ht306_control_set_status_led(HT306_STATUS_STANDBY_BLUE);
+
                 /* Detak Jantung berkala setiap 1 detik saat Serial Monitor terbuka & standby */
                 if (now_ms - last_heartbeat_ms >= 1000U) {
                     last_heartbeat_ms = now_ms;
