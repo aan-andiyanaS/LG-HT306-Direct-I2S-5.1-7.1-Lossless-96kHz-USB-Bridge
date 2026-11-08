@@ -144,7 +144,7 @@ struct AppRuleItem {
 
 struct AppState {
     std::atomic<ConnectionState> state{ConnectionState::READY};
-    std::atomic<bool> is_streaming{false};
+    std::atomic<bool> is_streaming{true};
     std::atomic<bool> should_exit{false};
     std::atomic<NavTab> current_tab{NavTab::DASHBOARD};
 

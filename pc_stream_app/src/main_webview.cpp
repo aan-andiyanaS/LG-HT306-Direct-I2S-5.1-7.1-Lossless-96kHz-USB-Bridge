@@ -717,6 +717,10 @@ void HandleNativeCommand(const std::string& raw_json_str) {
         }
     }
     else if (action == "app_ready") {
+        if (!g_AudioCapture.IsRunning()) {
+            g_AudioCapture.Start();
+            g_State.is_streaming.store(true);
+        }
         g_UsbTransport.TriggerCheck();
         g_TelemetryDirty.store(true);
         // Staged post-boot trim after initial telemetry & Blink DOM layout finish rendering
@@ -1122,6 +1126,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     }
     ht306::audio::AudioEndpointHelper::EnumerateDevices(g_State);
     g_UsbTransport.StartWorker();
+    g_AudioCapture.Start();
+    g_State.is_streaming.store(true);
 
     // 2. Start background telemetry thread
     std::thread telemetry_thread(TelemetryLoop);
