@@ -371,3 +371,24 @@ aw_st = transport.state; st = raw_st() if callable(raw_st) else raw_st).
        - Memvalidasi 8 tahapan alur data audio dari Windows WASAPI loopback, DSP 6x6 Matrix, FLAC Order-4 Delta-Rice compression, WinUSB bulk transfer EP 0x03, Core 0 SPSC Queue, Core 1 decoder, hingga PIO0 4-Lane I2S (GP2-GP7) ke IC602 Pulsus PS9850 di mainboard LG HT306.
        - Hasil audit menyimpulkan: **TERHUBUNG PENUH (Bit-Exact)** tanpa ketidaksesuaian pemetaan kanal (*channel mapping mismatch*).
   - Files: `firmware/src/main.c`, `firmware/src/usb_descriptors.c`, `firmware/build/ht306_rp2350_zero.uf2`, `tests/verify_end_to_end.py`, `tasks/todo.md`
+
+
+- [x] **Slice 28: Stabilisasi Buffer Transmisi Audio 4KB, 32-Slot Jitter Queue, Debouncing Disconnect & Auto-Recovery Status LED**
+  - Acceptance:
+    1. **Auto-Start Audio Streaming pada Companion App (`pc_stream_app/`)**:
+       - Mengubah default state `is_streaming` menjadi `true` di `pc_stream_app/src/app_state.h`.
+       - Menambahkan inisialisasi otomatis `g_AudioCapture.Start()` pada `WinMain` dan pada event `app_ready` di `pc_stream_app/src/main_webview.cpp` agar audio loopback langsung mengalir begitu aplikasi dibuka.
+    2. **Auto-Recovery Status LED ke Standby Blue saat Streaming Idle (`firmware/src/main.c`)**:
+       - Mengembalikan status indikator WS2812 RGB onboard RP2350-Zero (GP16) ke Biru (`HT306_STATUS_STANDBY_BLUE`) saat audio hening/idle (> 500 ms).
+       - Mengeliminasi kondisi lampu "nyangkut di warna merah" setelah terjadi decode error transien atau aplikasi PC ditutup.
+    3. **Peningkatan Buffer FIFO TinyUSB & Antrean Paket RP2350 (4x Lipat)**:
+       - Meningkatkan buffer FIFO TinyUSB vendor RX dari 1.024 Byte menjadi **4.096 Byte** (`CFG_TUD_VENDOR_RX_BUFSIZE` di `firmware/include/tusb_config.h`).
+       - Memperbesar antrean paket audio SPSC Core 0 -> Core 1 dari 8 slot (4 ms) menjadi **32 slot (16 ms buffer jitter)** di SRAM (`HT306_PACKET_QUEUE_DEPTH` di `firmware/src/main.c`).
+       - Mengoptimalkan pembacaan chunk vendor bulk di `ht306_usb_task` dari 64 byte menjadi **256 byte** (`firmware/src/usb_descriptors.c`).
+    4. **Eliminasi Total Masalah Putus-Nyambung Audio V-Cable ke Speaker Laptop (`pc_stream_app/src/usb_transport.cpp`)**:
+       - Menghilangkan vonis *false disconnect* di `WritePacket`: bila terjadi timeout/write failure transien pada `WinUsb_WritePipe`, sistem me-reset pipa (`WinUsb_ResetPipe`) dan skip frame tanpa memutus perangkat atau mengalihkan default audio Windows.
+       - Menerapkan **Histeresis/Debouncing 3 Detik** pada `WorkerLoop`: perangkat audio hanya dipindahkan ke speaker laptop jika kabel USB RP2350 benar-benar tidak terdeteksi selama 3 detik berturut-turut.
+    5. **Kompilasi Sukses 100%**:
+       - Firmware `firmware/build/ht306_rp2350_zero.uf2` terkompilasi sukses dengan buffer 4 KB & queue 32 slot.
+       - Companion App `pc_stream_app/build/ht306_desktop_app.exe` terkompilasi sukses dengan build tools w64devkit.
+  - Files: `firmware/include/tusb_config.h`, `firmware/src/main.c`, `firmware/src/usb_descriptors.c`, `pc_stream_app/src/app_state.h`, `pc_stream_app/src/main_webview.cpp`, `pc_stream_app/src/usb_transport.h`, `pc_stream_app/src/usb_transport.cpp`, `tasks/todo.md`
