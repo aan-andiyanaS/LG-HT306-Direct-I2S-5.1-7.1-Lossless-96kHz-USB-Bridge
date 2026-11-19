@@ -25,36 +25,51 @@ Proyek ini memotong jalur analog tersebut dan menyuntikkan **6-Channel Digital I
 
 ## 2. Cara Kerja & Diagram Arsitektur Garis Besar
 
+Secara ringkas dan sederhana, gambaran besar seluruh alur data audio adalah:
+
+$$\text{Pemutar (JRiver / Windows)} \longrightarrow \text{VB-Cable (Kartu Suara Virtual)} \longrightarrow \text{Aplikasi Desktop HT306} \longrightarrow \text{RP2350-Zero} \longrightarrow \text{Amplifier LG HT306} \longrightarrow \text{6 Speaker}$$
+
 ```mermaid
 flowchart LR
-    subgraph PC["1. PC (Windows)"]
-        JR["JRiver Media Center\n(Decode Dolby/Atmos/DTS 5.1)\n48 kHz / 96 kHz 24-bit"]
-        STR["PC Companion Streamer\n(Lossless Order-4 Rice Packer)\n1.728 KB/s ➔ 716 KB/s"]
-        JR --> STR
+    subgraph PC["1. Host PC (Windows 10 / 11)"]
+        direction TB
+        APP["Aplikasi Pemutar\n(JRiver / YouTube / Spotify / Film)"]
+        VBC["Kartu Suara Virtual (VB-Cable)\n'LG HT306 Home Theater'\n(Dua Pintu: Playback & Loopback)"]
+        HOST["Aplikasi Desktop HT306 (ht306_desktop_app)\nWASAPI Capture + Resampler <= 96 kHz\n+ Encoder Lossless Delta-Rice + WinUSB"]
+        APP ==>|"Aliran Audio"| VBC
+        VBC ==>|"Loopback Capture"| HOST
     end
 
-    subgraph MCU["2. Waveshare RP2350-Zero"]
-        C0["Core 0: TinyUSB Bulk\n(64B Stream Reassembler)"]
-        C1["Core 1: Lossless Unpacker\n(Bit-Exact 24-bit PCM)"]
-        PIO["DMA Ping-Pong + PIO0\n(4-Lane Synchronous I2S)"]
+    subgraph MCU["2. Waveshare RP2350-Zero (USB Bridge)"]
+        direction TB
+        C0["Core 0: Penerima TinyUSB\nWinUSB Bulk (EP 0x03 OUT)\nRing Buffer + Rekonstruksi Paket"]
+        C1["Core 1: Dekoder Lossless\nBuka ke PCM 32-bit (< 0.03 ms)"]
+        PIO["DMA Ping-Pong + Mesin PIO0\nPembangkit I2S Master Multi-Lane\n(BCK, LRCK, ADATA0..2)"]
         C0 --> C1 --> PIO
     end
 
-    subgraph HT306["3. Mainboard LG HT306"]
-        MT["IC501: MediaTek MT1389MH\n(Mode AUX + Preset EQ)"]
-        PS["IC602: Pulsus PS9850\n(ASRC + 69-Band EQ + PWM)"]
-        TAS["IC701/702: TI TAS5352\n(330W Class-D ➔ 6 Speaker)"]
-        PS --> TAS
+    subgraph HT306["3. LG HT306 Home Theater"]
+        direction TB
+        PS["IC602: Pulsus PS9850\n(Prosesor PWM Digital + 69-Band EQ)"]
+        TAS["IC701/702: TI TAS5352\n(Power Stage Class-D 330W RMS)"]
+        SPK["6 Speaker Fisik (5.1 Surround)\nFL, FR, Center, Subwoofer, SL, SR"]
+        PS --> TAS --> SPK
     end
 
-    STR ==>|"USB Type-C"| C0
-    PIO ==>|"5x Resistor 33Ω\n(BCK, LRCK, ADATA0..2)"| PS
-    MT ==>|"I2C (SDA/SCL) Tetap Utuh\n(Kontrol EQ & Volume)"| PS
+    HOST ==>|"Kabel USB Type-C (WinUSB Bulk)"| C0
+    PIO ==>|"5x Resistor Damping 33Ω\n(GP2..GP6)"| PS
 ```
 
-1. **Di Sisi PC:** **JRiver Media Center (`DSP Studio`)** mendekode audio film/musik menjadi 6-channel PCM 24-bit (`48 kHz` atau `96 kHz`), lalu **PC Streamer** mengemasnya secara *lossless* setiap `0,5 ms` (`48 sampel`) lengkap dengan checksum `CRC-8`.
-2. **Di `Waveshare RP2350-Zero`:** `Core 0` menerima aliran USB dan menyusun paketnya, `Core 1` membuka kompresi kembali menjadi PCM 24-bit yang 100% identik di dalam SRAM, lalu `DMA` + `PIO0` mengeluarkan sinyal I2S ke-6 channel secara serentak pada *falling edge* `BCK`.
-3. **Di Mainboard LG HT306:** Sinyal I2S masuk ke `Pad B` dari 5 resistor seri menuju **`IC602 (Pulsus PS9850)`**, diolah oleh **69-Band Hardware EQ** bawaan LG (yang dikontrol oleh `MT1389MH` via `I2C` pada mode `AUX`), lalu diperkuat oleh **`TI TAS5352`** ke 6 speaker.
+### 4 Tahapan Utama Rantai Alur Audio:
+1. **Sumber Audio & Kartu Suara Virtual:** **JRiver Media Center** (atau aplikasi Windows lainnya) memutar audio ke perangkat virtual **VB-Cable** (`LG HT306 Home Theater`). VB-Cable bertindak sebagai "kartu suara virtual" sehingga Windows memiliki target pemutaran resmi.
+2. **Aplikasi Desktop HT306 (`ht306_desktop_app.exe`):** Menangkap data audio dari pin rekaman VB-Cable (`LG HT306 Loopback Stream`), menyeragamkan kanal menjadi 5.1 surround, menjaga kestabilan kecepatan sampling aman $\le 96\text{ kHz}$ (48k atau 96k), mengompresi paket secara *lossless*, lalu mengirimkannya ke jalur **WinUSB Bulk (EP 0x03 OUT)**.
+3. **Mikrokontroler `Waveshare RP2350-Zero`:** `Core 0` menerima paket USB ke SRAM, `Core 1` membuka kompresi kembali menjadi PCM 32-bit murni secara instan (< 0,03 ms), dan **Mesin PIO0 Multi-Lane I2S** membangkitkan detak sinyal digital fisik (`BCK`, `LRCK`, `ADATA0..2`).
+4. **Mainboard LG HT306:** Sinyal I2S masuk ke `Pad B` dari 5 resistor seri menuju **`IC602 (Pulsus PS9850)`**, diolah oleh **69-Band Hardware EQ** bawaan LG (yang dikontrol oleh `MT1389MH` via `I2C` pada mode `AUX`), lalu diperkuat oleh **`TI TAS5352`** langsung ke 6 speaker fisik.
+
+> 📖 **Dokumentasi Detail & Mendalam:**
+> * Untuk rincian alur audio khusus JRiver, pencegahan bentrok *WASAPI Exclusive*, dan panduan awam, lihat **[06_JRiver_Audio_Data_Topology.id.md](docs/06_JRiver_Audio_Data_Topology.id.md)**.
+> * Untuk arsitektur perangkat keras lengkap, proteksi kelistrikan *Anti-Backpowering*, dan pembagian skematik PCB, lihat **[07_Complete_Architecture_and_Topology.id.md](docs/07_Complete_Architecture_and_Topology.id.md)**.
+> * Untuk inspirasi proyek dan daftar lengkap stack teknologi yang digunakan, lihat **[08_Credits_and_Acknowledgments.id.md](docs/08_Credits_and_Acknowledgments.id.md)**.
 
 ---
 
@@ -88,14 +103,18 @@ cmake --build firmware/build --config Release -j
 
 ## 5. Dokumentasi Teknis Lengkap (`docs/`)
 
-Seluruh penjelasan teknis mendalam telah dipisahkan ke dalam dokumen tersendiri di direktori **[`docs/`](docs/)**:
+Seluruh penjelasan teknis mendalam telah dipisahkan ke dalam modul bilingual tersendiri di direktori **[`docs/`](docs/)**:
 
 | Dokumen | Isi Penjelasan Detail |
 | :--- | :--- |
-| 📄 **[01_Hardware_Architecture_and_Mod_Guide.id.md](docs/01_Hardware_Architecture_and_Mod_Guide.id.md)** | Bedah chip mainboard LG HT306, anatomi **5 resistor seri SMD** (*no trace cutting*), serta alasan mengapa mode **`AUX`** & settingan **`2 to 5.1 (PLII)` / EQ Bawaan** tidak bentrok dengan sinyal 5.1 PC. |
-| 📄 **[02_Lossless_96kHz_Codec_Specification.id.md](docs/02_Lossless_96kHz_Codec_Specification.id.md)** | Rumus matematis **Single-Pass FLAC Order-4 Linear Predictor**, **ZigZag Mapping**, **Escaped Golomb-Rice**, dan rincian **Header Paket 14-Byte (`HT306_LosslessHeader_t`)**. |
-| 📄 **[03_PIO_4Lane_I2S_and_DualCore_DMA.id.md](docs/03_PIO_4Lane_I2S_and_DualCore_DMA.id.md)** | Diagram sekuens timing **`i2s_multi.pio`** pada *falling edge* `BCK`, algoritma *4-Lane Nibble Bit-Interleaver*, dan arsitektur **Wait-Free SPSC Chained Ping-Pong DMA** di SRAM. |
-| 📄 **[04_Build_Flash_and_JRiver_Setup.id.md](docs/04_Build_Flash_and_JRiver_Setup.id.md)** | Panduan lengkap kompilasi `.uf2`, cara *flash* ke `Waveshare RP2350-Zero`, hasil benchmark pengujian, dan pengaturan **JRiver Media Center (`DSP Studio`)**. |
+| 📄 **[01_Hardware_Architecture_and_Mod_Guide.id.md](docs/01_Hardware_Architecture_and_Mod_Guide.id.md)**<br>*(EN: [English Version](docs/01_Hardware_Architecture_and_Mod_Guide.md))* | Bedah chip mainboard LG HT306, anatomi **5 resistor seri SMD** (*no trace cutting*), serta alasan mengapa mode **`AUX`** & settingan **`2 to 5.1 (PLII)` / EQ Bawaan** tidak bentrok dengan sinyal 5.1 PC. |
+| 📄 **[02_Lossless_96kHz_Codec_Specification.id.md](docs/02_Lossless_96kHz_Codec_Specification.id.md)**<br>*(EN: [English Version](docs/02_Lossless_96kHz_Codec_Specification.md))* | Rumus matematis **Single-Pass FLAC Order-4 Linear Predictor**, **ZigZag Mapping**, **Escaped Golomb-Rice**, dan rincian **Header Paket 14-Byte (`HT306_LosslessHeader_t`)**. |
+| 📄 **[03_PIO_4Lane_I2S_and_DualCore_DMA.id.md](docs/03_PIO_4Lane_I2S_and_DualCore_DMA.id.md)**<br>*(EN: [English Version](docs/03_PIO_4Lane_I2S_and_DualCore_DMA.md))* | Diagram sekuens timing **`i2s_multi.pio`** pada *falling edge* `BCK`, algoritma *4-Lane Nibble Bit-Interleaver*, dan arsitektur **Wait-Free SPSC Chained Ping-Pong DMA** di SRAM. |
+| 📄 **[04_Build_Flash_and_JRiver_Setup.id.md](docs/04_Build_Flash_and_JRiver_Setup.id.md)**<br>*(EN: [English Version](docs/04_Build_Flash_and_JRiver_Setup.md))* | Panduan lengkap kompilasi `.uf2`, cara *flash* ke `Waveshare RP2350-Zero`, hasil benchmark pengujian, dan pengaturan **JRiver Media Center (`DSP Studio`)**. |
+| 📄 **[05_PC_Audio_Bridge_PRD_and_Architecture.id.md](docs/05_PC_Audio_Bridge_PRD_and_Architecture.id.md)**<br>*(EN: [English Version](docs/05_PC_Audio_Bridge_PRD_and_Architecture.md))* | Dokumen Kebutuhan Produk (PRD) dan spesifikasi teknis arsitektur **Aplikasi Perantara Audio PC (HT306 Audio Bridge)** pada Windows 10/11. |
+| 📄 **[06_JRiver_Audio_Data_Topology.id.md](docs/06_JRiver_Audio_Data_Topology.id.md)**<br>*(EN: [English Version](docs/06_JRiver_Audio_Data_Topology.md))* | Topologi alur data audio khusus **JRiver Media Center**, sistem dual-endpoint VB-Cable, pencegahan bentrok WASAPI Exclusive, dan pemetaan file kode sumber. |
+| 📄 **[07_Complete_Architecture_and_Topology.id.md](docs/07_Complete_Architecture_and_Topology.id.md)**<br>*(EN: [English Version](docs/07_Complete_Architecture_and_Topology.md))* | Arsitektur utuh sistem hardware & software, proteksi kelistrikan **Anti-Backpowering**, *state machine* urutan daya aman, serta pemetaan skematik PCB resmi. |
+| 📄 **[08_Credits_and_Acknowledgments.id.md](docs/08_Credits_and_Acknowledgments.id.md)**<br>*(EN: [English Version](docs/08_Credits_and_Acknowledgments.md))* | Dokumentasi sumber inspirasi proyek, latar belakang rekayasa balik (*upcycling*), serta daftar lengkap seluruh teknologi silikon, firmware, desktop, dan perkakas yang digunakan. |
 
 ---
 
@@ -108,9 +127,9 @@ HomeTheather/
 ├── LICENSE                                # Lisensi Open-Source MIT
 ├── docs/                                  # Dokumentasi teknis mendalam (Bilingual: EN & ID)
 ├── firmware/                              # Firmware C/PIO untuk Waveshare RP2350-Zero
-├── pc_streamer/                           # Modul pengirim paket Lossless 96 kHz dari PC (JRiver)
-└── tests/
-    └── verify_end_to_end.py               # Suite verifikasi matematis & simulasi hardware
+├── pc_stream_app/                         # Aplikasi desktop native C++ WebView2
+├── pc_streamer/                           # Purwarupa streamer audio PC (Python/C++)
+└── tests/                                 # Suite verifikasi matematis & simulasi hardware
 ```
 
 ---

@@ -89,7 +89,7 @@ $$e_c[n] = \mathrm{sext}_{24}\left(x_c[n] - \hat{x}_c[n]\right)$$
 | **`0..1`** | `sync_word` | `uint16_t` | Synchronization preamble (`0xA55A`, Little-Endian: `0x5A, 0xA5`). |
 | **`2..3`** | `packet_len` | `uint16_t` | Total packet length in bytes (`header + payload`) for 64-byte USB Bulk stream reassembly. |
 | **`4`** | `sequence` | `uint8_t` | Packet sequence index (`0..255`) for drop detection. |
-| **`5`** | `flags` | `uint8_t` | Bit `0`: `HT306_FLAG_RATE_96KHZ` (`1` = `96 kHz`, `0` = `48 kHz`), Bit `1`: `24-bit`. |
+| **`5`** | `flags` | `uint8_t` | Bit `0`: `HT306_FLAG_RATE_96KHZ` (`1` = `96 kHz`, `0` = `48 kHz`), Bit `1`: `HT306_FLAG_BITDEPTH_24`, Bit `2`: `HT306_FLAG_CHANNELS_8`, Bit `3`: `HT306_FLAG_BITDEPTH_32` (32-bit Studio Master mode), Bits `[7:4]`: `HT306_FLAG_SHIFT_MASK`. |
 | **`6`** | `num_frames` | `uint8_t` | Number of time frames per channel in the packet (default: `48`). |
 | **`7..12`** | `rice_k[6]` | `uint8_t[6]` | Golomb-Rice parameter $k \in \lbrace 0, \dots, 22 \rbrace$ for channels `0..5`. |
 | **`13`** | `payload_crc8` | `uint8_t` | `CRC-8` checksum (polynomial `0x07`) calculated across all `payload` bytes. |

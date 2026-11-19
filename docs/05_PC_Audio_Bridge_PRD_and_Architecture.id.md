@@ -1,9 +1,12 @@
 # PRD & Arsitektur Teknis: Aplikasi Jembatan Audio PC (HT306 PC Audio Bridge Companion)
 
-<p align="center">
-  <b>Bahasa Indonesia</b> |
-  <a href="05_PC_Audio_Bridge_PRD_and_Architecture.md">English</a>
-</p>
+🌐 **Bahasa:** [English](./05_PC_Audio_Bridge_PRD_and_Architecture.md) | **Bahasa Indonesia**
+
+[⬅️ Kembali ke README Utama](../README.id.md) | [Hardware & Mod Guide](./01_Hardware_Architecture_and_Mod_Guide.id.md) | [Codec 96 kHz](./02_Lossless_96kHz_Codec_Specification.id.md) | [PIO 4-Lane & DMA](./03_PIO_4Lane_I2S_and_DualCore_DMA.id.md) | [Topologi Audio JRiver](./06_JRiver_Audio_Data_Topology.id.md) | [Arsitektur Utuh](./07_Complete_Architecture_and_Topology.id.md) | [Kredit & Stack Teknologi](./08_Credits_and_Acknowledgments.id.md)
+
+> [!NOTE]
+> **Evolusi Implementasi Host PC:**
+> Dokumen PRD ini mendefinisikan spesifikasi kebutuhan awal dan arsitektur logis bridge audio menggunakan prototipe Python (`pc_streamer/`). Pada rilis produksi saat ini, host desktop companion telah berevolusi menjadi aplikasi native C++17 berkinerja tinggi dengan antarmuka WebView2 (`pc_stream_app/`), sebagaimana tercatat pada [ADR-003](./decisions/ADR-003_JUCE8_WebView2_Modern_Desktop_UI.id.md), [06. Topologi Audio JRiver](./06_JRiver_Audio_Data_Topology.id.md), dan [07. Arsitektur Utuh & Topologi Lengkap](./07_Complete_Architecture_and_Topology.id.md).
 
 ---
 

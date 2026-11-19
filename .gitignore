@@ -41,6 +41,7 @@ graphify-out/.*
 # Large Service Manuals & Temporary Extractions
 *.pdf
 *_compress/
+docs/SN74LVC244A/
 
 # Python venv & caches
 .venv/

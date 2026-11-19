@@ -48,24 +48,30 @@ python tests/verify_end_to_end.py
 
 ### Output Verifikasi Standar
 ```text
-=== [TEST 1] Verifikasi Bit-Perfect Codec 96 kHz 24-bit 5.1 (RP2350-Zero) ===
+=== [TEST 1A] Verifikasi Bit-Perfect Codec 96 kHz 24-bit 5.1 (RP2350-Zero) ===
   -> Bit-Exactness : LULUS 100% (0 bit error dari 115.200 sampel 24-bit)
   -> Data Mentah   : 1728.0 KB/detik
   -> Data USB Pico : 716.1 KB/detik (41.4% dari ukuran asli, Batas Aman USB = 1000 KB/dtk)
   -> Paket Maks    : 812 Byte / 0.5 ms
 
+=== [TEST 1B] Verifikasi Bit-Perfect Codec 96 kHz 32-bit 5.1 (True 32-bit Studio Master) ===
+  -> Bit-Exactness : LULUS 100% (0 bit error dari 115.200 sampel 32-bit)
+  -> Data Mentah   : 2304.0 KB/detik (2.3 MB/s)
+  -> Data USB Pico : 1246.5 KB/detik (54.1% rasio kompresi)
+  -> Paket Maks    : 1099 Byte / 0.5 ms
+
 === [TEST 2] Verifikasi Simulasi Hardware PIO 4-Lane I2S (GP4..GP7 -> PS9850) ===
-  -> ADATA0 (GP4 Front)  : 0x12345600 == 0x12345600 [OK]
-  -> ADATA1 (GP5 Rear)   : 0x789ABC00 == 0x789ABC00 [OK]
-  -> ADATA2 (GP6 C/Sub)  : 0xDEF01200 == 0xDEF01200 [OK]
-  -> ADATA3 (GP7 7.1)    : 0x34567800 == 0x34567800 [OK]
+  -> ADATA0 (GP4 Front)  : 0x12345678 == 0x12345678 [OK]
+  -> ADATA1 (GP5 Rear)   : 0x9ABCDEF0 == 0x9ABCDEF0 [OK]
+  -> ADATA2 (GP6 C/Sub)  : 0x13579BDF == 0x13579BDF [OK]
+  -> ADATA3 (GP7 7.1)    : 0x2468ACE0 == 0x2468ACE0 [OK]
 
 === [TEST 3] Verifikasi Siklus Clock & Edge Timing i2s_multi.pio ===
   -> Semua 32 bit Kiri & 32 bit Kanan di-output tepat pada FALLING edge BCK [OK]
   -> Total Siklus per Frame Stereo = 128 siklus PIO (64 BCK @ 50% duty cycle) [OK]
 
 === [TEST 4] Verifikasi Reassembly Stream USB Bulk 64-Byte (ht306_usb_process_vendor_stream) ===
-  -> 10 paket variabel berhasil disatukan kembali (termasuk auto-resync dari false sync) [OK]
+  -> 10 paket variabel (24-bit & 32-bit) berhasil disatukan kembali [OK]
 
 [SEMUA VERIFIKASI & AUDIT LULUS 100%]
 ```

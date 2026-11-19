@@ -89,7 +89,7 @@ $$e_c[n] = \mathrm{sext}_{24}\left(x_c[n] - \hat{x}_c[n]\right)$$
 | **`0..1`** | `sync_word` | `uint16_t` | Penanda awal paket (`0xA55A`, Little-Endian: `0x5A, 0xA5`). |
 | **`2..3`** | `packet_len` | `uint16_t` | Panjang total paket dalam byte (`header + payload`) untuk penyatuan potongan 64-byte USB Bulk. |
 | **`4`** | `sequence` | `uint8_t` | Nomor urut paket (`0..255`) untuk deteksi *packet drop*. |
-| **`5`** | `flags` | `uint8_t` | Bit `0`: `HT306_FLAG_RATE_96KHZ` (`1` = `96 kHz`, `0` = `48 kHz`), Bit `1`: `24-bit`. |
+| **`5`** | `flags` | `uint8_t` | Bit `0`: `HT306_FLAG_RATE_96KHZ` (`1` = `96 kHz`, `0` = `48 kHz`), Bit `1`: `HT306_FLAG_BITDEPTH_24`, Bit `2`: `HT306_FLAG_CHANNELS_8`, Bit `3`: `HT306_FLAG_BITDEPTH_32` (Mode 32-bit Studio Master), Bit `[7:4]`: `HT306_FLAG_SHIFT_MASK`. |
 | **`6`** | `num_frames` | `uint8_t` | Jumlah sampel per channel dalam paket (default: `48`). |
 | **`7..12`** | `rice_k[6]` | `uint8_t[6]` | Parameter Golomb-Rice $k \in \lbrace 0, \dots, 22 \rbrace$ untuk masing-masing channel `0..5`. |
 | **`13`** | `payload_crc8` | `uint8_t` | Checksum `CRC-8` (polinomial `0x07`) yang dihitung atas seluruh byte `payload`. |

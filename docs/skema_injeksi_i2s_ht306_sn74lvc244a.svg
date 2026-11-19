@@ -1,0 +1,533 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 1860" width="1800" height="1860" font-family="Consolas, 'DejaVu Sans Mono', monospace" font-size="13">
+<style>
+  .w{stroke:#111;fill:none;stroke-width:1.8}
+  .w2{stroke:#111;fill:none;stroke-width:2.2}
+  .r{stroke:#d01010;fill:none;stroke-width:1.8}
+  .r2{stroke:#d01010;fill:none;stroke-width:2.4}
+  .o{stroke:#c96800;fill:none;stroke-width:1.8}
+  .b{stroke:#1050d8;fill:none;stroke-width:1.8}
+  .b2{stroke:#1050d8;fill:none;stroke-width:2.4}
+  .g{stroke:#12902a;fill:none;stroke-width:1.8}
+  .dash{stroke:#888;fill:none;stroke-width:1.3;stroke-dasharray:6 5}
+  .cut{stroke:#b91c1c;fill:none;stroke-width:2}
+  .t{fill:#111}
+  .tr{fill:#d01010;font-weight:bold}
+  .to{fill:#b85800;font-weight:bold}
+  .tg{fill:#12902a;font-weight:bold}
+  .tb{fill:#1050d8;font-weight:bold}
+  .n{fill:#666;font-size:12px}
+  .call{fill:#fff3a8;stroke:#c9a400;stroke-width:1.2}
+  .ct{fill:#222;font-size:12px}
+  .warn{fill:#ffe8e8;stroke:#d01010;stroke-width:1.2}
+  .info{fill:#f4f4f4;stroke:#999;stroke-width:1.2}
+  .ic{fill:#fafafa;stroke:#111;stroke-width:2}
+  .dot{fill:#111}
+  .dotb{fill:#1050d8}
+  .dotr{fill:#d01010}
+  .dotg{fill:#12902a}
+</style>
+<defs>
+  <polyline id="res" points="0,0 10,0 15,-7 25,7 35,-7 45,7 50,0 60,0"/>
+  <g id="gnd"><path d="M0,0 V8 M-12,8 H12 M-8,13 H8 M-4,18 H4"/></g>
+  <g id="capV"><path d="M-12,0 H12 M-12,8 H12"/></g>
+  <g id="cross"><path d="M-6,-6 L6,6 M-6,6 L6,-6" class="cut"/></g>
+  <g id="xtal"><rect x="-12" y="-7" width="24" height="14" fill="#fff" stroke="#12902a" stroke-width="1.6"/><path d="M-18,-9 V9 M18,-9 V9 M-26,0 H-18 M18,0 H26" class="g"/></g>
+</defs>
+
+<!-- KANVAS & GARIS LUAR -->
+<rect width="1800" height="1860" fill="#fff"/>
+<rect x="15" y="15" width="1770" height="1830" fill="none" stroke="#444" stroke-dasharray="6 5"/>
+
+<!-- JUDUL & LEGENDA -->
+<text x="900" y="45" class="t" font-size="20" font-weight="bold" text-anchor="middle">SKEMA INJEKSI DIRECT-I2S 5.1 LG HT306PD (EAX63554302) DENGAN PROTEKSI ANTI-BACKPOWERING SN74LVC244A</text>
+<text x="900" y="69" class="t" font-size="13" text-anchor="middle">Waveshare RP2350-Zero (USB PC 3,3V)  ──►  Buffer SN74LVC244A (VCC = VCC33 HT306, I_off)  ──►  Resistor Seri 33Ω  ──►  Pad B IC602 (Pulsus PS9850)</text>
+
+<!-- LEGENDA WARNA -->
+<path d="M40,96 H75" class="r2"/><text x="83" y="100" class="tr" font-size="12">VCC33 HT306 (3,28V ON / 0V Standby)</text>
+<path d="M380,96 H415" class="o"/><text x="423" y="100" class="to" font-size="12">Catu USB PC (Selalu ON 5V/3,3V)</text>
+<path d="M690,96 H725" class="w2"/><text x="733" y="100" class="t" font-size="12" font-weight="bold">Sinyal Digital I2S (GP2..GP6)</text>
+<path d="M980,96 H1015" class="b2"/><text x="1023" y="100" class="tb" font-size="12">GND / DGND (Star Ground Bersama)</text>
+<path d="M1300,96 H1335" class="g"/><text x="1343" y="100" class="tg" font-size="12">Jalur Kontrol Utuh (I2C, nRESET, 19.2MHz)</text>
+<text x="40" y="126" class="n">Referensi: Service Manual LG HT306PD (EAX63554302) &amp; Datasheet TI SN74LVC244A. Semua simbol GND di seluruh skema adalah 1 net (star ground bersama).</text>
+
+<text x="40" y="160" class="t" font-size="16" font-weight="bold">BAGIAN 1: RANGKAIAN UTAMA INJEKSI 5-JALUR I2S + BUFFER PENAHAN BACK-POWERING</text>
+
+<!-- ======================================================================= -->
+<!-- KOTAK 1: WAVESHARE RP2350-ZERO                                          -->
+<!-- ======================================================================= -->
+<rect x="40" y="178" width="310" height="845" class="dash"/>
+<text x="52" y="198" class="t" font-size="13" font-weight="bold">1. WAVESHARE RP2350-ZERO (DOMAIN PC)</text>
+
+<!-- USB PC -->
+<rect x="72" y="216" width="216" height="36" fill="#fff8eb" stroke="#c96800" stroke-width="1.5"/>
+<text x="180" y="232" class="to" font-size="12" text-anchor="middle">USB TYPE-C KE PC</text>
+<text x="180" y="246" class="n" font-size="11" text-anchor="middle">5V VBUS -&gt; LDO 3.3V (Always ON)</text>
+<path d="M180,252 V280" class="o"/>
+<circle cx="180" cy="280" r="4" fill="#c96800"/>
+
+<!-- BODY RP2350-ZERO -->
+<rect x="65" y="280" width="230" height="695" class="ic"/>
+<text x="180" y="305" class="t" font-size="14" font-weight="bold" text-anchor="middle">RP2350-Zero</text>
+<text x="180" y="322" class="n" font-size="11" text-anchor="middle">Arm Cortex-M33 @ 150 MHz</text>
+
+<rect x="73" y="346" width="110" height="106" fill="#f7f7f7" stroke="#aaa"/>
+<text x="128" y="367" class="t" font-size="10.5" font-weight="bold" text-anchor="middle">Core 0 &amp; Core 1</text>
+<text x="128" y="384" class="n" font-size="9.5" text-anchor="middle">WinUSB EP 0x03</text>
+<text x="128" y="400" class="n" font-size="9.5" text-anchor="middle">FLAC Rice Decode</text>
+<text x="128" y="416" class="n" font-size="9.5" text-anchor="middle">Chained DMA A&lt;-&gt;B</text>
+<text x="128" y="432" class="n" font-size="9.5" text-anchor="middle">PIO0_SM0 (4mA)</text>
+
+<!-- PIN OUTPUT GP2..GP6 (x=295) -->
+<circle cx="295" cy="340" r="5" fill="#fff" stroke="#111" stroke-width="2"/>
+<text x="285" y="336" class="t" font-size="13" font-weight="bold" text-anchor="end">GP2</text>
+<text x="285" y="352" class="n" font-size="10.5" text-anchor="end">BCK (6,144MHz)</text>
+
+<circle cx="295" cy="445" r="5" fill="#fff" stroke="#111" stroke-width="2"/>
+<text x="285" y="441" class="t" font-size="13" font-weight="bold" text-anchor="end">GP3</text>
+<text x="285" y="457" class="n" font-size="10.5" text-anchor="end">LRCK (48/96k)</text>
+
+<circle cx="295" cy="550" r="5" fill="#fff" stroke="#111" stroke-width="2"/>
+<text x="285" y="546" class="t" font-size="13" font-weight="bold" text-anchor="end">GP4</text>
+<text x="285" y="562" class="n" font-size="10.5" text-anchor="end">ADATA0 (FL/FR)</text>
+
+<circle cx="295" cy="655" r="5" fill="#fff" stroke="#111" stroke-width="2"/>
+<text x="285" y="651" class="t" font-size="13" font-weight="bold" text-anchor="end">GP5</text>
+<text x="285" y="667" class="n" font-size="10.5" text-anchor="end">ADATA1 (SL/SR)</text>
+
+<circle cx="295" cy="760" r="5" fill="#fff" stroke="#111" stroke-width="2"/>
+<text x="285" y="756" class="t" font-size="13" font-weight="bold" text-anchor="end">GP6</text>
+<text x="285" y="772" class="n" font-size="10.5" text-anchor="end">ADATA2 (C/LFE)</text>
+
+<!-- PIN TIDAK DIPAKAI -->
+<rect x="82" y="810" width="198" height="92" class="call"/>
+<text x="181" y="830" class="ct" font-weight="bold" text-anchor="middle">PIN TIDAK DISAMBUNG:</text>
+<text x="181" y="848" class="ct" text-anchor="middle">GP7 (ADATA3): IC602 Pin 9 NC</text>
+<text x="181" y="864" class="ct" text-anchor="middle">GP8 (MUX) &amp; GP9 (IR 3.7VA):</text>
+<text x="181" y="880" class="ct" text-anchor="middle">Biarkan terbuka (NC)</text>
+<text x="181" y="895" class="ct" text-anchor="middle">GP16: LED RGB WS2812</text>
+
+<!-- GND RP2350 -->
+<circle cx="180" cy="975" r="5" fill="#fff" stroke="#1050d8" stroke-width="2"/>
+<text x="180" y="962" class="tb" font-size="12" text-anchor="middle">GND (RP2350)</text>
+<path d="M180,980 V1055" class="b2"/>
+
+<!-- ======================================================================= -->
+<!-- KOTAK 2: PENGAMAN ANTI-BACKPOWERING SN74LVC244A                         -->
+<!-- ======================================================================= -->
+<rect x="380" y="178" width="600" height="845" class="dash"/>
+<text x="392" y="198" class="t" font-size="13" font-weight="bold">2. PENGAMAN ANTI-BACKPOWERING (SN74LVC244A)</text>
+
+<!-- REL VCC33 MASUK DARI HT306 (y=220) -->
+<path d="M680,220 H1658" class="r2"/>
+<text x="1220" y="213" class="tr" font-size="12" text-anchor="middle">REL VCC33 HT306 (3,28V saat ON | 0V saat Standby/Mati)</text>
+
+<!-- JALUR VCC33 KE PIN 20 & DECOUPLING C_BYP -->
+<circle cx="680" cy="220" r="4" class="dotr"/>
+<path d="M680,220 V244" class="r2"/>
+<circle cx="835" cy="220" r="4" class="dotr"/>
+<path d="M835,220 V248" class="r"/>
+<use href="#capV" x="835" y="248" class="w"/>
+<path d="M835,256 V280" class="b"/>
+<use href="#gnd" x="835" y="280" class="b"/>
+<text x="853" y="254" class="t" font-size="12" font-weight="bold">C_BYP</text>
+<text x="853" y="269" class="t" font-size="12">100nF</text>
+
+<!-- GARIS SINYAL GP2..GP6 MASUK KE U1 + 5x PULLDOWN 47k -->
+<!-- Baris 1: BCK y=340 -->
+<path d="M300,340 H570" class="w2"/>
+<text x="380" y="332" class="n" font-size="11" text-anchor="middle">BCK</text>
+<circle cx="445" cy="340" r="4" class="dot"/>
+<path d="M445,340 V350" class="w"/>
+<use href="#res" transform="translate(445,350) rotate(90)" class="w"/>
+<path d="M445,410 V414" class="b"/>
+<use href="#gnd" x="445" y="414" class="b"/>
+<text x="458" y="382" class="t" font-size="11">Rpd1</text>
+<text x="458" y="395" class="t" font-size="11">47k</text>
+
+<!-- Baris 2: LRCK y=445 -->
+<path d="M300,445 H570" class="w2"/>
+<text x="380" y="437" class="n" font-size="11" text-anchor="middle">LRCK</text>
+<circle cx="445" cy="445" r="4" class="dot"/>
+<path d="M445,445 V455" class="w"/>
+<use href="#res" transform="translate(445,455) rotate(90)" class="w"/>
+<path d="M445,515 V519" class="b"/>
+<use href="#gnd" x="445" y="519" class="b"/>
+<text x="458" y="487" class="t" font-size="11">Rpd2</text>
+<text x="458" y="500" class="t" font-size="11">47k</text>
+
+<!-- Baris 3: ADATA0 y=550 -->
+<path d="M300,550 H570" class="w2"/>
+<text x="380" y="542" class="n" font-size="11" text-anchor="middle">ADATA0</text>
+<circle cx="445" cy="550" r="4" class="dot"/>
+<path d="M445,550 V560" class="w"/>
+<use href="#res" transform="translate(445,560) rotate(90)" class="w"/>
+<path d="M445,620 V624" class="b"/>
+<use href="#gnd" x="445" y="624" class="b"/>
+<text x="458" y="592" class="t" font-size="11">Rpd3</text>
+<text x="458" y="605" class="t" font-size="11">47k</text>
+
+<!-- Baris 4: ADATA1 y=655 -->
+<path d="M300,655 H570" class="w2"/>
+<text x="380" y="647" class="n" font-size="11" text-anchor="middle">ADATA1</text>
+<circle cx="445" cy="655" r="4" class="dot"/>
+<path d="M445,655 V665" class="w"/>
+<use href="#res" transform="translate(445,665) rotate(90)" class="w"/>
+<path d="M445,725 V729" class="b"/>
+<use href="#gnd" x="445" y="729" class="b"/>
+<text x="458" y="697" class="t" font-size="11">Rpd4</text>
+<text x="458" y="710" class="t" font-size="11">47k</text>
+
+<!-- Baris 5: ADATA2 y=760 -->
+<path d="M300,760 H570" class="w2"/>
+<text x="380" y="752" class="n" font-size="11" text-anchor="middle">ADATA2</text>
+<circle cx="445" cy="760" r="4" class="dot"/>
+<path d="M445,760 V770" class="w"/>
+<use href="#res" transform="translate(445,770) rotate(90)" class="w"/>
+<path d="M445,830 V834" class="b"/>
+<use href="#gnd" x="445" y="834" class="b"/>
+<text x="458" y="802" class="t" font-size="11">Rpd5</text>
+<text x="458" y="815" class="t" font-size="11">47k</text>
+
+<!-- IC U1: SN74LVC244A (x=570..790, y=244..960) -->
+<rect x="570" y="244" width="220" height="716" class="ic"/>
+<text x="680" y="276" class="t" font-size="14" font-weight="bold" text-anchor="middle">U1: SN74LVC244A</text>
+<text x="680" y="292" class="n" font-size="11" text-anchor="middle">Octal 3-State Buffer (I_off)</text>
+
+<!-- Pin 20 VCC & Pin 10 GND di U1 -->
+<circle cx="680" cy="244" r="4" class="dotr"/>
+<text x="680" y="259" class="tr" font-size="11" text-anchor="middle">Pin 20: VCC</text>
+<circle cx="680" cy="960" r="4" class="dotb"/>
+<text x="680" y="950" class="tb" font-size="11" text-anchor="middle">Pin 10: GND</text>
+<path d="M680,960 V1055" class="b2"/>
+
+<!-- Pin 1OE (y=307) & 2OE (y=322) -> GND lokal -->
+<circle cx="565" cy="307" r="4" fill="#fff" stroke="#1050d8" stroke-width="1.8"/>
+<text x="578" y="311" class="tb" font-size="11">Pin 1: 1OE</text>
+<circle cx="565" cy="322" r="4" fill="#fff" stroke="#1050d8" stroke-width="1.8"/>
+<text x="578" y="326" class="tb" font-size="11">Pin 19: 2OE</text>
+<path d="M561,307 H520 V322 H561" class="b"/>
+<circle cx="520" cy="322" r="3.5" class="dotb"/>
+<path d="M520,322 V325" class="b"/>
+<use href="#gnd" x="520" y="325" class="b"/>
+
+<!-- Label Pin A (Kiri U1) & Pin Y (Kanan U1) + Panah Buffer -->
+<circle cx="570" cy="340" r="4" class="dot"/>
+<text x="578" y="344" class="t" font-size="12">Pin 2  (1A1)</text>
+<circle cx="790" cy="340" r="4" class="dot"/>
+<text x="782" y="344" class="t" font-size="12" text-anchor="end">(1Y1) Pin 18</text>
+<path d="M665,332 L688,340 L665,348 Z" fill="#e8e8e8" stroke="#555" stroke-width="1.2"/>
+
+<circle cx="570" cy="445" r="4" class="dot"/>
+<text x="578" y="449" class="t" font-size="12">Pin 4  (1A2)</text>
+<circle cx="790" cy="445" r="4" class="dot"/>
+<text x="782" y="449" class="t" font-size="12" text-anchor="end">(1Y2) Pin 16</text>
+<path d="M665,437 L688,445 L665,453 Z" fill="#e8e8e8" stroke="#555" stroke-width="1.2"/>
+
+<circle cx="570" cy="550" r="4" class="dot"/>
+<text x="578" y="554" class="t" font-size="12">Pin 6  (1A3)</text>
+<circle cx="790" cy="550" r="4" class="dot"/>
+<text x="782" y="554" class="t" font-size="12" text-anchor="end">(1Y3) Pin 14</text>
+<path d="M665,542 L688,550 L665,558 Z" fill="#e8e8e8" stroke="#555" stroke-width="1.2"/>
+
+<circle cx="570" cy="655" r="4" class="dot"/>
+<text x="578" y="659" class="t" font-size="12">Pin 8  (1A4)</text>
+<circle cx="790" cy="655" r="4" class="dot"/>
+<text x="782" y="659" class="t" font-size="12" text-anchor="end">(1Y4) Pin 12</text>
+<path d="M665,647 L688,655 L665,663 Z" fill="#e8e8e8" stroke="#555" stroke-width="1.2"/>
+
+<circle cx="570" cy="760" r="4" class="dot"/>
+<text x="578" y="764" class="t" font-size="12">Pin 11 (2A1)</text>
+<circle cx="790" cy="760" r="4" class="dot"/>
+<text x="782" y="764" class="t" font-size="12" text-anchor="end">(2Y1) Pin 9</text>
+<path d="M665,752 L688,760 L665,768 Z" fill="#e8e8e8" stroke="#555" stroke-width="1.2"/>
+
+<!-- UNUSED INPUTS 2A2..2A4 KE GND (WAJIB) -->
+<circle cx="570" cy="825" r="3.5" class="dotb"/>
+<text x="578" y="829" class="n" font-size="11">Pin 13 (2A2)</text>
+<circle cx="570" cy="852" r="3.5" class="dotb"/>
+<text x="578" y="856" class="n" font-size="11">Pin 15 (2A3)</text>
+<circle cx="570" cy="879" r="3.5" class="dotb"/>
+<text x="578" y="883" class="n" font-size="11">Pin 17 (2A4)</text>
+<path d="M570,825 H525 V879 H570 M525,852 H570" class="b"/>
+<circle cx="525" cy="852" r="3.5" class="dotb"/>
+<path d="M525,879 V905" class="b"/>
+<use href="#gnd" x="525" y="905" class="b"/>
+<text x="525" y="939" class="tb" font-size="10" text-anchor="middle">Input sisa</text>
+<text x="525" y="951" class="tb" font-size="10" text-anchor="middle">wajib ke GND</text>
+
+<!-- UNUSED OUTPUTS 2Y2..2Y4 NC -->
+<circle cx="790" cy="825" r="3.5" class="dot"/>
+<text x="782" y="829" class="n" font-size="11" text-anchor="end">(2Y2) Pin 7</text>
+<path d="M790,825 H812" class="w"/><text x="818" y="829" class="n" font-size="11">NC</text>
+<circle cx="790" cy="852" r="3.5" class="dot"/>
+<text x="782" y="856" class="n" font-size="11" text-anchor="end">(2Y3) Pin 5</text>
+<path d="M790,852 H812" class="w"/><text x="818" y="856" class="n" font-size="11">NC</text>
+<circle cx="790" cy="879" r="3.5" class="dot"/>
+<text x="782" y="883" class="n" font-size="11" text-anchor="end">(2Y4) Pin 3</text>
+<path d="M790,879 H812" class="w"/><text x="818" y="883" class="n" font-size="11">NC</text>
+
+<!-- KOTAK PENJELASAN I_off DI DALAM U1 -->
+<rect x="584" y="900" width="192" height="36" class="call"/>
+<text x="680" y="915" class="ct" font-size="10.5" font-weight="bold" text-anchor="middle">VCC33 = 0V -&gt; Output Hi-Z</text>
+<text x="680" y="929" class="ct" font-size="10.5" text-anchor="middle">(Nol arus bocor ke PS9850)</text>
+
+<!-- 5x RESISTOR SERI 33 OHM (x=835..895) MENUJU PAD B (x=1140) -->
+<path d="M790,340 H835" class="w2"/><use href="#res" x="835" y="340" class="w2"/><text x="865" y="324" class="t" font-size="12" font-weight="bold" text-anchor="middle">Rs1 33Ω</text><path d="M895,340 H1135" class="w2"/>
+<path d="M790,445 H835" class="w2"/><use href="#res" x="835" y="445" class="w2"/><text x="865" y="429" class="t" font-size="12" font-weight="bold" text-anchor="middle">Rs2 33Ω</text><path d="M895,445 H1135" class="w2"/>
+<path d="M790,550 H835" class="w2"/><use href="#res" x="835" y="550" class="w2"/><text x="865" y="534" class="t" font-size="12" font-weight="bold" text-anchor="middle">Rs3 33Ω</text><path d="M895,550 H1135" class="w2"/>
+<path d="M790,655 H835" class="w2"/><use href="#res" x="835" y="655" class="w2"/><text x="865" y="639" class="t" font-size="12" font-weight="bold" text-anchor="middle">Rs4 33Ω</text><path d="M895,655 H1135" class="w2"/>
+<path d="M790,760 H835" class="w2"/><use href="#res" x="835" y="760" class="w2"/><text x="865" y="744" class="t" font-size="12" font-weight="bold" text-anchor="middle">Rs5 33Ω</text><path d="M895,760 H1135" class="w2"/>
+
+<!-- ======================================================================= -->
+<!-- KOTAK 3: MAINBOARD LG HT306PD (EAX63554302)                             -->
+<!-- ======================================================================= -->
+<rect x="1010" y="178" width="750" height="845" class="dash"/>
+<text x="1022" y="198" class="t" font-size="13" font-weight="bold">3. MAINBOARD LG HT306PD (PCB EAX63554302 — AREA IC602)</text>
+
+<!-- PAD A (PUTUS) & PAD B (TERIMA INJEKSI) -->
+<!-- Line 1: R648 -->
+<circle cx="1032" cy="296" r="4" fill="#fff" stroke="#888"/><text x="1040" y="300" class="n" font-size="10.5">Pad A (TP609 BCK)</text>
+<path d="M1032,300 V318 H1082" stroke="#999" stroke-dasharray="3 2" fill="none"/>
+<use href="#cross" x="1082" y="318"/>
+<text x="1095" y="322" class="tr" font-size="10">R648 47Ω DIANGKAT</text>
+<circle cx="1140" cy="340" r="5" fill="#fff" stroke="#d01010" stroke-width="2"/><text x="1140" y="360" class="tr" font-size="11" text-anchor="middle">Pad B</text>
+<path d="M1145,340 H1245" class="w2"/>
+
+<!-- Line 2: R647 -->
+<circle cx="1032" cy="401" r="4" fill="#fff" stroke="#888"/><text x="1040" y="405" class="n" font-size="10.5">Pad A (TP608 LRCK)</text>
+<path d="M1032,405 V423 H1082" stroke="#999" stroke-dasharray="3 2" fill="none"/>
+<use href="#cross" x="1082" y="423"/>
+<text x="1095" y="427" class="tr" font-size="10">R647 47Ω DIANGKAT</text>
+<circle cx="1140" cy="445" r="5" fill="#fff" stroke="#d01010" stroke-width="2"/><text x="1140" y="465" class="tr" font-size="11" text-anchor="middle">Pad B</text>
+<path d="M1145,445 H1245" class="w2"/>
+
+<!-- Line 3: R631 -->
+<circle cx="1032" cy="506" r="4" fill="#fff" stroke="#888"/><text x="1040" y="510" class="n" font-size="10.5">Pad A (TP610 DATA0)</text>
+<path d="M1032,510 V528 H1082" stroke="#999" stroke-dasharray="3 2" fill="none"/>
+<use href="#cross" x="1082" y="528"/>
+<text x="1095" y="532" class="tr" font-size="10">R631 100Ω DIANGKAT</text>
+<circle cx="1140" cy="550" r="5" fill="#fff" stroke="#d01010" stroke-width="2"/><text x="1140" y="570" class="tr" font-size="11" text-anchor="middle">Pad B</text>
+<path d="M1145,550 H1245" class="w2"/>
+
+<!-- Line 4: R632 -->
+<circle cx="1032" cy="611" r="4" fill="#fff" stroke="#888"/><text x="1040" y="615" class="n" font-size="10.5">Pad A (TP611 DATA1)</text>
+<path d="M1032,615 V633 H1082" stroke="#999" stroke-dasharray="3 2" fill="none"/>
+<use href="#cross" x="1082" y="633"/>
+<text x="1095" y="637" class="tr" font-size="10">R632 100Ω DIANGKAT</text>
+<circle cx="1140" cy="655" r="5" fill="#fff" stroke="#d01010" stroke-width="2"/><text x="1140" y="675" class="tr" font-size="11" text-anchor="middle">Pad B</text>
+<path d="M1145,655 H1245" class="w2"/>
+
+<!-- Line 5: R633 -->
+<circle cx="1032" cy="716" r="4" fill="#fff" stroke="#888"/><text x="1040" y="720" class="n" font-size="10.5">Pad A (TP612 DATA2)</text>
+<path d="M1032,720 V738 H1082" stroke="#999" stroke-dasharray="3 2" fill="none"/>
+<use href="#cross" x="1082" y="738"/>
+<text x="1095" y="742" class="tr" font-size="10">R633 100Ω DIANGKAT</text>
+<circle cx="1140" cy="760" r="5" fill="#fff" stroke="#d01010" stroke-width="2"/><text x="1140" y="780" class="tr" font-size="11" text-anchor="middle">Pad B</text>
+<path d="M1145,760 H1245" class="w2"/>
+
+<!-- IC602: PULSUS PS9850 -->
+<rect x="1245" y="250" width="240" height="585" class="ic"/>
+<text x="1365" y="298" class="t" font-size="14" font-weight="bold" text-anchor="middle">IC602: Pulsus PS9850</text>
+<text x="1365" y="315" class="n" font-size="11" text-anchor="middle">8-Ch PWM Processor &amp; 69-Band EQ</text>
+
+<!-- Power Pin VDD_IO IC602 -->
+<circle cx="1365" cy="250" r="4" class="dotr"/>
+<path d="M1365,220 V250" class="r2"/>
+<circle cx="1365" cy="220" r="4" class="dotr"/>
+<text x="1365" y="266" class="tr" font-size="11" text-anchor="middle">VDD_IO (3,28V)</text>
+<text x="1365" y="279" class="tr" font-size="9.5" text-anchor="middle">Pin 16,24,29,32,35,40,48</text>
+
+<!-- Input I2S Pin 4..9 -->
+<circle cx="1245" cy="340" r="4" class="dot"/><text x="1255" y="344" class="t" font-size="12">Pin 4 : SBCK</text>
+<circle cx="1245" cy="445" r="4" class="dot"/><text x="1255" y="449" class="t" font-size="12">Pin 5 : SLRCK</text>
+<circle cx="1245" cy="550" r="4" class="dot"/><text x="1255" y="554" class="t" font-size="12">Pin 6 : SSDIN0 (FL/FR)</text>
+<circle cx="1245" cy="655" r="4" class="dot"/><text x="1255" y="659" class="t" font-size="12">Pin 7 : SSDIN1 (SL/SR)</text>
+<circle cx="1245" cy="760" r="4" class="dot"/><text x="1255" y="764" class="t" font-size="12">Pin 8 : SSDIN2 (C/LFE)</text>
+<text x="1255" y="795" class="n" font-size="11">Pin 9 : SSDIN3 (NC / Kosong)</text>
+
+<!-- Kotak internal PS9850 -->
+<rect x="1275" y="575" width="180" height="58" fill="#f7f7f7" stroke="#aaa"/>
+<text x="1365" y="596" class="t" font-size="11" font-weight="bold" text-anchor="middle">ASRC + 69-Band EQ</text>
+<text x="1365" y="612" class="n" font-size="11" text-anchor="middle">1-to-1 Discrete 5.1</text>
+<text x="1365" y="626" class="n" font-size="11" text-anchor="middle">Core 1.25V (Pin 21,43,57)</text>
+
+<!-- PIN BAWAH IC602: KONTROL I2C, RESET, X602 (UTUH!) -->
+<text x="1254" y="823" class="tg" font-size="10">50:SDA 51:SCL 53:nRES</text>
+<text x="1477" y="823" class="tg" font-size="10" text-anchor="end">55:XIN 56:XOUT</text>
+<path d="M1270,835 V892 M1312,835 V892 M1354,835 V892" class="g"/>
+<path d="M1412,835 V876 H1442 V920 H1460 M1458,835 V868 H1525 V920 H1512" class="g"/>
+
+<!-- BLOK IC101 MICOM & X602 -->
+<rect x="1165" y="892" width="235" height="92" fill="#f0fdf4" stroke="#12902a" stroke-width="1.6"/>
+<text x="1282" y="912" class="tg" font-size="12" text-anchor="middle">IC101: Audio MICOM</text>
+<text x="1282" y="928" class="t" font-size="11" text-anchor="middle">(LC87F5M64A — BIARKAN UTUH)</text>
+<text x="1282" y="946" class="n" font-size="10.5" text-anchor="middle">R638(100R), R637(100R), R636(100R)</text>
+<text x="1282" y="962" class="tg" font-size="10.5" text-anchor="middle">Mengirim Volume, EQ &amp; Boot IC602</text>
+
+<!-- CRYSTAL X602 19.2MHz -->
+<rect x="1415" y="892" width="142" height="92" fill="#f0fdf4" stroke="#12902a" stroke-width="1.6"/>
+<use href="#xtal" x="1486" y="920"/>
+<path d="M1442,892 V920 H1460 M1525,892 V920 H1512" class="g"/>
+<text x="1486" y="948" class="tg" font-size="11" text-anchor="middle">X602: 19.2 MHz</text>
+<text x="1486" y="963" class="n" font-size="10.5" text-anchor="middle">C621/C622 (22pF)</text>
+<text x="1486" y="977" class="tg" font-size="10" text-anchor="middle">BIARKAN UTUH</text>
+
+<!-- SUMBER VCC33: IC102 (278R33) & C146 -->
+<rect x="1572" y="250" width="174" height="175" fill="#fff5f5" stroke="#d01010" stroke-width="1.6"/>
+<text x="1659" y="272" class="tr" font-size="12" text-anchor="middle">IC102 (278R33) + C146</text>
+<text x="1659" y="290" class="t" font-size="10.5" text-anchor="middle">Pin 1 In : 3.7VA (Standby)</text>
+<text x="1659" y="307" class="t" font-size="10.5" text-anchor="middle">Pin 4 Ctl: V33_CTL (R124)</text>
+<text x="1659" y="324" class="tr" font-size="10.5" text-anchor="middle">Pin 2 Out: VCC33 (3,28V ON)</text>
+<path d="M1658,220 V250" class="r2"/>
+<circle cx="1658" cy="220" r="4" class="dotr"/>
+<!-- Simbol C146 di dalam blok -->
+<text x="1659" y="348" class="t" font-size="11" font-weight="bold" text-anchor="middle">Titik Solder VCC33:</text>
+<text x="1659" y="365" class="tr" font-size="11" text-anchor="middle">Kaki (+) Elco C146 100µF</text>
+<text x="1659" y="382" class="n" font-size="10.5" text-anchor="middle">(3,28V ON | 0V Standby)</text>
+<text x="1659" y="401" class="tb" font-size="10.5" text-anchor="middle">Pin 3: DGND</text>
+
+<!-- PWM OUTPUT KE IC701/IC702 TAS5352 -->
+<path d="M1485,515 H1572 M1485,535 H1572 M1485,555 H1572 M1485,575 H1572 M1485,595 H1572 M1485,615 H1572" class="w"/>
+<text x="1528" y="505" class="n" font-size="10.5" text-anchor="middle">6-Ch PWM</text>
+<text x="1528" y="631" class="n" font-size="10" text-anchor="middle">R640..R646</text>
+<text x="1528" y="644" class="n" font-size="10" text-anchor="middle">(6x 47Ω)</text>
+
+<rect x="1572" y="470" width="174" height="285" class="ic"/>
+<text x="1659" y="498" class="t" font-size="13" font-weight="bold" text-anchor="middle">IC701 &amp; IC702</text>
+<text x="1659" y="516" class="t" font-size="12" text-anchor="middle">TI TAS5352 (x2)</text>
+<text x="1659" y="534" class="n" font-size="11" text-anchor="middle">330W Class-D Stage</text>
+<rect x="1582" y="550" width="154" height="44" class="warn"/>
+<text x="1659" y="568" class="tr" font-size="10" text-anchor="middle">PVDD: 34,8V - 37,35V</text>
+<text x="1659" y="584" class="t" font-size="10" text-anchor="middle">GVDD/VDD: 12,2V DC</text>
+<text x="1659" y="618" class="t" font-size="11.5" font-weight="bold" text-anchor="middle">JK701 ──► 6 Speaker</text>
+<text x="1659" y="638" class="t" font-size="10.5" text-anchor="middle">FL (+/-), FR (+/-)</text>
+<text x="1659" y="655" class="t" font-size="10.5" text-anchor="middle">Center (+/-), Sub (+/-)</text>
+<text x="1659" y="672" class="t" font-size="10.5" text-anchor="middle">SL (+/-), SR (+/-)</text>
+<text x="1659" y="706" class="n" font-size="10.5" text-anchor="middle">AMP_SD / AMP_PDN</text>
+<text x="1659" y="722" class="n" font-size="10.5" text-anchor="middle">dikontrol IC101 MICOM</text>
+
+<!-- DGND MAINBOARD KE BUS STAR GROUND -->
+<circle cx="1372" cy="984" r="4" class="dotb"/>
+<path d="M1372,984 V1055" class="b2"/>
+<text x="1386" y="1014" class="tb" font-size="11">DGND Mainboard (dekat IC602)</text>
+
+<!-- GARIS UTAMA STAR GROUND BERSAMA (y=1055) -->
+<path d="M180,1055 H1372" class="b2"/>
+<circle cx="180" cy="1055" r="4.5" class="dotb"/>
+<circle cx="680" cy="1055" r="4.5" class="dotb"/>
+<circle cx="780" cy="1055" r="4.5" class="dotb"/>
+<circle cx="1372" cy="1055" r="4.5" class="dotb"/>
+<path d="M780,1055 V1062" class="b2"/>
+<use href="#gnd" x="780" y="1062" class="b2"/>
+<text x="802" y="1077" class="tb" font-size="12">STAR GROUND / DGND BERSAMA (Solder kabel GND dulu sebelum jalur sinyal I2S!)</text>
+
+<!-- PEMISAH BAGIAN 2 -->
+<path d="M30,1105 H1770" class="w" stroke-dasharray="8 6"/>
+<text x="40" y="1138" class="t" font-size="16" font-weight="bold">BAGIAN 2: REFERENSI PINOUT FISIK SN74LVC244A (TOP VIEW) &amp; ALASAN ISOLASI SISI IC602</text>
+
+<!-- ======================================================================= -->
+<!-- KIRI BAWAH: PINOUT TOP VIEW SN74LVC244A (20-PIN)                        -->
+<!-- ======================================================================= -->
+<rect x="40" y="1156" width="840" height="325" class="info"/>
+<text x="58" y="1180" class="t" font-size="14" font-weight="bold">PINOUT FISIK SN74LVC244A (20-Pin SOIC / TSSOP / DIP — Tampak Atas)</text>
+
+<!-- Badan IC Top View -->
+<rect x="350" y="1205" width="210" height="252" fill="#fff" stroke="#111" stroke-width="2"/>
+<path d="M440,1205 A15,15 0 0 0 470,1205" fill="none" stroke="#111" stroke-width="2"/>
+<circle cx="365" cy="1220" r="4" fill="#111"/>
+<text x="455" y="1325" class="t" font-size="12" font-weight="bold" text-anchor="middle">SN74LVC244A</text>
+<text x="455" y="1343" class="n" font-size="10.5" text-anchor="middle">(Top View)</text>
+
+<!-- Kaki Kiri Pin 1..10 -->
+<text x="358" y="1238" class="t" font-size="11">1  1OE</text>  <path d="M337,1234 H350" class="b"/><text x="330" y="1238" class="tb" font-size="11" text-anchor="end">Ke GND (Enable Group 1)</text>
+<text x="358" y="1261" class="t" font-size="11">2  1A1</text>  <path d="M337,1257 H350" class="w"/><text x="330" y="1261" class="t"  font-size="11" text-anchor="end">&lt;-- GP2 (BCK) + Rpd 47k</text>
+<text x="358" y="1284" class="t" font-size="11">3  2Y4</text>  <path d="M337,1280 H350" class="w"/><text x="330" y="1284" class="n"  font-size="11" text-anchor="end">NC (Kosong)</text>
+<text x="358" y="1307" class="t" font-size="11">4  1A2</text>  <path d="M337,1303 H350" class="w"/><text x="330" y="1307" class="t"  font-size="11" text-anchor="end">&lt;-- GP3 (LRCK) + Rpd 47k</text>
+<text x="358" y="1330" class="t" font-size="11">5  2Y3</text>  <path d="M337,1326 H350" class="w"/><text x="330" y="1330" class="n"  font-size="11" text-anchor="end">NC (Kosong)</text>
+<text x="358" y="1353" class="t" font-size="11">6  1A3</text>  <path d="M337,1349 H350" class="w"/><text x="330" y="1353" class="t"  font-size="11" text-anchor="end">&lt;-- GP4 (ADATA0) + Rpd 47k</text>
+<text x="358" y="1376" class="t" font-size="11">7  2Y2</text>  <path d="M337,1372 H350" class="w"/><text x="330" y="1376" class="n"  font-size="11" text-anchor="end">NC (Kosong)</text>
+<text x="358" y="1399" class="t" font-size="11">8  1A4</text>  <path d="M337,1395 H350" class="w"/><text x="330" y="1399" class="t"  font-size="11" text-anchor="end">&lt;-- GP5 (ADATA1) + Rpd 47k</text>
+<text x="358" y="1422" class="t" font-size="11">9  2Y1</text>  <path d="M337,1418 H350" class="w"/><text x="330" y="1422" class="tr" font-size="11" text-anchor="end">--&gt; 33Ω -&gt; Pad B R633 (DATA2)</text>
+<text x="358" y="1445" class="t" font-size="11">10 GND</text>  <path d="M337,1441 H350" class="b"/><text x="330" y="1445" class="tb" font-size="11" text-anchor="end">Ke DGND HT306 &amp; GND RP2350</text>
+
+<!-- Kaki Kanan Pin 20..11 -->
+<text x="552" y="1238" class="t" font-size="11" text-anchor="end">VCC  20</text> <path d="M560,1234 H573" class="r"/><text x="580" y="1238" class="tr" font-size="11">Ke VCC33 HT306 (C146 +)</text>
+<text x="552" y="1261" class="t" font-size="11" text-anchor="end">2OE  19</text> <path d="M560,1257 H573" class="b"/><text x="580" y="1261" class="tb" font-size="11">Ke GND (Enable Group 2)</text>
+<text x="552" y="1284" class="t" font-size="11" text-anchor="end">1Y1  18</text> <path d="M560,1280 H573" class="w"/><text x="580" y="1284" class="tr" font-size="11">--&gt; 33Ω -&gt; Pad B R648 (BCK)</text>
+<text x="552" y="1307" class="t" font-size="11" text-anchor="end">2A4  17</text> <path d="M560,1303 H573" class="b"/><text x="580" y="1307" class="tb" font-size="11">Ikat ke GND (Unused Input)</text>
+<text x="552" y="1330" class="t" font-size="11" text-anchor="end">1Y2  16</text> <path d="M560,1326 H573" class="w"/><text x="580" y="1330" class="tr" font-size="11">--&gt; 33Ω -&gt; Pad B R647 (LRCK)</text>
+<text x="552" y="1353" class="t" font-size="11" text-anchor="end">2A3  15</text> <path d="M560,1349 H573" class="b"/><text x="580" y="1353" class="tb" font-size="11">Ikat ke GND (Unused Input)</text>
+<text x="552" y="1376" class="t" font-size="11" text-anchor="end">1Y3  14</text> <path d="M560,1372 H573" class="w"/><text x="580" y="1376" class="tr" font-size="11">--&gt; 33Ω -&gt; Pad B R631 (DATA0)</text>
+<text x="552" y="1399" class="t" font-size="11" text-anchor="end">2A2  13</text> <path d="M560,1395 H573" class="b"/><text x="580" y="1399" class="tb" font-size="11">Ikat ke GND (Unused Input)</text>
+<text x="552" y="1422" class="t" font-size="11" text-anchor="end">1Y4  12</text> <path d="M560,1418 H573" class="w"/><text x="580" y="1422" class="tr" font-size="11">--&gt; 33Ω -&gt; Pad B R632 (DATA1)</text>
+<text x="552" y="1445" class="t" font-size="11" text-anchor="end">2A1  11</text> <path d="M560,1441 H573" class="w"/><text x="580" y="1445" class="t"  font-size="11">&lt;-- GP6 (ADATA2) + Rpd 47k</text>
+
+<!-- ======================================================================= -->
+<!-- KANAN BAWAH: ALASAN MENGANGKAT RESISTOR DI SISI IC602                   -->
+<!-- ======================================================================= -->
+<rect x="910" y="1156" width="850" height="325" class="info"/>
+<text x="928" y="1180" class="t" font-size="14" font-weight="bold">ALASAN WAJIB MEMUTUS RESISTOR SISI IC602 (BUKAN SISI IC501)</text>
+
+<rect x="935" y="1208" width="165" height="105" fill="#fff" stroke="#111" stroke-width="1.6"/>
+<text x="1017" y="1234" class="t" font-size="13" font-weight="bold" text-anchor="middle">IC501</text>
+<text x="1017" y="1252" class="n" font-size="11" text-anchor="middle">MT1389FE/MH</text>
+<text x="1017" y="1272" class="n" font-size="10.5" text-anchor="middle">Ada R547(33R),</text>
+<text x="1017" y="1287" class="n" font-size="10.5" text-anchor="middle">R550(100R), dll</text>
+<text x="1017" y="1302" class="tg" font-size="10.5" text-anchor="middle">(BIARKAN UTUH)</text>
+
+<path d="M1100,1245 H1405" class="w"/>
+<text x="1250" y="1236" class="t" font-size="11" text-anchor="middle">Jalur Net BCK &amp; LRCK</text>
+<circle cx="1250" cy="1245" r="4" class="dot"/>
+<path d="M1250,1245 V1345 H1305" class="w"/>
+
+<rect x="1305" y="1310" width="215" height="72" fill="#fff" stroke="#111" stroke-width="1.6"/>
+<text x="1412" y="1332" class="t" font-size="12" font-weight="bold" text-anchor="middle">IC201: CS5346-CQZ</text>
+<text x="1412" y="1349" class="n" font-size="11" text-anchor="middle">Stereo ADC (R202, R203 = 22Ω)</text>
+<text x="1412" y="1366" class="n" font-size="10.5" text-anchor="middle">Masih butuh BCK/LRCK dari IC501</text>
+
+<!-- Simbol Resistor diangkat -->
+<use href="#res" x="1405" y="1245" class="dash"/>
+<use href="#cross" x="1435" y="1245"/>
+<text x="1435" y="1225" class="tr" font-size="11" text-anchor="middle">R648, R647 (ANGKAT!)</text>
+<path d="M1465,1245 H1555" class="w"/>
+
+<rect x="1555" y="1208" width="180" height="82" fill="#fff" stroke="#111" stroke-width="1.6"/>
+<text x="1645" y="1236" class="t" font-size="13" font-weight="bold" text-anchor="middle">IC602</text>
+<text x="1645" y="1254" class="n" font-size="11" text-anchor="middle">Pulsus PS9850</text>
+<text x="1645" y="1274" class="tr" font-size="11" text-anchor="middle">Titik Injeksi Pad B</text>
+
+<rect x="935" y="1398" width="800" height="64" class="call"/>
+<text x="950" y="1420" class="ct" font-weight="bold">Kesimpulan Skematik:</text>
+<text x="950" y="1438" class="ct">Jika salah melepas resistor di sisi IC501 (R547/R550), sinyal RP2350 akan menabrak kaki clock ADC IC201 CS5346.</text>
+<text x="950" y="1454" class="ct">Melepas R648, R647, R631, R632, R633 di dekat IC602 memutus PS9850 secara bersih tanpa mengganggu IC201.</text>
+
+<!-- PEMISAH BAGIAN 3 -->
+<path d="M30,1498 H1770" class="w" stroke-dasharray="8 6"/>
+<text x="40" y="1530" class="t" font-size="16" font-weight="bold">BAGIAN 3: DAFTAR KOMPONEN (BOM) &amp; PROSEDUR PENGUJIAN WAJIB</text>
+
+<!-- BOM -->
+<rect x="40" y="1548" width="840" height="275" class="info"/>
+<text x="58" y="1572" class="t" font-size="14" font-weight="bold">DAFTAR KOMPONEN TAMBAHAN (BOM)</text>
+<text x="58" y="1598" class="t" font-size="12.5">1. U1          : 1x IC SN74LVC244A (SOIC-20 / TSSOP-20 / DIP-20 — wajib seri LVC berkemampuan I_off)</text>
+<text x="58" y="1622" class="t" font-size="12.5">2. Rs1 .. Rs5  : 5x Resistor 33 Ω (1/8W atau 1/4W, seri di jalur output 1Y1..1Y4, 2Y1 menuju Pad B)</text>
+<text x="58" y="1646" class="t" font-size="12.5">3. Rpd1..Rpd5  : 5x Resistor 47 kΩ (1/8W atau 1/4W, pull-down input 1A1..1A4, 2A1 ke GND)</text>
+<text x="58" y="1670" class="t" font-size="12.5">4. C_BYP       : 1x Kapasitor Keramik 100 nF / 50V (X7R/C0G) tepat di antara Pin 20 (VCC) &amp; Pin 10 (GND)</text>
+<text x="58" y="1694" class="t" font-size="12.5">5. Kabel Data  : Kabel serabut tipis AWG28–30 panjang seragam (&lt;= 10 cm) + lem penguat mekanis pada Pad B</text>
+<text x="58" y="1726" class="tb" font-size="12">Catatan Alternatif Dual-Mode (Jika ingin DVD bawaan masih bisa dipakai):</text>
+<text x="58" y="1746" class="n" font-size="12">- Ganti SN74LVC244A dengan 2x IC 74LVC157 (karena 1 chip hanya 4 kanal), catu VCC kedua IC dari VCC33 HT306.</text>
+<text x="58" y="1766" class="n" font-size="12">- Sambungkan pin Select ke GP8 + pull-down 10 kΩ ke GND; sambungkan input A ke TP608..TP612 (Pad A).</text>
+<text x="58" y="1792" class="tr" font-size="12">Jangan pakai 74HC244 / 74LS244 karena TIDAK punya proteksi I_off (bocor arus saat VCC33 = 0V)!</text>
+
+<!-- PROSEDUR WAJIB -->
+<rect x="910" y="1548" width="850" height="275" class="warn"/>
+<text x="928" y="1572" class="tr" font-size="14" font-weight="bold">ATURAN KESELAMATAN &amp; PROSEDUR UJI BERTAHAP (WAJIB)</text>
+<text x="928" y="1598" class="t" font-size="12.5">1. CABUT AC 220V sebelum menyolder! Area SMPS bertegangan tinggi (C903 450V DC) &amp; PVDD TAS5352 = 34,8V–37,35V DC.</text>
+<text x="928" y="1622" class="t" font-size="12.5">2. Ukur pakai multimeter di Pad B (setelah angkat R648, R647, R631..R633): pastikan TIDAK hubung singkat ke Pad A/GND.</text>
+<text x="928" y="1646" class="t" font-size="12.5">3. Solder GND bersama (DGND HT306 &lt;-&gt; Pin 10 U1 &lt;-&gt; GND RP2350) TERLEBIH DAHULU sebelum menyambung kabel sinyal.</text>
+<text x="928" y="1670" class="t" font-size="12.5">4. Pin 20 VCC U1 WAJIB ke rel VCC33 HT306 (C146 +). DILARANG mengambil VCC U1 dari pin 3.3V milik RP2350-Zero!</text>
+<text x="928" y="1694" class="t" font-size="12.5">5. TES ANTI-BACKPOWERING (sebelum menyambung ke Pad B): Colok USB RP2350 ke PC saat HT306 masih MATI total;</text>
+<text x="946" y="1714" class="t" font-size="12.5">ukur tegangan DC di ujung Rs1..Rs5 terhadap GND -&gt; HARUS terbaca 0,00 V! Jika muncul ~1–3V, cek kabel VCC U1.</text>
+<text x="928" y="1738" class="t" font-size="12.5">6. TES AUDIO AWAL: Sambungkan Rs1..Rs5 ke Pad B -&gt; Nyalakan HT306 ke mode AUX -&gt; Pilih EQ NATURAL atau PLII MOVIE</text>
+<text x="946" y="1758" class="t" font-size="12.5">(hindari BYPASS jika surround bisu) -&gt; Setel Volume kecil (VOL 3–5) -&gt; Colok USB PC -&gt; Putar uji 6-kanal bertahap.</text>
+<text x="928" y="1792" class="tr" font-size="12">Peringatan: Gunakan casing terisolasi / meja non-konduktif saat menguji board dalam keadaan terbuka!</text>
+</svg>

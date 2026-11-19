@@ -25,36 +25,51 @@ This project bypasses that analog bottleneck entirely by injecting **6-Channel D
 
 ## 2. How It Works & High-Level Architecture
 
+In simple terms, the complete audio pipeline flows as follows:
+
+$$\text{Player (JRiver / Windows)} \longrightarrow \text{VB-Cable (Virtual Soundcard)} \longrightarrow \text{HT306 Desktop App} \longrightarrow \text{RP2350-Zero} \longrightarrow \text{LG HT306 Amplifier} \longrightarrow \text{6 Speakers}$$
+
 ```mermaid
 flowchart LR
-    subgraph PC["1. PC (Windows)"]
-        JR["JRiver Media Center\n(Decode Dolby/Atmos/DTS 5.1)\n48 kHz / 96 kHz 24-bit"]
-        STR["PC Companion Streamer\n(Lossless Order-4 Rice Packer)\n1,728 KB/s ➔ 716 KB/s"]
-        JR --> STR
+    subgraph PC["1. Host PC (Windows 10 / 11)"]
+        direction TB
+        APP["Audio Players\n(JRiver / YouTube / Spotify / Movies)"]
+        VBC["Virtual Soundcard (VB-Cable)\n'LG HT306 Home Theater'\n(Dual-Endpoint: Playback & Loopback)"]
+        HOST["HT306 Desktop App (ht306_desktop_app)\nWASAPI Capture + Resampler <= 96 kHz\n+ Lossless Delta-Rice Encoder + WinUSB"]
+        APP ==>|"Audio Stream"| VBC
+        VBC ==>|"Loopback Capture"| HOST
     end
 
-    subgraph MCU["2. Waveshare RP2350-Zero"]
-        C0["Core 0: TinyUSB Bulk\n(64B Stream Reassembler)"]
-        C1["Core 1: Lossless Unpacker\n(Bit-Exact 24-bit PCM)"]
-        PIO["DMA Ping-Pong + PIO0\n(4-Lane Synchronous I2S)"]
+    subgraph MCU["2. Waveshare RP2350-Zero (USB Bridge)"]
+        direction TB
+        C0["Core 0: TinyUSB Receiver\nWinUSB Bulk (EP 0x03 OUT)\nRing Buffer + Reassembly"]
+        C1["Core 1: Lossless Decoder\nUnpacks to PCM 32-bit (< 0.03 ms)"]
+        PIO["DMA Ping-Pong + PIO0 Engine\nSynchronous Multi-Lane I2S Master\n(BCK, LRCK, ADATA0..2)"]
         C0 --> C1 --> PIO
     end
 
-    subgraph HT306["3. LG HT306 Mainboard"]
-        MT["IC501: MediaTek MT1389MH\n(AUX Mode + Stock EQ)"]
-        PS["IC602: Pulsus PS9850\n(ASRC + 69-Band EQ + PWM)"]
-        TAS["IC701/702: TI TAS5352\n(330W Class-D ➔ 6 Speakers)"]
-        PS --> TAS
+    subgraph HT306["3. LG HT306 Home Theater"]
+        direction TB
+        PS["IC602: Pulsus PS9850\n(Digital PWM Processor + 69-Band EQ)"]
+        TAS["IC701/702: TI TAS5352\n(330W RMS Class-D Power Stage)"]
+        SPK["6 Physical Speakers (5.1 Surround)\nFL, FR, Center, Subwoofer, SL, SR"]
+        PS --> TAS --> SPK
     end
 
-    STR ==>|"USB Type-C"| C0
-    PIO ==>|"5x 33Ω Resistors\n(BCK, LRCK, ADATA0..2)"| PS
-    MT ==>|"I2C (SDA/SCL) Left Intact\n(EQ & Volume Control)"| PS
+    HOST ==>|"USB Type-C (WinUSB Bulk)"| C0
+    PIO ==>|"5x 33Ω Damping Resistors\n(GP2..GP6)"| PS
 ```
 
-1. **Host PC:** **JRiver Media Center (`DSP Studio`)** decodes movie/music tracks into discrete 6-channel 24-bit PCM (`48 kHz` or `96 kHz`), and the **PC Streamer** packages it into lossless `0.5 ms` (`48 frames`) sub-frames guarded by `CRC-8`.
-2. **`Waveshare RP2350-Zero`:** `Core 0` receives USB bulk packets and reassembles them, `Core 1` unpacks the bitstream into 100% bit-exact 24-bit PCM in SRAM, and `DMA` + `PIO0` outputs all channels synchronously on the *falling edge* of `BCK`.
-3. **LG HT306 Mainboard:** The I2S signals arrive at `Pad B` of the lifted resistors leading into **`IC602 (Pulsus PS9850)`**, pass through LG's **69-Band Hardware EQ** (controlled via `I2C` in `AUX` mode), and are amplified by **`TI TAS5352`** directly to the 6 speakers.
+### The 4 Stages of the Audio Pipeline:
+1. **Audio Source & Virtual Soundcard:** **JRiver Media Center** (or any Windows application) plays multichannel or stereo audio to **VB-Cable** (`LG HT306 Home Theater`). VB-Cable acts as the virtual soundcard so players have a standard Windows output target.
+2. **HT306 Desktop Companion App (`ht306_desktop_app.exe`):** Captures audio from VB-Cable's recording pin (`LG HT306 Loopback Stream`), normalizes channels into 5.1 surround, clamps/resamples safely to $\le 96\text{ kHz}$ (48k or 96k), compresses frames losslessly, and streams packets over **WinUSB Bulk (EP 0x03 OUT)**.
+3. **`Waveshare RP2350-Zero` Microcontroller:** `Core 0` receives USB bulk packets into SRAM, `Core 1` losslessly unpacks them back into pristine PCM 32-bit audio with zero latency, and the **PIO0 Multi-Lane I2S Engine** outputs synchronous digital audio pulses (`BCK`, `LRCK`, `ADATA0..2`).
+4. **LG HT306 Mainboard:** Digital I2S signals arrive at `Pad B` of the lifted damping resistors directly into **`IC602 (Pulsus PS9850)`**, pass through LG's **69-Band Hardware EQ** (controlled via `I2C` in `AUX` mode), and are amplified by **`TI TAS5352`** directly to the 6 speakers.
+
+> 📖 **Deep Dive Documentation:**
+> * For JRiver-specific dual-endpoint routing, WASAPI Exclusive collision prevention, and DSP Studio setup, see **[06_JRiver_Audio_Data_Topology.md](docs/06_JRiver_Audio_Data_Topology.md)**.
+> * For the complete end-to-end hardware schematics, electrical protection, and power sequencing, see **[07_Complete_Architecture_and_Topology.md](docs/07_Complete_Architecture_and_Topology.md)**.
+> * For project inspirations and the comprehensive technology stack inventory, see **[08_Credits_and_Acknowledgments.md](docs/08_Credits_and_Acknowledgments.md)**.
 
 ---
 
@@ -88,7 +103,7 @@ cmake --build firmware/build --config Release -j
 
 ## 5. Comprehensive Documentation (`docs/`)
 
-Deep technical documentation has been organized into dedicated modules under **[`docs/`](docs/)**:
+Deep technical documentation has been organized into dedicated bilingual modules under **[`docs/`](docs/)**:
 
 | Document | Detailed Contents |
 | :--- | :--- |
@@ -96,6 +111,10 @@ Deep technical documentation has been organized into dedicated modules under **[
 | 📄 **[02_Lossless_96kHz_Codec_Specification.md](docs/02_Lossless_96kHz_Codec_Specification.md)**<br>*(ID: [Versi Bahasa Indonesia](docs/02_Lossless_96kHz_Codec_Specification.id.md))* | Mathematical equations for **Single-Pass FLAC Order-4 Predictor**, **ZigZag Mapping**, **Escaped Golomb-Rice**, and detailed specification of the **14-Byte Packet Header (`HT306_LosslessHeader_t`)**. |
 | 📄 **[03_PIO_4Lane_I2S_and_DualCore_DMA.md](docs/03_PIO_4Lane_I2S_and_DualCore_DMA.md)**<br>*(ID: [Versi Bahasa Indonesia](docs/03_PIO_4Lane_I2S_and_DualCore_DMA.id.md))* | Precision clock timing diagrams for **`i2s_multi.pio`** on *falling edge* `BCK`, the *4-Lane Nibble Bit-Interleaver*, and the **Wait-Free SPSC Chained Ping-Pong DMA** engine in SRAM. |
 | 📄 **[04_Build_Flash_and_JRiver_Setup.md](docs/04_Build_Flash_and_JRiver_Setup.md)**<br>*(ID: [Versi Bahasa Indonesia](docs/04_Build_Flash_and_JRiver_Setup.id.md))* | Step-by-step firmware build guide, `.uf2` flashing, benchmark test outputs, and **JRiver Media Center (`DSP Studio`)** configuration. |
+| 📄 **[05_PC_Audio_Bridge_PRD_and_Architecture.md](docs/05_PC_Audio_Bridge_PRD_and_Architecture.md)**<br>*(ID: [Versi Bahasa Indonesia](docs/05_PC_Audio_Bridge_PRD_and_Architecture.id.md))* | Product Requirements Document (PRD) and technical architecture for the **HT306 PC Audio Bridge Companion Application** on Windows 10/11. |
+| 📄 **[06_JRiver_Audio_Data_Topology.md](docs/06_JRiver_Audio_Data_Topology.md)**<br>*(ID: [Versi Bahasa Indonesia](docs/06_JRiver_Audio_Data_Topology.id.md))* | Comprehensive audio data pipeline for **JRiver Media Center**, dual-endpoint VB-Cable routing, WASAPI Exclusive collision prevention, and source code mapping. |
+| 📄 **[07_Complete_Architecture_and_Topology.md](docs/07_Complete_Architecture_and_Topology.md)**<br>*(ID: [Versi Bahasa Indonesia](docs/07_Complete_Architecture_and_Topology.id.md))* | Full end-to-end hardware and software architecture, **Anti-Backpowering** electrical protection, power sequencing state machine, and official schematic mapping. |
+| 📄 **[08_Credits_and_Acknowledgments.md](docs/08_Credits_and_Acknowledgments.md)**<br>*(ID: [Versi Bahasa Indonesia](docs/08_Credits_and_Acknowledgments.id.md))* | Record of project inspirations, reverse engineering rationale (*upcycling*), and full technology inventory across silicon, firmware, desktop host, and developer toolchains. |
 
 ---
 
@@ -108,9 +127,9 @@ HomeTheather/
 ├── LICENSE                                # MIT Open-Source License
 ├── docs/                                  # In-depth technical guides (Bilingual: EN & ID)
 ├── firmware/                              # C/PIO Firmware for Waveshare RP2350-Zero
-├── pc_streamer/                           # Host-side 96 kHz Lossless audio streamer (JRiver)
-└── tests/
-    └── verify_end_to_end.py               # End-to-end mathematical & hardware simulation suite
+├── pc_stream_app/                         # Native C++ WebView2 desktop companion application
+├── pc_streamer/                           # Host-side Python/C++ streaming prototype
+└── tests/                                 # End-to-end mathematical & hardware simulation suite
 ```
 
 ---

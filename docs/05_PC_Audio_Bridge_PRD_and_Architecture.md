@@ -1,9 +1,12 @@
 # PRD & Technical Architecture: HT306 PC Audio Bridge Companion
 
-<p align="center">
-  <a href="05_PC_Audio_Bridge_PRD_and_Architecture.id.md">Bahasa Indonesia</a> |
-  <b>English</b>
-</p>
+🌐 **Language:** **English** | [Bahasa Indonesia](./05_PC_Audio_Bridge_PRD_and_Architecture.id.md)
+
+[⬅️ Back to Main README](../README.md) | [Hardware & Mod Guide](./01_Hardware_Architecture_and_Mod_Guide.md) | [96 kHz Codec](./02_Lossless_96kHz_Codec_Specification.md) | [PIO 4-Lane & DMA](./03_PIO_4Lane_I2S_and_DualCore_DMA.md) | [JRiver Audio Topology](./06_JRiver_Audio_Data_Topology.md) | [Complete Architecture](./07_Complete_Architecture_and_Topology.md) | [Credits & Tech Stack](./08_Credits_and_Acknowledgments.md)
+
+> [!NOTE]
+> **PC Host Implementation Evolution:**
+> This PRD defines the requirements and logical dataflow established during the initial Python prototype (`pc_streamer/`). For production, the desktop host has evolved into a high-performance C++17 native companion with a modern WebView2 interface (`pc_stream_app/`), documented in [ADR-003](./decisions/ADR-003_JUCE8_WebView2_Modern_Desktop_UI.md), [06. JRiver Audio Data Topology](./06_JRiver_Audio_Data_Topology.md), and [07. Complete Architecture and Topology](./07_Complete_Architecture_and_Topology.md).
 
 ---
 
