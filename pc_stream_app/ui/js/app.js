@@ -20,9 +20,9 @@
     navBtns.forEach((btn) => {
       const tab = btn.getAttribute("data-tab");
       if (tab === tabName) {
-        btn.className = "nav-btn w-full text-left flex items-center gap-space-sm px-space-md py-space-sm transition-colors bg-primary-container text-text-primary font-medium border-l-2 border-primary-container rounded-lg";
+        btn.className = "nav-btn relative group w-10 h-10 rounded-xl flex items-center justify-center transition-all bg-primary text-white shadow-sm cursor-pointer";
       } else {
-        btn.className = "nav-btn w-full text-left flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-text-secondary hover:bg-surface-2 hover:text-on-surface transition-colors font-body-sm text-body-sm";
+        btn.className = "nav-btn relative group w-10 h-10 rounded-xl flex items-center justify-center transition-all text-text-secondary hover:bg-surface-2 hover:text-text-primary cursor-pointer";
       }
     });
 

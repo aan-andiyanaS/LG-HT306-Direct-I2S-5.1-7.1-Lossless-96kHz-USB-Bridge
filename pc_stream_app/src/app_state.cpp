@@ -105,4 +105,128 @@ std::vector<LogEntry> AppState::GetLogsSnapshot() const {
     return logs;
 }
 
+namespace {
+
+int FindDeviceIndexById(const std::vector<AudioEndpointInfo>& list, const std::wstring& id) {
+    if (id.empty()) return -1;
+    for (size_t i = 0; i < list.size(); ++i) {
+        if (list[i].id == id) {
+            return static_cast<int>(i);
+        }
+    }
+    return -1;
+}
+
+int FindVirtualHT306Index(const std::vector<AudioEndpointInfo>& list) {
+    for (size_t i = 0; i < list.size(); ++i) {
+        const std::string& name = list[i].name;
+        if (name.find("16ch") != std::string::npos) {
+            continue;
+        }
+        if (name.find("HT306") != std::string::npos ||
+            name.find("CABLE") != std::string::npos ||
+            name.find("Virtual") != std::string::npos) {
+            return static_cast<int>(i);
+        }
+    }
+    return -1;
+}
+
+} // namespace
+
+std::vector<AudioEndpointInfo> AppState::GetAvailableDevicesSnapshot() const {
+    std::lock_guard<std::mutex> lock(devices_mutex);
+    return available_devices;
+}
+
+void AppState::SetAvailableDevices(
+    std::vector<AudioEndpointInfo> next_devices,
+    const std::wstring& preferred_id_or_empty,
+    bool auto_select_ht306
+) {
+    std::lock_guard<std::mutex> lock(devices_mutex);
+    available_devices = std::move(next_devices);
+
+    if (available_devices.empty()) {
+        active_device_id.clear();
+        active_device_index.store(0);
+        return;
+    }
+
+    int target_idx = -1;
+    if (!preferred_id_or_empty.empty()) {
+        target_idx = FindDeviceIndexById(available_devices, preferred_id_or_empty);
+    }
+    if (target_idx < 0 && !active_device_id.empty()) {
+        target_idx = FindDeviceIndexById(available_devices, active_device_id);
+    }
+    if (target_idx <= 0 && auto_select_ht306) {
+        int ht_idx = FindVirtualHT306Index(available_devices);
+        if (ht_idx > 0) {
+            target_idx = ht_idx;
+        }
+    }
+    if (target_idx < 0) {
+        int cur = active_device_index.load();
+        target_idx = (cur >= 0 && cur < static_cast<int>(available_devices.size())) ? cur : 0;
+    }
+
+    active_device_index.store(target_idx);
+    active_device_id = available_devices[static_cast<size_t>(target_idx)].id;
+}
+
+bool AppState::SelectDeviceByIndex(int idx, std::string* out_name) {
+    std::lock_guard<std::mutex> lock(devices_mutex);
+    if (idx >= 0 && idx < static_cast<int>(available_devices.size())) {
+        active_device_index.store(idx);
+        active_device_id = available_devices[static_cast<size_t>(idx)].id;
+        settings.target_device_index = idx;
+        if (out_name) {
+            *out_name = available_devices[static_cast<size_t>(idx)].name;
+        }
+        return true;
+    }
+    if (idx == 0 && available_devices.empty()) {
+        active_device_index.store(0);
+        active_device_id.clear();
+        settings.target_device_index = 0;
+    }
+    if (out_name) {
+        out_name->clear();
+    }
+    return false;
+}
+
+bool AppState::SelectDeviceById(const std::wstring& id) {
+    std::lock_guard<std::mutex> lock(devices_mutex);
+    active_device_id = id;
+    int idx = FindDeviceIndexById(available_devices, id);
+    if (idx >= 0) {
+        active_device_index.store(idx);
+        settings.target_device_index = idx;
+        return true;
+    }
+    return false;
+}
+
+AudioEndpointInfo AppState::GetActiveDeviceSnapshot(int* out_index) const {
+    std::lock_guard<std::mutex> lock(devices_mutex);
+    if (available_devices.empty()) {
+        if (out_index) *out_index = 0;
+        AudioEndpointInfo empty_def{};
+        empty_def.id = active_device_id;
+        empty_def.name = "Default Windows Playback Device";
+        empty_def.is_default = active_device_id.empty();
+        return empty_def;
+    }
+    int idx = active_device_index.load();
+    if (idx < 0 || idx >= static_cast<int>(available_devices.size())) {
+        idx = 0;
+    }
+    if (out_index) {
+        *out_index = idx;
+    }
+    return available_devices[static_cast<size_t>(idx)];
+}
+
 } // namespace ht306

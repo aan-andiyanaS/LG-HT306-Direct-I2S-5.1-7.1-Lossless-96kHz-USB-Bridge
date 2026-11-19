@@ -154,22 +154,40 @@
       }
     }
 
-    // 2. Format: 96kHz / 32b
-    const rate = (data.format && data.format.rate) ||
-                 (data.telemetry && data.telemetry.sample_rate) ||
-                 data.sample_rate || 96000;
-    const bits = (data.format && data.format.bits) ||
-                 (data.telemetry && data.telemetry.bit_depth) ||
-                 data.bit_depth || 32;
-    const channels = (data.format && data.format.channels) ||
-                     (data.telemetry && data.telemetry.channels) ||
-                     data.channels || 6;
+    // 2. Format: 96kHz / 32b (preserve 0Hz as Standby instead of falsy-falling back to 96000)
+    const rate = (data.format && typeof data.format.rate === "number") ? data.format.rate :
+                 (data.telemetry && typeof data.telemetry.sample_rate === "number") ? data.telemetry.sample_rate :
+                 (typeof data.sample_rate === "number" ? data.sample_rate : 96000);
+    const bits = (data.format && typeof data.format.bits === "number") ? data.format.bits :
+                 (data.telemetry && typeof data.telemetry.bit_depth === "number") ? data.telemetry.bit_depth :
+                 (typeof data.bit_depth === "number" ? data.bit_depth : 32);
+    const channels = (data.format && typeof data.format.channels === "number") ? data.format.channels :
+                     (data.telemetry && typeof data.telemetry.channels === "number") ? data.telemetry.channels :
+                     (typeof data.channels === "number" ? data.channels : 6);
+    const inputRate = (data.telemetry && typeof data.telemetry.input_sample_rate === "number") ? data.telemetry.input_sample_rate :
+                      (typeof data.input_sample_rate === "number" ? data.input_sample_rate : rate);
+    const rateClamped = Boolean((data.telemetry && data.telemetry.rate_clamped) || data.rate_clamped);
+    const sampleRateMode = data.sample_rate_mode ||
+                           (data.telemetry && data.telemetry.sample_rate_mode) ||
+                           (data.config && data.config.sample_rate_mode) || "auto";
+    const capturePath = data.capture_path ||
+                        (data.telemetry && data.telemetry.capture_path) || "";
+
+    window.currentActiveSampleRate = rate > 0 ? rate : 96000;
+    window.currentCapturePath = capturePath;
 
     const asideFmt = document.getElementById("aside-format-badge");
-    if (asideFmt) asideFmt.innerText = `${Math.round(rate / 1000)}kHz / ${bits}b`;
+    if (asideFmt) asideFmt.innerText = rate > 0 ? `${Math.round(rate / 1000)}kHz / ${bits}b` : `Standby / ${bits}b`;
 
-    const dashRate = document.getElementById("dash-sample-rate");
-    if (dashRate) dashRate.innerText = `${(rate / 1000).toFixed(1)} kHz`;
+    const withinRateClickCooldown = (Date.now() - (window._lastSampleRateClickMs || 0)) < 400;
+    if (!withinRateClickCooldown) {
+      if (typeof window.renderSampleRateUi === "function") {
+        window.renderSampleRateUi(sampleRateMode, rate, rateClamped, inputRate, capturePath);
+      } else {
+        const dashRate = document.getElementById("dash-sample-rate");
+        if (dashRate) dashRate.innerText = rate > 0 ? `${(rate / 1000).toFixed(1)} kHz` : "Standby";
+      }
+    }
 
     const dashBits = document.getElementById("dash-bit-depth");
     if (dashBits) dashBits.innerText = `${bits}-bit Container`;
@@ -294,9 +312,9 @@
         if (valText) {
           valText.innerText = db > -80 ? db.toFixed(1) + " dB" : "-∞ dB";
           if (db >= -3.0) {
-            valText.className = "w-16 text-right font-code-sm text-code-sm text-status-warn font-semibold";
+            valText.className = "w-16 min-w-[64px] text-right font-code-sm text-code-sm whitespace-nowrap flex-shrink-0 tabular-nums text-status-warn font-semibold";
           } else {
-            valText.className = "w-16 text-right font-code-sm text-code-sm text-text-primary font-medium";
+            valText.className = "w-16 min-w-[64px] text-right font-code-sm text-code-sm whitespace-nowrap flex-shrink-0 tabular-nums text-text-primary font-medium";
           }
         }
 
@@ -326,11 +344,10 @@
         }
       }
 
-      // Master Meter Bar in Mixer
-      const masterMeterBar = document.getElementById("master-meter-bar");
-      if (masterMeterBar) {
+      // Master Meter Bar in Mixer & Dashboard
+      document.querySelectorAll("#master-meter-bar").forEach((masterMeterBar) => {
         masterMeterBar.style.width = dbfsToPercent(maxDb).toFixed(1) + "%";
-      }
+      });
     }
 
     // 7. Hardware flags & Heartbeat
@@ -378,23 +395,26 @@
     // 9. Master Volume & Master Mute
     if (data.master_volume_db !== undefined || (data.config && data.config.master_volume_db !== undefined)) {
       const vol = data.master_volume_db !== undefined ? data.master_volume_db : data.config.master_volume_db;
-      const mSlider = document.getElementById("master-slider");
-      const mVolNum = document.getElementById("master-vol-num");
-      if (mSlider && document.activeElement !== mSlider) {
-        mSlider.value = vol;
-      }
-      if (mVolNum) {
+      document.querySelectorAll("#master-slider").forEach((mSlider) => {
+        if (document.activeElement !== mSlider) {
+          mSlider.value = vol;
+        }
+      });
+      document.querySelectorAll("#master-vol-num").forEach((mVolNum) => {
         mVolNum.textContent = (vol > 0 ? "+" : "") + vol.toFixed(1) + " dB";
-      }
+      });
+      document.querySelectorAll("#master-vol-readout").forEach((mReadout) => {
+        mReadout.textContent = (vol > 0 ? "+" : "") + vol.toFixed(1);
+      });
     }
 
     if (data.mute_master !== undefined || (data.config && data.config.mute_master !== undefined)) {
       const mm = data.mute_master !== undefined ? data.mute_master : data.config.mute_master;
       window.isMuted = mm;
-      const muteLabel = document.getElementById("mute-label");
-      if (muteLabel) muteLabel.textContent = window.isMuted ? "Unmute Master" : "Mute Master";
-      const mMuteBtn = document.getElementById("master-mute-btn");
-      if (mMuteBtn) {
+      document.querySelectorAll("#mute-label").forEach((muteLabel) => {
+        muteLabel.textContent = window.isMuted ? "Unmute Master" : "Mute Master";
+      });
+      document.querySelectorAll("#master-mute-btn, #mute-btn").forEach((mMuteBtn) => {
         if (window.isMuted) {
           mMuteBtn.classList.add("bg-status-error", "text-text-primary");
           mMuteBtn.classList.remove("bg-surface-2", "text-text-secondary");
@@ -402,7 +422,7 @@
           mMuteBtn.classList.remove("bg-status-error", "text-text-primary");
           mMuteBtn.classList.add("bg-surface-2", "text-text-secondary");
         }
-      }
+      });
     }
 
     // 10. Solos and Phase inverts sync

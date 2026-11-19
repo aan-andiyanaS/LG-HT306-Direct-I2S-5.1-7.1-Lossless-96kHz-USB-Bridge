@@ -1,431 +1,227 @@
-      <div id="tab-dashboard" class="tab-panel">
-        <div class="flex flex-col gap-space-lg w-full max-w-[1400px] mx-auto pb-space-xl">
-<!-- Top Hardware Status Card -->
-<div class="bg-surface rounded-xl p-space-lg shadow-xl relative overflow-hidden">
-<div class="absolute -right-16 -top-16 w-56 h-56 rounded-full bg-primary-container/10 blur-3xl pointer-events-none"></div>
-<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-md mb-space-md">
-<div class="flex items-center gap-space-md">
-<div class="flex items-center gap-space-xs px-space-sm py-1 rounded-full bg-surface-2">
-<span class="w-2.5 h-2.5 rounded-full bg-status-ok" id="dash-connected-dot"></span>
-<span class="font-code-sm text-code-sm text-status-ok font-semibold tracking-wide" id="dash-connected-text">● CONNECTED</span>
-</div>
-<div class="flex items-center gap-space-xs">
-<span class="font-caption text-caption text-text-secondary uppercase tracking-wider font-semibold">HARDWARE LINK</span>
-<span class="font-code-sm text-code-sm text-icon-gray">/</span>
-<span class="font-code-sm text-code-sm text-text-primary font-medium">RP2350-Zero</span>
-<span class="font-meter-num text-meter-num text-tertiary px-1.5 py-0.5 rounded bg-surface-2">FW v1.3.0</span>
-</div>
-</div>
-<div class="flex items-center gap-space-sm flex-wrap">
-<div class="flex items-center gap-1.5 px-space-sm py-1 rounded bg-surface-2 text-text-secondary font-code-sm text-code-sm">
-<span class="material-symbols-outlined text-[15px] text-tertiary">cable</span>
-<span class="text-text-primary font-medium" id="dash-com-port">COM4</span>
-<span class="text-icon-gray">(CDC-ACM 115200 baud)</span>
-</div>
-<div class="flex items-center gap-1.5 px-space-sm py-1 rounded bg-surface-2 text-text-secondary font-code-sm text-code-sm">
-<span class="material-symbols-outlined text-[15px] text-status-info">usb</span>
-<span class="text-text-primary font-medium">EP 0x03 OUT</span>
-<span class="text-icon-gray">(WinUSB Bulk)</span>
-</div>
-<div class="flex items-center gap-1.5 px-space-sm py-1 rounded bg-surface-2 font-meter-num text-meter-num text-text-secondary">
-<span class="text-icon-gray">VID/PID:</span>
-<span class="text-text-primary" id="dash-vid-pid">0x2E8A : 0x4306</span>
-</div>
-<button id="btn-debug-audio" type="button" onclick="window.handleDebugAudioToggle(event)" class="flex items-center gap-1.5 px-space-sm py-1 rounded bg-surface-2 hover:bg-surface-variant border border-border text-text-secondary hover:text-text-primary font-code-sm text-code-sm transition-colors cursor-pointer" title="Aktifkan perangkat audio LG HT306 di Windows Taskbar tanpa perlu menghubungkan RP2350 (Mode Debug)">
-<span class="material-symbols-outlined text-[15px] text-status-warn" id="dash-debug-audio-icon">bug_report</span>
-<span id="dash-debug-audio-text">Debug Audio: OFF</span>
-</button>
-</div>
-</div>
-<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-space-sm">
-<div class="bg-surface-2 p-space-sm rounded-lg flex flex-col justify-between">
-<span class="font-caption text-caption text-text-secondary">Uptime</span>
-<div class="flex items-baseline gap-space-xs mt-1">
-<span class="font-code-lg text-code-lg text-text-primary font-semibold" id="dash-uptime">00:00:00</span>
-<span class="font-meter-num text-meter-num text-status-ok font-normal">Active</span>
-</div>
-</div>
-<div class="bg-surface-2 p-space-sm rounded-lg flex flex-col justify-between">
-<span class="font-caption text-caption text-text-secondary">Bridge Heartbeat</span>
-<div class="flex items-baseline gap-space-xs mt-1">
-<span class="font-code-lg text-code-lg text-status-ok font-semibold" id="dash-heartbeat">♥ 1 Hz OK</span>
-<span class="font-meter-num text-meter-num text-text-secondary">0 drop</span>
-</div>
-</div>
-<div class="bg-surface-2 p-space-sm rounded-lg flex flex-col justify-between">
-<span class="font-caption text-caption text-text-secondary">PIO I2S Engine</span>
-<div class="flex items-baseline gap-space-xs mt-1">
-<span class="font-code-lg text-code-lg text-tertiary font-semibold" id="dash-pio-status">READY</span>
-<span class="font-meter-num text-meter-num text-text-secondary">@ 96 kHz</span>
-</div>
-</div>
-<div class="bg-surface-2 p-space-sm rounded-lg flex flex-col justify-between">
-<span class="font-caption text-caption text-text-secondary">GP8 Hardware MUX</span>
-<div class="flex items-baseline gap-space-xs mt-1">
-<span class="font-code-lg text-code-lg text-status-info font-semibold" id="dash-mux-status">HIGH</span>
-<span class="font-meter-num text-meter-num text-text-secondary">Direct Bypass</span>
-</div>
-</div>
-<div class="bg-surface-2 p-space-sm rounded-lg flex flex-col justify-between col-span-2 sm:col-span-1">
-<span class="font-caption text-caption text-text-secondary">DSP Sync Lock</span>
-<div class="flex items-baseline gap-space-xs mt-1">
-<span class="font-code-lg text-code-lg text-text-primary font-semibold" id="dash-dsp-status">LOCKED</span>
-<span class="font-meter-num text-meter-num text-status-ok">PS9850 ASRC</span>
-</div>
-</div>
-</div>
-</div>
-<!-- Middle Section: Stream Engine & Real-time USB Link Budget -->
-<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg">
-<!-- Audio Pipeline Parameters -->
-<div class="lg:col-span-7 bg-surface rounded-xl p-space-lg shadow-xl flex flex-col justify-between">
-<div>
-<div class="flex items-center justify-between mb-space-md">
-<div class="flex items-center gap-space-xs">
-<span class="material-symbols-outlined text-primary text-[20px]">tune</span>
-<h2 class="font-headline-md text-headline-md text-text-primary">STREAM &amp; FORMAT ENGINE</h2>
-</div>
-<!-- Mode Pills -->
-<div class="flex items-center gap-1 bg-surface-2 p-1 rounded-full" id="format-mode-group">
-<button class="format-mode-btn px-space-sm py-0.5 rounded-full bg-primary-container text-text-primary font-caption text-caption font-medium shadow-sm transition-all" data-format="0" type="button">Auto: Windows</button>
-<button class="format-mode-btn px-space-sm py-0.5 rounded-full text-text-secondary hover:text-text-primary font-caption text-caption transition-all" data-format="1" type="button">Best</button>
-<button class="format-mode-btn px-space-sm py-0.5 rounded-full text-text-secondary hover:text-text-primary font-caption text-caption transition-all" data-format="2" type="button">Adaptive</button>
-<button class="format-mode-btn px-space-sm py-0.5 rounded-full text-text-secondary hover:text-text-primary font-caption text-caption transition-all" data-format="3" type="button">Manual</button>
-</div>
-</div>
-<div class="grid grid-cols-1 sm:grid-cols-2 gap-space-sm mb-space-md">
-<div class="bg-surface-2 p-space-md rounded-lg">
-<div class="flex items-center justify-between text-text-secondary mb-1">
-<span class="font-caption text-caption">Sample Rate</span>
-<span class="material-symbols-outlined text-[16px] text-tertiary">speed</span>
-</div>
-<div class="font-code-lg text-code-lg text-text-primary font-semibold" id="dash-sample-rate">96.0 kHz</div>
-<span class="font-meter-num text-meter-num text-text-secondary">Master Bit-Clock: 6.144 MHz</span>
-</div>
-<div class="bg-surface-2 p-space-md rounded-lg">
-<div class="flex items-center justify-between text-text-secondary mb-1">
-<span class="font-caption text-caption">Bit Depth</span>
-<span class="material-symbols-outlined text-[16px] text-secondary">memory</span>
-</div>
-<div class="font-code-lg text-code-lg text-text-primary font-semibold" id="dash-bit-depth">32-bit Container</div>
-<span class="font-meter-num text-meter-num text-status-ok">24-bit Valid High Precision Audio</span>
-</div>
-<div class="bg-surface-2 p-space-md rounded-lg">
-<div class="flex items-center justify-between text-text-secondary mb-1">
-<span class="font-caption text-caption">Channel Topology</span>
-<span class="material-symbols-outlined text-[16px] text-primary">surround_sound</span>
-</div>
-<div class="font-code-lg text-code-lg text-text-primary font-semibold" id="dash-channels">5.1 Surround</div>
-<span class="font-meter-num text-meter-num text-text-secondary">6 Discrete I2S Channels (3x Data lines)</span>
-</div>
-<div class="bg-surface-2 p-space-md rounded-lg">
-<div class="flex items-center justify-between text-text-secondary mb-1">
-<span class="font-caption text-caption">Lossless Transport</span>
-<span class="material-symbols-outlined text-[16px] text-status-warn">compress</span>
-</div>
-<div class="font-code-lg text-code-lg text-text-primary font-semibold">Delta-Rice FLAC Order-4</div>
-<span class="font-meter-num text-meter-num text-tertiary">~58% Bandwidth Reduction</span>
-</div>
-</div>
-</div>
-<div class="flex items-center justify-between p-space-sm bg-surface-2 rounded-lg text-text-secondary">
-<div class="flex items-center gap-space-xs truncate">
-<span class="material-symbols-outlined text-[18px] text-status-ok">speaker</span>
-<span class="font-caption text-caption text-text-secondary">Capture Device:</span>
-<span id="dash-device-name" class="font-code-sm text-code-sm text-text-primary font-medium truncate">WASAPI Loopback (Realtek High Definition Audio - Default)</span>
-</div>
-<span class="font-meter-num text-meter-num text-status-ok uppercase font-semibold ml-2">Shared 0dBFS</span>
-</div>
-</div>
-<!-- Real-time USB Link Budget & Buffer Telemetry -->
-<div class="lg:col-span-5 bg-surface rounded-xl p-space-lg shadow-xl flex flex-col justify-between">
-<div>
-<div class="flex items-center justify-between mb-space-md">
-<div class="flex items-center gap-space-xs">
-<span class="material-symbols-outlined text-secondary text-[20px]">equalizer</span>
-<h2 class="font-headline-md text-headline-md text-text-primary">LINK BUDGET &amp; BUFFER</h2>
-</div>
-<div class="flex items-center gap-2">
-<button id="btn-reset-buffer" class="px-space-sm py-0.5 rounded-full bg-surface-2 hover:bg-surface-variant text-text-secondary hover:text-text-primary font-caption text-caption transition-colors flex items-center gap-1 cursor-pointer" type="button" title="Reset FIFO and ring buffer">
-<span class="material-symbols-outlined text-[13px]">restart_alt</span>
-<span>Reset Buffer</span>
-</button>
-<span class="font-meter-num text-meter-num text-status-ok px-2 py-0.5 rounded-full bg-surface-2">HEALTHY</span>
-</div>
-</div>
-<!-- Usage Bar -->
-<div class="bg-surface-2 p-space-md rounded-lg mb-space-md">
-<div class="flex items-center justify-between font-caption text-caption mb-space-xs">
-<span class="text-text-secondary">USB Full-Speed Iso/Bulk Safe Envelope</span>
-<span class="font-code-sm text-code-sm text-text-primary font-semibold" id="dash-link-pct">68% Utilized</span>
-</div>
-<div class="w-full h-3 bg-surface-dim rounded-full overflow-hidden p-0.5">
-<div class="h-full rounded-full bg-gradient-to-r from-tertiary via-status-info to-secondary transition-all duration-300" id="dash-link-bar" style="width: 68%;"></div>
-</div>
-<div class="flex items-center justify-between font-meter-num text-meter-num text-text-secondary mt-1.5">
-<span class="text-tertiary" id="dash-bitrate">716 KB/s Current Rate</span>
-<span>1,050 KB/s Hardware Ceiling</span>
-</div>
-</div>
-<!-- Micro Telemetry Grid -->
-<div class="grid grid-cols-2 gap-space-sm">
-<div class="bg-surface-2 p-space-sm rounded-lg">
-<span class="font-caption text-caption text-text-secondary">Target Latency</span>
-<div class="font-code-lg text-code-lg text-text-primary font-medium mt-0.5">3.8 ms</div>
-<span class="font-meter-num text-meter-num text-tertiary">MMCSS Pro Audio (Thread #9)</span>
-</div>
-<div class="bg-surface-2 p-space-sm rounded-lg">
-<span class="font-caption text-caption text-text-secondary">Ring Buffer Fill</span>
-<div class="font-code-lg text-code-lg text-text-primary font-medium mt-0.5" id="dash-buffer-fill">62% Fill</div>
-<span class="font-meter-num text-meter-num text-text-secondary">48 frames / 0.5 ms sub</span>
-</div>
-<div class="bg-surface-2 p-space-sm rounded-lg">
-<span class="font-caption text-caption text-text-secondary">Clock Jitter</span>
-<div class="font-code-lg text-code-lg text-status-ok font-medium mt-0.5">&lt; 0.2 ms</div>
-<span class="font-meter-num text-meter-num text-text-secondary">Drift: +0.003 ppm</span>
-</div>
-<div class="bg-surface-2 p-space-sm rounded-lg">
-<span class="font-caption text-caption text-text-secondary">Buffer Underruns</span>
-<div class="font-code-lg text-code-lg text-status-ok font-medium mt-0.5" id="dash-underruns">0 / hr</div>
-<span class="font-meter-num text-meter-num text-status-ok">Zero Loss / Glitch-Free</span>
-</div>
-</div>
-</div>
-<div class="mt-space-md pt-space-xs flex items-center justify-between text-icon-gray font-caption text-caption">
-<span class="flex items-center gap-1">
-<span class="w-1.5 h-1.5 rounded-full bg-status-ok"></span>
-            DMA Sub-packet FIFO Active
-          </span>
-<span class="font-meter-num text-meter-num">TDM / I2S Dual Core Sync</span>
-</div>
-</div>
-</div>
-<!-- Core Feature: 6-Channel Live VU Meter -->
-<div class="bg-surface rounded-xl p-space-lg shadow-xl relative overflow-hidden">
-<!-- Meter Card Header -->
-<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm mb-space-lg">
-<div class="flex items-center gap-space-sm">
-<div class="w-8 h-8 rounded-full bg-primary-container/20 flex items-center justify-center text-primary">
-<span class="material-symbols-outlined text-[20px]">graphic_eq</span>
-</div>
-<div>
-<h2 class="font-headline-md text-headline-md text-text-primary">6-CHANNEL LIVE VU METERS</h2>
-<p class="font-caption text-caption text-text-secondary">True-Peak DBFS Telemetry with Instantaneous Hold Markers</p>
-</div>
-</div>
-<div class="flex items-center gap-space-md">
-<!-- Overload / Clip indicator LED pill -->
-<div class="flex items-center gap-2 px-space-md py-1 rounded-full bg-surface-2" id="dash-clip-pill">
-<span class="w-2.5 h-2.5 rounded-full bg-status-ok" id="dash-clip-dot"></span>
-<span class="font-code-sm text-code-sm text-status-ok font-medium" id="dash-clip-text">CLIP: NONE (Clean Headroom)</span>
-</div>
-<button class="px-space-md py-1 rounded-full bg-surface-2 hover:bg-surface-variant text-text-secondary hover:text-text-primary font-caption text-caption transition-colors flex items-center gap-1" id="reset-peaks-btn" type="button">
-<span class="material-symbols-outlined text-[14px]">refresh</span>
-<span>Reset Peaks</span>
-</button>
-</div>
-</div>
-<!-- Meter Ticks Scale (Top Scale Marker) -->
-<div class="flex items-center w-full pl-24 pr-20 mb-2 select-none">
-<div class="w-full flex justify-between font-meter-num text-meter-num text-icon-gray">
-<span>-60 dB</span>
-<span>-48</span>
-<span>-36</span>
-<span>-24</span>
-<span>-18</span>
-<span>-12</span>
-<span class="text-status-warn">-6</span>
-<span class="text-status-warn">-3</span>
-<span class="text-status-error font-semibold">0 dBFS</span>
-</div>
-</div>
-<!-- 6 Channel Strips -->
-<div class="flex flex-col gap-space-sm">
-<!-- FL Front Left -->
-<div class="flex items-center gap-space-md bg-surface-2 p-space-sm rounded-lg group hover:bg-surface-variant/40 transition-colors">
-<div class="w-20 flex items-center gap-2">
-<span class="w-7 h-6 rounded flex items-center justify-center font-code-sm text-code-sm font-semibold bg-surface-container text-text-primary">FL</span>
-<span class="font-caption text-caption text-text-secondary">Front L</span>
-</div>
-<div class="relative flex-1 h-6 bg-surface-dim rounded-md overflow-hidden p-0.5 flex items-center">
-<!-- Ticks visual backdrop -->
-<div class="absolute inset-0 flex justify-between opacity-15 pointer-events-none px-1">
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-status-warn"></div>
-<div class="w-px h-full bg-status-warn"></div>
-<div class="w-px h-full bg-status-error"></div>
-</div>
-<!-- Live Level Bar (-6.2 dBFS approx 80%) -->
-<div class="h-full rounded bg-gradient-to-r from-status-ok via-status-ok to-status-warn transition-all duration-100 ease-out" id="meter-bar-fl" style="width: 79.5%;"></div>
-<!-- Peak Hold Marker (-3.1 dBFS approx 89%) -->
-<div class="absolute top-0.5 bottom-0.5 w-1 bg-status-warn rounded-sm shadow-md transition-all duration-500" id="peak-fl" style="left: 89.2%;"></div>
-</div>
-<div class="w-16 text-right font-code-sm text-code-sm text-text-primary font-medium" id="val-fl">-6.2 dB</div>
-</div>
-<!-- FR Front Right -->
-<div class="flex items-center gap-space-md bg-surface-2 p-space-sm rounded-lg group hover:bg-surface-variant/40 transition-colors">
-<div class="w-20 flex items-center gap-2">
-<span class="w-7 h-6 rounded flex items-center justify-center font-code-sm text-code-sm font-semibold bg-surface-container text-text-primary">FR</span>
-<span class="font-caption text-caption text-text-secondary">Front R</span>
-</div>
-<div class="relative flex-1 h-6 bg-surface-dim rounded-md overflow-hidden p-0.5 flex items-center">
-<div class="absolute inset-0 flex justify-between opacity-15 pointer-events-none px-1">
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-status-warn"></div>
-<div class="w-px h-full bg-status-warn"></div>
-<div class="w-px h-full bg-status-error"></div>
-</div>
-<div class="h-full rounded bg-gradient-to-r from-status-ok via-status-ok to-status-warn transition-all duration-100 ease-out" id="meter-bar-fr" style="width: 80.2%;"></div>
-<div class="absolute top-0.5 bottom-0.5 w-1 bg-status-warn rounded-sm shadow-md transition-all duration-500" id="peak-fr" style="left: 89.8%;"></div>
-</div>
-<div class="w-16 text-right font-code-sm text-code-sm text-text-primary font-medium" id="val-fr">-6.0 dB</div>
-</div>
-<!-- C Center -->
-<div class="flex items-center gap-space-md bg-surface-2 p-space-sm rounded-lg group hover:bg-surface-variant/40 transition-colors">
-<div class="w-20 flex items-center gap-2">
-<span class="w-7 h-6 rounded flex items-center justify-center font-code-sm text-code-sm font-semibold bg-primary-container text-text-primary">C</span>
-<span class="font-caption text-caption text-text-secondary">Center</span>
-</div>
-<div class="relative flex-1 h-6 bg-surface-dim rounded-md overflow-hidden p-0.5 flex items-center">
-<div class="absolute inset-0 flex justify-between opacity-15 pointer-events-none px-1">
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-status-warn"></div>
-<div class="w-px h-full bg-status-warn"></div>
-<div class="w-px h-full bg-status-error"></div>
-</div>
-<!-- High level dialog bar (-1.5 dBFS approx 94.5%) -->
-<div class="h-full rounded bg-gradient-to-r from-status-ok via-status-warn to-status-warn transition-all duration-100 ease-out" id="meter-bar-c" style="width: 94.5%;"></div>
-<div class="absolute top-0.5 bottom-0.5 w-1 bg-status-warn rounded-sm shadow-md transition-all duration-500" id="peak-c" style="left: 96.2%;"></div>
-</div>
-<div class="w-16 text-right font-code-sm text-code-sm text-status-warn font-semibold" id="val-c">-1.5 dB</div>
-</div>
-<!-- LFE Subwoofer -->
-<div class="flex items-center gap-space-md bg-surface-2 p-space-sm rounded-lg group hover:bg-surface-variant/40 transition-colors">
-<div class="w-20 flex items-center gap-2">
-<span class="w-7 h-6 rounded flex items-center justify-center font-code-sm text-code-sm font-semibold bg-surface-container text-secondary">LFE</span>
-<span class="font-caption text-caption text-text-secondary">Sub 120Hz</span>
-</div>
-<div class="relative flex-1 h-6 bg-surface-dim rounded-md overflow-hidden p-0.5 flex items-center">
-<div class="absolute inset-0 flex justify-between opacity-15 pointer-events-none px-1">
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-status-warn"></div>
-<div class="w-px h-full bg-status-warn"></div>
-<div class="w-px h-full bg-status-error"></div>
-</div>
-<div class="h-full rounded bg-gradient-to-r from-status-ok to-status-ok transition-all duration-100 ease-out" id="meter-bar-lfe" style="width: 72.8%;"></div>
-<div class="absolute top-0.5 bottom-0.5 w-1 bg-status-ok rounded-sm shadow-md transition-all duration-500" id="peak-lfe" style="left: 81.0%;"></div>
-</div>
-<div class="w-16 text-right font-code-sm text-code-sm text-text-primary font-medium" id="val-lfe">-8.4 dB</div>
-</div>
-<!-- SL Surround Left -->
-<div class="flex items-center gap-space-md bg-surface-2 p-space-sm rounded-lg group hover:bg-surface-variant/40 transition-colors">
-<div class="w-20 flex items-center gap-2">
-<span class="w-7 h-6 rounded flex items-center justify-center font-code-sm text-code-sm font-semibold bg-surface-container text-text-primary">SL</span>
-<span class="font-caption text-caption text-text-secondary">Surr L</span>
-</div>
-<div class="relative flex-1 h-6 bg-surface-dim rounded-md overflow-hidden p-0.5 flex items-center">
-<div class="absolute inset-0 flex justify-between opacity-15 pointer-events-none px-1">
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-status-warn"></div>
-<div class="w-px h-full bg-status-warn"></div>
-<div class="w-px h-full bg-status-error"></div>
-</div>
-<div class="h-full rounded bg-gradient-to-r from-status-ok to-status-ok transition-all duration-100 ease-out" id="meter-bar-sl" style="width: 53.6%;"></div>
-<div class="absolute top-0.5 bottom-0.5 w-1 bg-status-ok rounded-sm shadow-md transition-all duration-500" id="peak-sl" style="left: 64.0%;"></div>
-</div>
-<div class="w-16 text-right font-code-sm text-code-sm text-text-primary font-medium" id="val-sl">-14.1 dB</div>
-</div>
-<!-- SR Surround Right -->
-<div class="flex items-center gap-space-md bg-surface-2 p-space-sm rounded-lg group hover:bg-surface-variant/40 transition-colors">
-<div class="w-20 flex items-center gap-2">
-<span class="w-7 h-6 rounded flex items-center justify-center font-code-sm text-code-sm font-semibold bg-surface-container text-text-primary">SR</span>
-<span class="font-caption text-caption text-text-secondary">Surr R</span>
-</div>
-<div class="relative flex-1 h-6 bg-surface-dim rounded-md overflow-hidden p-0.5 flex items-center">
-<div class="absolute inset-0 flex justify-between opacity-15 pointer-events-none px-1">
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-text-primary"></div>
-<div class="w-px h-full bg-status-warn"></div>
-<div class="w-px h-full bg-status-warn"></div>
-<div class="w-px h-full bg-status-error"></div>
-</div>
-<div class="h-full rounded bg-gradient-to-r from-status-ok to-status-ok transition-all duration-100 ease-out" id="meter-bar-sr" style="width: 54.8%;"></div>
-<div class="absolute top-0.5 bottom-0.5 w-1 bg-status-ok rounded-sm shadow-md transition-all duration-500" id="peak-sr" style="left: 63.4%;"></div>
-</div>
-<div class="w-16 text-right font-code-sm text-code-sm text-text-primary font-medium" id="val-sr">-13.8 dB</div>
-</div>
-</div>
-</div>
-<!-- Bottom Action Bar (Quick Controls) -->
-<div class="bg-surface rounded-xl p-space-md shadow-xl flex flex-col gap-space-md">
-<div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-space-md">
-<!-- Primary Action -->
-<div class="flex items-center gap-space-sm">
-<button class="px-space-xl py-2.5 rounded-full bg-primary-container hover:bg-lg-red-hover active:bg-lg-red-pressed text-text-primary font-body-sm text-body-sm font-semibold shadow-lg shadow-primary-container/20 transition-all flex items-center justify-center gap-2" id="toggle-stream-btn" type="button">
-<span class="material-symbols-outlined text-[18px]">stop_circle</span>
-<span>Stop Stream</span>
-</button>
-<span class="hidden sm:inline-block w-2 h-2 rounded-full bg-status-ok"></span>
-<span class="hidden sm:inline-block font-code-sm text-code-sm text-status-ok font-medium">Active Transmission</span>
-</div>
-<!-- Secondary Pill Actions -->
-<div class="flex items-center gap-space-xs flex-wrap">
-<button class="px-space-md py-2 rounded-full bg-surface-2 hover:bg-surface-variant text-text-primary font-body-sm text-body-sm font-medium transition-colors flex items-center gap-1.5" id="sweep-btn" type="button">
-<span class="material-symbols-outlined text-[18px] text-tertiary">spatial_audio_off</span>
-<span>5.1 Speaker Sweep</span>
-</button>
-<button class="px-space-md py-2 rounded-full bg-surface-2 hover:bg-surface-variant text-text-primary font-body-sm text-body-sm font-medium transition-colors flex items-center gap-1.5" id="mute-btn" type="button">
-<span class="material-symbols-outlined text-[18px] text-status-warn">volume_off</span>
-<span id="mute-label">Mute Master</span>
-</button>
-<button class="px-space-md py-2 rounded-full bg-surface-2 hover:bg-surface-variant text-text-primary font-body-sm text-body-sm font-medium transition-colors flex items-center gap-1.5" type="button">
-<span class="material-symbols-outlined text-[18px] text-text-secondary">settings</span>
-<span>Format Settings</span>
-</button>
-<button class="w-9 h-9 rounded-full bg-surface-2 hover:bg-surface-variant text-text-secondary hover:text-text-primary flex items-center justify-center transition-colors" title="Minimize to System Tray" type="button">
-<span class="material-symbols-outlined text-[18px]">vertical_align_bottom</span>
-</button>
-</div>
-</div>
-<!-- Hardware Synchronized Footer Subtext -->
-<div class="pt-space-sm flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-icon-gray font-caption text-caption border-t border-surface-2">
-<div class="flex items-center gap-1.5">
-<span class="material-symbols-outlined text-[14px] text-tertiary">verified</span>
-<span>Bit-Perfect stream synchronized to IC602 Pulsus PS9850 ASRC. Zero resample artifacts.</span>
-</div>
-<div class="font-meter-num text-meter-num" id="dash-fifo-depth">
-          FIFO DEPTH: 1024 BYTES │ LATENCY OFFSET: 0.00ms
+<div id="tab-dashboard" class="tab-panel w-full">
+  <div class="w-full max-w-[960px] mx-auto flex flex-col gap-6">
+
+    <!-- 1. HEADER: Device Identity & Connection Status (Single Clean Row) -->
+    <header class="flex items-center justify-between pb-4 border-b border-border-subtle">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-surface-2 border border-border flex items-center justify-center text-primary shadow-sm">
+          <span class="material-symbols-outlined text-[19px]">surround_sound</span>
         </div>
-</div>
-</div>
-</div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-base font-semibold text-text-primary tracking-tight">LG HT306 Home Theater</h1>
+            <span id="dash-connected-dot" class="w-2 h-2 rounded-full bg-status-ok animate-pulse" title="Terhubung COM4"></span>
+          </div>
+          <span class="text-xs text-text-muted font-mono">5.1 Surround · Bit-Perfect I2S Bridge</span>
+        </div>
       </div>
+
+      <div class="flex items-center gap-2">
+        <!-- Debug Audio Mode Toggle -->
+        <button id="btn-debug-audio" type="button" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-2 hover:bg-surface-3 border border-border text-xs text-text-secondary hover:text-text-primary transition-colors cursor-pointer" onclick="window.handleDebugAudioToggle ? window.handleDebugAudioToggle(event) : toggleDebugAudio()" title="Aktifkan simulasi audio tanpa RP2350">
+          <span class="material-symbols-outlined text-[14px] text-status-warn" id="dash-debug-audio-icon">bug_report</span>
+          <span id="dash-debug-audio-text">Debug Audio: OFF</span>
+        </button>
+
+        <!-- Master Mute Quick Button -->
+        <button id="master-mute-btn" type="button" class="w-8 h-8 rounded-full bg-surface-2 hover:bg-surface-3 border border-border flex items-center justify-center text-text-secondary hover:text-text-primary transition-colors cursor-pointer" onclick="window.toggleMasterMute ? window.toggleMasterMute() : toggleMute()" title="Mute Output">
+          <span id="mute-icon" class="material-symbols-outlined text-[17px]">volume_up</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- 2. MASTER CONTROLS BAR: Sample Rate Selector & Sound Profiles (Hanya Kontrol Utama) -->
+    <div class="bg-surface rounded-xl p-4 border border-border-subtle flex flex-col md:flex-row md:items-center justify-between gap-4">
+      
+      <!-- Sample Rate Selector (Auto / 96k / 48k) -->
+      <div class="flex items-center gap-3">
+        <span class="text-xs font-medium text-text-secondary uppercase tracking-wider">Sample Rate</span>
+        
+        <div class="flex items-center bg-surface-2 p-1 rounded-lg border border-border">
+          <button id="btn-rate-auto" type="button" class="px-3 py-1 rounded-md text-xs font-mono font-medium transition-all bg-primary text-white shadow-sm cursor-pointer" onclick="window.handleSampleRateSelect ? window.handleSampleRateSelect('auto') : setSampleRate('auto')">Auto</button>
+          <button id="btn-rate-96k" type="button" class="px-3 py-1 rounded-md text-xs font-mono font-medium transition-all text-text-secondary hover:text-text-primary hover:bg-surface-3 cursor-pointer" onclick="window.handleSampleRateSelect ? window.handleSampleRateSelect('96k') : setSampleRate('96k')">96 kHz</button>
+          <button id="btn-rate-48k" type="button" class="px-3 py-1 rounded-md text-xs font-mono font-medium transition-all text-text-secondary hover:text-text-primary hover:bg-surface-3 cursor-pointer" onclick="window.handleSampleRateSelect ? window.handleSampleRateSelect('48k') : setSampleRate('48k')">48 kHz</button>
+        </div>
+
+        <!-- Dynamic Feedback Pill (Auto Clamp / Status) -->
+        <span id="dash-rate-feedback" class="text-xs font-mono px-2 py-0.5 rounded bg-surface-2 text-status-ok border border-border-subtle">
+          Aktif: 96.0 kHz (Auto ≤96k)
+        </span>
+      </div>
+
+      <!-- Quick Sound Profile Selector -->
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-medium text-text-secondary uppercase tracking-wider">Profile</span>
+        <div class="flex items-center bg-surface-2 p-1 rounded-lg border border-border text-xs">
+          <button type="button" class="px-3 py-1 rounded-md bg-surface-3 text-text-primary font-medium transition-all shadow-sm cursor-pointer" onclick="window.handleProfileSelect ? window.handleProfileSelect('Direct', this) : setProfile(this)">Direct Studio</button>
+          <button type="button" class="px-3 py-1 rounded-md text-text-secondary hover:text-text-primary transition-all cursor-pointer" onclick="window.handleProfileSelect ? window.handleProfileSelect('Movie', this) : setProfile(this)">Cinema 5.1</button>
+          <button type="button" class="px-3 py-1 rounded-md text-text-secondary hover:text-text-primary transition-all cursor-pointer" onclick="window.handleProfileSelect ? window.handleProfileSelect('Music', this) : setProfile(this)">Music / Hi-Fi</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. THE CORE CANVAS: 6-CHANNEL LIVE VU METERS & MASTER VOLUME -->
+    <section class="bg-surface rounded-2xl p-6 border border-border-subtle shadow-xl flex flex-col gap-6">
+      
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+        
+        <!-- LEFT: 6-Channel Live Responsive VU Meters (8 Cols) -->
+        <div class="lg:col-span-8 flex flex-col gap-3.5">
+          
+          <!-- VU dB Scale Header (Aligned with Meter Track) -->
+          <div class="flex items-center justify-between text-[11px] font-mono text-text-muted pl-10 pr-[76px] border-b border-border-subtle pb-1">
+            <span>-48</span>
+            <span>-36</span>
+            <span>-24</span>
+            <span>-12</span>
+            <span>-6</span>
+            <span>-3</span>
+            <span class="text-status-warn">0 dBFS</span>
+          </div>
+
+          <!-- Channel 1: Front Left -->
+          <div class="flex items-center gap-3 h-6">
+            <span class="w-7 flex-shrink-0 text-xs font-mono font-medium text-text-secondary text-right">FL</span>
+            <div class="flex-1 h-3 bg-surface-2 rounded-full overflow-hidden relative border border-border-subtle">
+              <div id="meter-bar-fl" class="h-full bg-gradient-to-r from-emerald-500 via-emerald-400 to-primary rounded-full transition-all duration-75" style="width: 72%;"></div>
+              <div id="peak-fl" class="absolute top-0 bottom-0 w-0.5 bg-white/70 rounded-full transition-all duration-300 pointer-events-none" style="left: 72%;"></div>
+            </div>
+            <span id="val-fl" class="w-16 min-w-[64px] flex-shrink-0 whitespace-nowrap tabular-nums text-xs font-mono text-text-muted text-right">-8.5 dB</span>
+          </div>
+
+          <!-- Channel 2: Front Right -->
+          <div class="flex items-center gap-3 h-6">
+            <span class="w-7 flex-shrink-0 text-xs font-mono font-medium text-text-secondary text-right">FR</span>
+            <div class="flex-1 h-3 bg-surface-2 rounded-full overflow-hidden relative border border-border-subtle">
+              <div id="meter-bar-fr" class="h-full bg-gradient-to-r from-emerald-500 via-emerald-400 to-primary rounded-full transition-all duration-75" style="width: 70%;"></div>
+              <div id="peak-fr" class="absolute top-0 bottom-0 w-0.5 bg-white/70 rounded-full transition-all duration-300 pointer-events-none" style="left: 70%;"></div>
+            </div>
+            <span id="val-fr" class="w-16 min-w-[64px] flex-shrink-0 whitespace-nowrap tabular-nums text-xs font-mono text-text-muted text-right">-9.1 dB</span>
+          </div>
+
+          <!-- Channel 3: Center -->
+          <div class="flex items-center gap-3 h-6">
+            <span class="w-7 flex-shrink-0 text-xs font-mono font-medium text-text-secondary text-right">C</span>
+            <div class="flex-1 h-3 bg-surface-2 rounded-full overflow-hidden relative border border-border-subtle">
+              <div id="meter-bar-c" class="h-full bg-gradient-to-r from-emerald-500 via-emerald-400 to-primary rounded-full transition-all duration-75" style="width: 58%;"></div>
+              <div id="peak-c" class="absolute top-0 bottom-0 w-0.5 bg-white/70 rounded-full transition-all duration-300 pointer-events-none" style="left: 58%;"></div>
+            </div>
+            <span id="val-c" class="w-16 min-w-[64px] flex-shrink-0 whitespace-nowrap tabular-nums text-xs font-mono text-text-muted text-right">-14.2 dB</span>
+          </div>
+
+          <!-- Channel 4: Subwoofer (LFE) -->
+          <div class="flex items-center gap-3 h-6">
+            <span class="w-7 flex-shrink-0 text-xs font-mono font-medium text-text-secondary text-right">LFE</span>
+            <div class="flex-1 h-3 bg-surface-2 rounded-full overflow-hidden relative border border-border-subtle">
+              <div id="meter-bar-lfe" class="h-full bg-gradient-to-r from-emerald-500 via-emerald-400 to-primary rounded-full transition-all duration-75" style="width: 84%;"></div>
+              <div id="peak-lfe" class="absolute top-0 bottom-0 w-0.5 bg-white/70 rounded-full transition-all duration-300 pointer-events-none" style="left: 84%;"></div>
+            </div>
+            <span id="val-lfe" class="w-16 min-w-[64px] flex-shrink-0 whitespace-nowrap tabular-nums text-xs font-mono text-primary font-semibold text-right">-3.2 dB</span>
+          </div>
+
+          <!-- Channel 5: Surround Left -->
+          <div class="flex items-center gap-3 h-6">
+            <span class="w-7 flex-shrink-0 text-xs font-mono font-medium text-text-secondary text-right">SL</span>
+            <div class="flex-1 h-3 bg-surface-2 rounded-full overflow-hidden relative border border-border-subtle">
+              <div id="meter-bar-sl" class="h-full bg-gradient-to-r from-emerald-500 via-emerald-400 to-primary rounded-full transition-all duration-75" style="width: 45%;"></div>
+              <div id="peak-sl" class="absolute top-0 bottom-0 w-0.5 bg-white/70 rounded-full transition-all duration-300 pointer-events-none" style="left: 45%;"></div>
+            </div>
+            <span id="val-sl" class="w-16 min-w-[64px] flex-shrink-0 whitespace-nowrap tabular-nums text-xs font-mono text-text-muted text-right">-18.0 dB</span>
+          </div>
+
+          <!-- Channel 6: Surround Right -->
+          <div class="flex items-center gap-3 h-6">
+            <span class="w-7 flex-shrink-0 text-xs font-mono font-medium text-text-secondary text-right">SR</span>
+            <div class="flex-1 h-3 bg-surface-2 rounded-full overflow-hidden relative border border-border-subtle">
+              <div id="meter-bar-sr" class="h-full bg-gradient-to-r from-emerald-500 via-emerald-400 to-primary rounded-full transition-all duration-75" style="width: 47%;"></div>
+              <div id="peak-sr" class="absolute top-0 bottom-0 w-0.5 bg-white/70 rounded-full transition-all duration-300 pointer-events-none" style="left: 47%;"></div>
+            </div>
+            <span id="val-sr" class="w-16 min-w-[64px] flex-shrink-0 whitespace-nowrap tabular-nums text-xs font-mono text-text-muted text-right">-17.4 dB</span>
+          </div>
+        </div>
+
+        <!-- RIGHT: Master Volume Level (4 Cols) -->
+        <div class="lg:col-span-4 bg-surface-2 p-5 rounded-xl border border-border flex flex-col justify-between gap-5">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-medium text-text-secondary uppercase tracking-wider">Master Output</span>
+            <span class="text-xs px-2 py-0.5 rounded bg-surface border border-border text-text-secondary font-mono" id="dash-vol-status-badge">Unity 0dB</span>
+          </div>
+
+          <!-- Big Numerical Level Display -->
+          <div class="flex items-baseline justify-center gap-1 py-1">
+            <span id="master-vol-readout" class="text-4xl font-bold font-mono text-text-primary tracking-tight">0.0</span>
+            <span class="text-sm font-mono text-text-secondary">dB</span>
+          </div>
+
+          <!-- Master Slider -->
+          <div class="flex flex-col gap-2">
+            <input type="range" id="master-slider" min="-60" max="6" step="0.5" value="0" class="w-full accent-primary h-1.5 bg-surface rounded-full appearance-none cursor-pointer" oninput="window.updateMaster ? window.updateMaster(this.value) : handleMasterSlider(this.value)" />
+            <div class="flex justify-between text-[10px] font-mono text-text-muted">
+              <span>-60 dB</span>
+              <span>-24</span>
+              <span>-12</span>
+              <span class="text-text-primary font-semibold">0 dB</span>
+              <span>+6 dB</span>
+            </div>
+          </div>
+
+          <!-- Quick Volume Snapshots -->
+          <div class="grid grid-cols-4 gap-1.5">
+            <button type="button" class="py-1 rounded bg-surface hover:bg-surface-3 border border-border text-xs font-mono text-text-secondary hover:text-text-primary transition-colors cursor-pointer" onclick="window.setMasterDb ? window.setMasterDb(-18) : setMaster(-18)">-18</button>
+            <button type="button" class="py-1 rounded bg-surface hover:bg-surface-3 border border-border text-xs font-mono text-text-secondary hover:text-text-primary transition-colors cursor-pointer" onclick="window.setMasterDb ? window.setMasterDb(-12) : setMaster(-12)">-12</button>
+            <button type="button" class="py-1 rounded bg-surface hover:bg-surface-3 border border-border text-xs font-mono text-text-secondary hover:text-text-primary transition-colors cursor-pointer" onclick="window.setMasterDb ? window.setMasterDb(-6) : setMaster(-6)">-6</button>
+            <button type="button" class="py-1 rounded bg-primary text-white font-mono text-xs font-medium hover:bg-primary-hover transition-colors cursor-pointer" onclick="window.setMasterDb ? window.setMasterDb(0) : setMaster(0)">0 dB</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. CLEAN FOOTER: Minimal Navigation Hint to Deep Tabs -->
+    <footer class="flex items-center justify-between text-xs text-text-muted px-1">
+      <div class="flex items-center gap-2">
+        <span class="w-1.5 h-1.5 rounded-full bg-status-ok"></span>
+        <span>Lossless Audio Engine Active</span>
+      </div>
+      
+      <div class="flex items-center gap-4">
+        <span>Pengaturan channel trim &amp; delay di <button type="button" onclick="switchTab('mixer')" class="text-text-secondary hover:text-text-primary font-medium underline underline-offset-2 cursor-pointer">Mixer</button></span>
+        <span>·</span>
+        <span>Diagnostik lengkap di <button type="button" onclick="switchTab('log')" class="text-text-secondary hover:text-text-primary font-medium underline underline-offset-2 cursor-pointer">Log</button></span>
+      </div>
+    </footer>
+
+    <!-- 5. HIDDEN DIAGNOSTICS & TELEMETRY REGISTRY (Guarantees telemetry.js safe loop execution without UI clutter) -->
+    <div class="hidden" aria-hidden="true">
+      <span id="dash-connected-text">● CONNECTED</span>
+      <span id="dash-com-port">COM4</span>
+      <span id="dash-vid-pid">0x2E8A : 0x4306</span>
+      <button id="toggle-stream-btn" type="button"></button>
+      <span id="mute-label">Mute Master</span>
+      <span id="dash-sample-rate">96.0 kHz</span>
+      <span id="dash-profile-name">Cinema Surround</span>
+      <span id="dash-clip-pill"><span id="dash-clip-dot"></span><span id="dash-clip-text">CLIP: NONE</span></span>
+      <button id="reset-peaks-btn" type="button"></button>
+      <button id="master-zero-btn" type="button"></button>
+      <button id="mute-btn" type="button"></button>
+      <div id="master-meter-bar"></div>
+      <span id="dash-device-name">WASAPI Loopback</span>
+      <span id="dash-bit-depth">32-bit Container</span>
+      <span id="dash-channels">5.1 Surround</span>
+      <span id="dash-buffer-fill">62% Fill</span>
+      <span id="dash-link-pct">68% Utilized</span>
+      <div id="dash-link-bar"></div>
+      <span id="dash-bitrate">716 KB/s Current Rate</span>
+      <span id="dash-underruns">0 / hr</span>
+      <span id="dash-uptime">00:00:00</span>
+      <button id="sweep-btn" type="button"></button>
+      <button id="btn-reset-buffer" type="button"></button>
+      <span id="dash-heartbeat">♥ 1 Hz OK</span>
+      <span id="dash-pio-status">READY</span>
+      <span id="dash-mux-status">HIGH</span>
+      <span id="dash-dsp-status">LOCKED</span>
+      <span id="dash-fifo-depth">1024 B · 0.0ms</span>
+      <span id="master-vol-num">0.0 dB</span>
+    </div>
+
+  </div>
+</div>

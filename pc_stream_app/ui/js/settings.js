@@ -21,6 +21,100 @@
     });
   };
 
+  // --- SAMPLE RATE SELECTOR (DASHBOARD) ---
+  window.currentSampleRateMode = window.currentSampleRateMode || "auto";
+  window.currentActiveSampleRate = window.currentActiveSampleRate || 96000;
+  window.currentCapturePath = window.currentCapturePath || "";
+  window._lastSampleRateClickMs = window._lastSampleRateClickMs || 0;
+
+  window.renderSampleRateUi = function (mode, activeRate, clamped, inputRate, capturePath) {
+    const normMode = (mode === "96k" || mode === "48k") ? mode : "auto";
+    window.currentSampleRateMode = normMode;
+    if (typeof activeRate === "number" && activeRate > 0) {
+      window.currentActiveSampleRate = activeRate;
+    }
+
+    const btns = {
+      auto: document.getElementById("btn-rate-auto"),
+      "96k": document.getElementById("btn-rate-96k"),
+      "48k": document.getElementById("btn-rate-48k"),
+    };
+
+    Object.keys(btns).forEach((key) => {
+      const b = btns[key];
+      if (b) {
+        if (key === normMode) {
+          b.className = "px-3 py-1 rounded-md text-xs font-mono font-medium transition-all bg-primary text-white shadow-sm cursor-pointer";
+        } else {
+          b.className = "px-3 py-1 rounded-md text-xs font-mono font-medium transition-all text-text-secondary hover:text-text-primary hover:bg-surface-3 cursor-pointer";
+        }
+      }
+    });
+
+    const label = document.getElementById("dash-rate-feedback");
+    const dashRate = document.getElementById("dash-sample-rate");
+    const hasRate = typeof activeRate === "number" && activeRate > 0;
+    const displayRate = hasRate ? activeRate : (normMode === "48k" ? 48000 : 96000);
+    const outKhz = (displayRate / 1000).toFixed(1);
+    const pathHint = capturePath === "vbcable_capture" ? " · Capture"
+                   : capturePath === "sweep_only" ? " · Sweep" : "";
+
+    if (dashRate) {
+      dashRate.innerText = hasRate ? `${outKhz} kHz` : "Standby";
+    }
+
+    if (label) {
+      if (!hasRate && normMode === "auto") {
+        label.innerText = "Standby (Auto ≤96k)";
+        label.className = "text-xs font-mono px-2 py-0.5 rounded bg-surface-2 text-text-muted border border-border-subtle";
+      } else if (normMode === "auto") {
+        if (clamped && inputRate > 0) {
+          const inKhz = (inputRate / 1000).toFixed(1);
+          label.innerText = `Auto Clamp: ${inKhz} → ${outKhz} kHz${pathHint}`;
+          label.className = "text-xs font-mono px-2 py-0.5 rounded bg-surface-2 text-status-warn font-semibold border border-border-subtle";
+        } else {
+          label.innerText = `Aktif: ${outKhz} kHz (Auto ≤96k)${pathHint}`;
+          label.className = "text-xs font-mono px-2 py-0.5 rounded bg-surface-2 text-status-ok border border-border-subtle";
+        }
+      } else if (normMode === "96k") {
+        label.innerText = `Terkunci: ${outKhz} kHz (Studio Master)${pathHint}`;
+        label.className = "text-xs font-mono px-2 py-0.5 rounded bg-surface-2 text-primary font-semibold border border-border-subtle";
+      } else if (normMode === "48k") {
+        label.innerText = `Terkunci: ${outKhz} kHz (Hi-Fi Standard)${pathHint}`;
+        label.className = "text-xs font-mono px-2 py-0.5 rounded bg-surface-2 text-status-warn font-semibold border border-border-subtle";
+      }
+    }
+  };
+
+  window.handleSampleRateSelect = function (mode) {
+    window._lastSampleRateClickMs = Date.now();
+    const rateVal = mode === "48k" ? 48000 : 96000;
+    window.renderSampleRateUi(mode, rateVal, false, 0, window.currentCapturePath || "");
+
+    if (typeof window.sendNativeCommand === "function") {
+      window.sendNativeCommand("select_sample_rate", { mode: mode, rate: rateVal });
+    }
+  };
+
+  // --- QUICK PROFILE SELECTOR (DASHBOARD) ---
+  window.handleProfileSelect = function (name, btn) {
+    if (btn && btn.parentElement) {
+      Array.from(btn.parentElement.children).forEach((c) => {
+        c.className = "px-2.5 py-1 rounded-md text-text-secondary hover:text-text-primary transition-all cursor-pointer font-medium";
+      });
+      btn.className = "px-2.5 py-1 rounded-md bg-surface-variant text-text-primary font-medium transition-all cursor-pointer";
+    }
+    if (typeof window.selectProfile === "function") {
+      const cardMap = {
+        Movie: "card-movie",
+        Direct: "card-audiophile",
+        Music: "card-music",
+        Gaming: "card-gaming",
+      };
+      window.selectProfile(cardMap[name] || "card-movie", name, name + " Profile");
+    }
+  };
+
   // --- LIP-SYNC TIMING & DELAY ALIGNMENT ---
   window.updateDelayUi = function (ms) {
     const num = parseInt(ms, 10);
@@ -34,7 +128,8 @@
     if (delayBlock) delayBlock.style.width = Math.max(8, (num / 200) * 100) + "%";
 
     if (lipsyncSubframes) {
-      const subframes = Math.round((num / 1000) * 96000 / 288);
+      const sr = window.currentActiveSampleRate || 96000;
+      const subframes = Math.round((num / 1000) * sr / 288);
       const frames60 = ((num / 1000) * 60).toFixed(2);
       lipsyncSubframes.textContent = `${subframes} subframes / ${frames60} frames @ 60Hz`;
     }

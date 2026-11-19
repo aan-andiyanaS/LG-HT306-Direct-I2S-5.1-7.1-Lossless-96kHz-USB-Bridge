@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LG HT306 — True Minimalist Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            background: "#0E0E10",
+            surface: "#161618",
+            "surface-2": "#1E1E22",
+            "surface-3": "#28282E",
+            border: "#2A2A30",
+            "border-subtle": "#202026",
+            primary: "#E0245E", // LG Red Accent
+            "primary-hover": "#C0184C",
+            "status-ok": "#10B981",
+            "status-warn": "#F59E0B",
+            "status-error": "#EF4444",
+            text: {
+              primary: "#F4F4F6",
+              secondary: "#9E9EA8",
+              muted: "#5C5C66",
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body {
+      background-color: #0E0E10;
+      color: #F4F4F6;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      user-select: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 16px;
+      width: 16px;
+      border-radius: 9999px;
+      background: #FFFFFF;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+      transition: transform 0.1s ease;
+    }
+    input[type=range]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-start p-6 md:p-10">
+
+  <!-- Main Workspace (Zero Clutter, Focus on Core Audio Control) -->
+  <div class="w-full max-w-[960px] flex flex-col gap-6">
+
+    <!-- 1. HEADER: Device Identity & Connection Status (Single Clean Row) -->
+    <header class="flex items-center justify-between pb-4 border-b border-border-subtle">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-surface-2 border border-border flex items-center justify-center text-primary shadow-sm">
+          <span class="material-symbols-outlined text-[19px]">surround_sound</span>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-base font-semibold text-text-primary tracking-tight">LG HT306 Home Theater</h1>
+            <span class="w-2 h-2 rounded-full bg-status-ok animate-pulse" title="Terhubung COM4"></span>
+          </div>
+          <span class="text-xs text-text-muted font-mono">5.1 Surround · Bit-Perfect I2S Bridge</span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <!-- Debug Audio Mode Toggle -->
+        <button id="btn-debug-toggle" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-2 hover:bg-surface-3 border border-border text-xs text-text-secondary hover:text-text-primary transition-colors cursor-pointer" onclick="toggleDebugAudio()">
+          <span class="material-symbols-outlined text-[14px] text-status-warn">bug_report</span>
+          <span id="debug-text">Debug Audio: OFF</span>
+        </button>
+
+        <!-- Master Mute Quick Button -->
+        <button id="btn-master-mute" class="w-8 h-8 rounded-full bg-surface-2 hover:bg-surface-3 border border-border flex items-center justify-center text-text-secondary hover:text-text-primary transition-colors cursor-pointer" onclick="toggleMute()" title="Mute Output">
+          <span id="mute-icon" class="material-symbols-outlined text-[17px]">volume_up</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- 2. MASTER CONTROLS BAR: Sample Rate Selector & Sound Profiles (Hanya Kontrol Utama) -->
+    <div class="bg-surface rounded-xl p-4 border border-border-subtle flex flex-col md:flex-row md:items-center justify-between gap-4">
+      
+      <!-- Sample Rate Selector (Auto / 96k / 48k) -->
+      <div class="flex items-center gap-3">
+        <span class="text-xs font-medium text-text-secondary uppercase tracking-wider">Sample Rate</span>
+        
+        <div class="flex items-center bg-surface-2 p-1 rounded-lg border border-border">
+          <button id="btn-rate-auto" class="px-3 py-1 rounded-md text-xs font-mono font-medium transition-all bg-primary text-white shadow-sm cursor-pointer" onclick="setSampleRate('auto')">Auto</button>
+          <button id="btn-rate-96k" class="px-3 py-1 rounded-md text-xs font-mono font-medium transition-all text-text-secondary hover:text-text-primary hover:bg-surface-3 cursor-pointer" onclick="setSampleRate('96k')">96 kHz</button>
+          <button id="btn-rate-48k" class="px-3 py-1 rounded-md text-xs font-mono font-medium transition-all text-text-secondary hover:text-text-primary hover:bg-surface-3 cursor-pointer" onclick="setSampleRate('48k')">48 kHz</button>
+        </div>
+
+        <!-- Dynamic Feedback Pill (Auto Clamp / Status) -->
+        <span id="rate-feedback" class="text-xs font-mono px-2 py-0.5 rounded bg-surface-2 text-status-ok border border-border-subtle">
+          Aktif: 96.0 kHz (Auto ≤96k)
+        </span>
+      </div>
+
+      <!-- Quick Sound Profile Selector -->
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-medium text-text-secondary uppercase tracking-wider">Profile</span>
+        <div class="flex items-center bg-surface-2 p-1 rounded-lg border border-border text-xs">
+          <button class="px-3 py-1 rounded-md bg-surface-3 text-text-primary font-medium transition-all shadow-sm cursor-pointer" onclick="setProfile(this)">Direct Studio</button>
+          <button class="px-3 py-1 rounded-md text-text-secondary hover:text-text-primary transition-all cursor-pointer" onclick="setProfile(this)">Cinema 5.1</button>
+          <button class="px-3 py-1 rounded-md text-text-secondary hover:text-text-primary transition-all cursor-pointer" onclick="setProfile(this)">Music / Hi-Fi</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. THE CORE CANVAS: 6-CHANNEL LIVE VU METERS & MASTER VOLUME -->
+    <section class="bg-surface rounded-2xl p-6 border border-border-subtle shadow-xl flex flex-col gap-6">
+      
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+        
+        <!-- LEFT: 6-Channel Live Responsive VU Meters (8 Cols) -->
+        <div class="lg:col-span-8 flex flex-col gap-3.5">
+          
+          <!-- VU dB Scale Header (Aligned with Meter Track) -->
+          <div class="flex items-center justify-between text-[11px] font-mono text-text-muted pl-10 pr-[76px] border-b border-border-subtle pb-1">
+            <span>-48</span>
+            <span>-36</span>
+            <span>-24</span>
+            <span>-12</span>
+            <span>-6</span>
+            <span>-3</span>
+            <span class="text-status-warn">0 dBFS</span>
+          </div>
+
+          <!-- Channel 1: Front Left -->
+          <div class="flex items-center gap-3 h-6">
+            <span class="w-7 flex-shrink-0 text-xs font-mono font-medium text-text-secondary text-right">FL</span>
+            <div class="flex-1 h-3 bg-surface-2 rounded-full overflow-hidden relative border border-border-subtle">
+              <div id="meter-fl" class="h-full bg-gradient-to-r from-emerald-500 via-emerald-400 to-primary rounded-full transition-all duration-75" style="width: 72%;"></div>
+            </div>
+            <span id="num-fl" class="w-16 min-w-[64px] flex-shrink-0 whitespace-nowrap tabular-nums text-xs font-mono text-text-muted text-right">-8.5 dB</span>
+          </div>
+
+          <!-- Channel 2: Front Right -->
+          <div class="flex items-center gap-3 h-6">
+            <span class="w-7 flex-shrink-0 text-xs font-mono font-medium text-text-secondary text-right">FR</span>
+            <div class="flex-1 h-3 bg-surface-2 rounded-full overflow-hidden relative border border-border-subtle">
+              <div id="meter-fr" class="h-full bg-gradient-to-r from-emerald-500 via-emerald-400 to-primary rounded-full transition-all duration-75" style="width: 70%;"></div>
+            </div>
+            <span id="num-fr" class="w-16 min-w-[64px] flex-shrink-0 whitespace-nowrap tabular-nums text-xs font-mono text-text-muted text-right">-9.1 dB</span>
+          </div>
+
+          <!-- Channel 3: Center -->
+          <div class="flex items-center gap-3 h-6">
+            <span class="w-7 flex-shrink-0 text-xs font-mono font-medium text-text-secondary text-right">C</span>
+            <div class="flex-1 h-3 bg-surface-2 rounded-full overflow-hidden relative border border-border-subtle">
+              <div id="meter-c" class="h-full bg-gradient-to-r from-emerald-500 via-emerald-400 to-primary rounded-full transition-all duration-75" style="width: 58%;"></div>
+            </div>
+            <span id="num-c" class="w-16 min-w-[64px] flex-shrink-0 whitespace-nowrap tabular-nums text-xs font-mono text-text-muted text-right">-14.2 dB</span>
+          </div>
+
+          <!-- Channel 4: Subwoofer (LFE) -->
+          <div class="flex items-center gap-3 h-6">
+            <span class="w-7 flex-shrink-0 text-xs font-mono font-medium text-text-secondary text-right">LFE</span>
+            <div class="flex-1 h-3 bg-surface-2 rounded-full overflow-hidden relative border border-border-subtle">
+              <div id="meter-lfe" class="h-full bg-gradient-to-r from-emerald-500 via-emerald-400 to-primary rounded-full transition-all duration-75" style="width: 84%;"></div>
+            </div>
+            <span id="num-lfe" class="w-16 min-w-[64px] flex-shrink-0 whitespace-nowrap tabular-nums text-xs font-mono text-primary font-semibold text-right">-3.2 dB</span>
+          </div>
+
+          <!-- Channel 5: Surround Left -->
+          <div class="flex items-center gap-3 h-6">
+            <span class="w-7 flex-shrink-0 text-xs font-mono font-medium text-text-secondary text-right">SL</span>
+            <div class="flex-1 h-3 bg-surface-2 rounded-full overflow-hidden relative border border-border-subtle">
+              <div id="meter-sl" class="h-full bg-gradient-to-r from-emerald-500 via-emerald-400 to-primary rounded-full transition-all duration-75" style="width: 45%;"></div>
+            </div>
+            <span id="num-sl" class="w-16 min-w-[64px] flex-shrink-0 whitespace-nowrap tabular-nums text-xs font-mono text-text-muted text-right">-18.0 dB</span>
+          </div>
+
+          <!-- Channel 6: Surround Right -->
+          <div class="flex items-center gap-3 h-6">
+            <span class="w-7 flex-shrink-0 text-xs font-mono font-medium text-text-secondary text-right">SR</span>
+            <div class="flex-1 h-3 bg-surface-2 rounded-full overflow-hidden relative border border-border-subtle">
+              <div id="meter-sr" class="h-full bg-gradient-to-r from-emerald-500 via-emerald-400 to-primary rounded-full transition-all duration-75" style="width: 47%;"></div>
+            </div>
+            <span id="num-sr" class="w-16 min-w-[64px] flex-shrink-0 whitespace-nowrap tabular-nums text-xs font-mono text-text-muted text-right">-17.4 dB</span>
+          </div>
+        </div>
+
+        <!-- RIGHT: Master Volume Level (4 Cols) -->
+        <div class="lg:col-span-4 bg-surface-2 p-5 rounded-xl border border-border flex flex-col justify-between gap-5">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-medium text-text-secondary uppercase tracking-wider">Master Output</span>
+            <span class="text-xs px-2 py-0.5 rounded bg-surface border border-border text-text-secondary font-mono">Unity 0dB</span>
+          </div>
+
+          <!-- Big Numerical Level Display -->
+          <div class="flex items-baseline justify-center gap-1 py-1">
+            <span id="master-vol-readout" class="text-4xl font-bold font-mono text-text-primary tracking-tight">0.0</span>
+            <span class="text-sm font-mono text-text-secondary">dB</span>
+          </div>
+
+          <!-- Master Slider -->
+          <div class="flex flex-col gap-2">
+            <input type="range" id="master-slider" min="-60" max="6" step="0.5" value="0" class="w-full accent-primary h-1.5 bg-surface rounded-full appearance-none cursor-pointer" oninput="handleMasterSlider(this.value)" />
+            <div class="flex justify-between text-[10px] font-mono text-text-muted">
+              <span>-60 dB</span>
+              <span>-24</span>
+              <span>-12</span>
+              <span class="text-text-primary font-semibold">0 dB</span>
+              <span>+6 dB</span>
+            </div>
+          </div>
+
+          <!-- Quick Volume Snapshots -->
+          <div class="grid grid-cols-4 gap-1.5">
+            <button class="py-1 rounded bg-surface hover:bg-surface-3 border border-border text-xs font-mono text-text-secondary hover:text-text-primary transition-colors cursor-pointer" onclick="setMaster(-18)">-18</button>
+            <button class="py-1 rounded bg-surface hover:bg-surface-3 border border-border text-xs font-mono text-text-secondary hover:text-text-primary transition-colors cursor-pointer" onclick="setMaster(-12)">-12</button>
+            <button class="py-1 rounded bg-surface hover:bg-surface-3 border border-border text-xs font-mono text-text-secondary hover:text-text-primary transition-colors cursor-pointer" onclick="setMaster(-6)">-6</button>
+            <button class="py-1 rounded bg-primary text-white font-mono text-xs font-medium hover:bg-primary-hover transition-colors cursor-pointer" onclick="setMaster(0)">0 dB</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. CLEAN FOOTER: Minimal Navigation Hint to Deep Tabs -->
+    <footer class="flex items-center justify-between text-xs text-text-muted px-1">
+      <div class="flex items-center gap-2">
+        <span class="w-1.5 h-1.5 rounded-full bg-status-ok"></span>
+        <span>Lossless Audio Engine Active</span>
+      </div>
+      
+      <div class="flex items-center gap-4">
+        <span>Pengaturan channel trim &amp; delay di <strong class="text-text-secondary">Mixer</strong></span>
+        <span>·</span>
+        <span>Diagnostik lengkap di <strong class="text-text-secondary">Log</strong></span>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- Interactive Logic Script -->
+  <script>
+    let isMuted = false;
+    let isDebugOn = false;
+    let currentRateMode = 'auto'; // 'auto' | '96k' | '48k'
+    let simulatedIncomingRate = 192000; // Contoh sumber audio masuk 192 kHz
+
+    function setSampleRate(mode) {
+      currentRateMode = mode;
+      const btns = {
+        'auto': document.getElementById('btn-rate-auto'),
+        '96k': document.getElementById('btn-rate-96k'),
+        '48k': document.getElementById('btn-rate-48k')
+      };
+      
+      Object.values(btns).forEach(b => {
+        b.className = "px-3 py-1 rounded-md text-xs font-mono font-medium transition-all text-text-secondary hover:text-text-primary hover:bg-surface-3 cursor-pointer";
+      });
+      btns[mode].className = "px-3 py-1 rounded-md text-xs font-mono font-medium transition-all bg-primary text-white shadow-sm cursor-pointer";
+
+      const feedback = document.getElementById("rate-feedback");
+      if (mode === 'auto') {
+        // Logika Auto: Jika sumber > 96k, turunkan ke 96k
+        if (simulatedIncomingRate > 96000) {
+          feedback.innerHTML = `<span class="text-status-warn">Auto:</span> Sumber ${(simulatedIncomingRate/1000).toFixed(0)}k &rarr; <strong>96.0 kHz</strong>`;
+        } else {
+          feedback.innerHTML = `<span class="text-status-ok">Auto:</span> ${(simulatedIncomingRate/1000).toFixed(1)} kHz Native`;
+        }
+      } else if (mode === '96k') {
+        feedback.innerHTML = `<span class="text-primary font-semibold">Locked:</span> 96.0 kHz Studio Master`;
+      } else if (mode === '48k') {
+        feedback.innerHTML = `<span class="text-status-warn font-semibold">Locked:</span> 48.0 kHz Standard Hi-Fi`;
+      }
+    }
+
+    function handleMasterSlider(val) {
+      val = parseFloat(val);
+      const sign = val > 0 ? "+" : "";
+      document.getElementById("master-vol-readout").innerText = sign + val.toFixed(1);
+    }
+
+    function setMaster(val) {
+      document.getElementById("master-slider").value = val;
+      handleMasterSlider(val);
+    }
+
+    function toggleMute() {
+      isMuted = !isMuted;
+      const icon = document.getElementById("mute-icon");
+      const btn = document.getElementById("btn-master-mute");
+      if (isMuted) {
+        icon.innerText = "volume_off";
+        btn.classList.add("text-status-error", "border-status-error/40");
+      } else {
+        icon.innerText = "volume_up";
+        btn.classList.remove("text-status-error", "border-status-error/40");
+      }
+    }
+
+    function toggleDebugAudio() {
+      isDebugOn = !isDebugOn;
+      const text = document.getElementById("debug-text");
+      const btn = document.getElementById("btn-debug-toggle");
+      if (isDebugOn) {
+        text.innerText = "Debug Audio: ON";
+        btn.classList.add("bg-amber-950/40", "border-amber-600/50", "text-amber-300");
+      } else {
+        text.innerText = "Debug Audio: OFF";
+        btn.classList.remove("bg-amber-950/40", "border-amber-600/50", "text-amber-300");
+      }
+    }
+
+    function setProfile(btn) {
+      const parent = btn.parentElement;
+      Array.from(parent.children).forEach(c => {
+        c.className = "px-3 py-1 rounded-md text-text-secondary hover:text-text-primary transition-all cursor-pointer";
+      });
+      btn.className = "px-3 py-1 rounded-md bg-surface-3 text-text-primary font-medium transition-all shadow-sm cursor-pointer";
+    }
+
+    // VU Meter Loop Simulation
+    setInterval(() => {
+      const channels = ["fl", "fr", "c", "lfe", "sl", "sr"];
+      if (isMuted) {
+        channels.forEach(ch => {
+          document.getElementById(`meter-${ch}`).style.width = "0%";
+          const el = document.getElementById(`num-${ch}`);
+          el.innerText = "-inf";
+          el.className = "w-16 min-w-[64px] flex-shrink-0 whitespace-nowrap tabular-nums text-xs font-mono text-text-muted text-right";
+        });
+        return;
+      }
+
+      const meters = {
+        fl: 55 + Math.random() * 40,
+        fr: 52 + Math.random() * 42,
+        c: 45 + Math.random() * 38,
+        lfe: 65 + Math.random() * 34,
+        sl: 35 + Math.random() * 35,
+        sr: 38 + Math.random() * 35,
+      };
+
+      for (const [ch, pct] of Object.entries(meters)) {
+        document.getElementById(`meter-${ch}`).style.width = pct + "%";
+        const dbVal = (100 - pct) * -0.5;
+        const dbStr = Math.abs(dbVal) < 0.05 ? "0.0 dB" : `${dbVal.toFixed(1)} dB`;
+        const el = document.getElementById(`num-${ch}`);
+        el.innerText = dbStr;
+
+        if (dbVal >= -1.5) {
+          el.className = "w-16 min-w-[64px] flex-shrink-0 whitespace-nowrap tabular-nums text-xs font-mono text-primary font-semibold text-right";
+        } else if (dbVal >= -5.0) {
+          el.className = "w-16 min-w-[64px] flex-shrink-0 whitespace-nowrap tabular-nums text-xs font-mono text-status-warn text-right";
+        } else {
+          el.className = "w-16 min-w-[64px] flex-shrink-0 whitespace-nowrap tabular-nums text-xs font-mono text-text-muted text-right";
+        }
+      }
+    }, 120);
+  </script>
+</body>
+</html>

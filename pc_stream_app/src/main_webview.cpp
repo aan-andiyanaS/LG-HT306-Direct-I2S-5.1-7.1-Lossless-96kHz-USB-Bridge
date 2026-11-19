@@ -23,9 +23,12 @@
 #include <thread>
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
+#include <mutex>
 #include <sstream>
 #include <iomanip>
 #include <algorithm>
+#include <cctype>
 #include <tlhelp32.h>
 #include <psapi.h>
 
@@ -44,6 +47,123 @@ std::atomic<bool> g_Running{true};
 std::atomic<bool> g_TelemetryDirty{true};
 webview::webview* g_pWebview = nullptr;
 ICoreWebView2* g_pCoreWebView2 = nullptr;
+
+enum class PolicyCmd : uint8_t {
+    NONE = 0,
+    SWITCH_HT306,
+    RESTORE_DEFAULT,
+    DEBUG_ON,
+    DEBUG_OFF,
+    SYNC_NAMES
+};
+
+std::mutex g_PolicyMutex;
+std::condition_variable g_PolicyCv;
+PolicyCmd g_PendingPolicyCmd = PolicyCmd::NONE;
+int g_PendingRateChange = -1; // -1 = none, 0 = AUTO, 1 = LOCK_96K, 2 = LOCK_48K
+bool g_PendingRefreshDevices = false;
+
+void EnqueuePolicyAction(PolicyCmd cmd, int rate_pref = -1, bool refresh_devices = false) {
+    {
+        std::lock_guard<std::mutex> lock(g_PolicyMutex);
+        if (cmd != PolicyCmd::NONE) g_PendingPolicyCmd = cmd;
+        if (rate_pref >= 0) g_PendingRateChange = rate_pref;
+        if (refresh_devices) g_PendingRefreshDevices = true;
+    }
+    g_PolicyCv.notify_one();
+}
+
+void PolicyWorkerLoop() {
+    HRESULT hrCom = CoInitializeEx(NULL, COINIT_MULTITHREADED);
+
+    while (g_Running.load()) {
+        PolicyCmd cmd = PolicyCmd::NONE;
+        int rate_pref = -1;
+        bool refresh_devices = false;
+
+        {
+            std::unique_lock<std::mutex> lock(g_PolicyMutex);
+            g_PolicyCv.wait(lock, []() {
+                return !g_Running.load() ||
+                       g_PendingPolicyCmd != PolicyCmd::NONE ||
+                       g_PendingRateChange >= 0 ||
+                       g_PendingRefreshDevices;
+            });
+            if (!g_Running.load()) break;
+
+            cmd = g_PendingPolicyCmd;
+            g_PendingPolicyCmd = PolicyCmd::NONE;
+            rate_pref = g_PendingRateChange;
+            g_PendingRateChange = -1;
+            refresh_devices = g_PendingRefreshDevices;
+            g_PendingRefreshDevices = false;
+        }
+
+        if (cmd == PolicyCmd::SWITCH_HT306) {
+            if (!g_State.hw_info.detected) {
+                ht306::audio::AudioPolicyManager::Instance().SetManualVisibilityOverride(true);
+            }
+            bool ok = ht306::audio::AudioPolicyManager::Instance().SwitchToHT306(g_State);
+            ht306::audio::AudioEndpointHelper::EnumerateDevices(g_State);
+            if (ok) {
+                g_State.AddLog(ht306::LogLevel::LOG_INFO, "AudioPolicy",
+                    "Switched Windows taskbar default audio device to LG HT306");
+            }
+        } else if (cmd == PolicyCmd::RESTORE_DEFAULT) {
+            ht306::audio::AudioPolicyManager::Instance().SetManualVisibilityOverride(false);
+            ht306::audio::AudioPolicyManager::Instance().RestorePreviousDefault(g_State);
+            ht306::audio::AudioEndpointHelper::EnumerateDevices(g_State);
+        } else if (cmd == PolicyCmd::DEBUG_ON) {
+            ht306::audio::AudioPolicyManager::Instance().SetManualVisibilityOverride(true);
+            if (ht306::audio::AudioPolicyManager::Instance().SwitchToHT306(g_State)) {
+                g_State.AddLog(ht306::LogLevel::LOG_INFO, "DebugAudio",
+                    "Mode Debug Aktif: LG HT306 Home Theater diaktifkan tanpa RP2350");
+            }
+            ht306::audio::AudioEndpointHelper::EnumerateDevices(g_State);
+        } else if (cmd == PolicyCmd::DEBUG_OFF) {
+            ht306::audio::AudioPolicyManager::Instance().SetManualVisibilityOverride(false);
+            if (!g_UsbTransport.CheckHardwarePresence()) {
+                ht306::audio::AudioPolicyManager::Instance().RestorePreviousDefault(g_State);
+                g_State.AddLog(ht306::LogLevel::LOG_INFO, "DebugAudio",
+                    "Mode Debug Nonaktif: LG HT306 Home Theater disembunyikan dari Taskbar");
+            } else {
+                g_State.AddLog(ht306::LogLevel::LOG_INFO, "DebugAudio",
+                    "Mode Debug Nonaktif (RP2350 masih terhubung)");
+            }
+            ht306::audio::AudioEndpointHelper::EnumerateDevices(g_State);
+        } else if (cmd == PolicyCmd::SYNC_NAMES) {
+            bool ok = ht306::audio::AudioPolicyManager::Instance().SyncEndpointNames();
+            if (ok) {
+                ht306::audio::AudioEndpointHelper::EnumerateDevices(g_State);
+                ht306::audio::AudioPolicyManager::Instance().SwitchToHT306(g_State);
+                g_State.AddLog(ht306::LogLevel::LOG_INFO, "Driver",
+                    "Nama audio taskbar berhasil diubah menjadi: LG HT306 Home Theater");
+            } else {
+                g_State.AddLog(ht306::LogLevel::LOG_WARN, "Driver",
+                    "Gagal atau dibatalkan menyinkronkan nama taskbar.");
+            }
+        }
+
+        if (rate_pref == static_cast<int>(ht306::SampleRatePreference::LOCK_48K)) {
+            ht306::audio::AudioPolicyManager::Instance().ApplySampleRateToHT306Endpoints(g_State, 48000u);
+        } else if (rate_pref == static_cast<int>(ht306::SampleRatePreference::LOCK_96K)) {
+            ht306::audio::AudioPolicyManager::Instance().ApplySampleRateToHT306Endpoints(g_State, 96000u);
+        } else if (rate_pref == static_cast<int>(ht306::SampleRatePreference::AUTO)) {
+            g_State.RequestCaptureReinit();
+        }
+
+        if (refresh_devices) {
+            ht306::audio::AudioPolicyManager::Instance().CheckDriverStatus();
+            ht306::audio::AudioEndpointHelper::EnumerateDevices(g_State);
+        }
+
+        g_TelemetryDirty.store(true);
+    }
+
+    if (SUCCEEDED(hrCom)) {
+        CoUninitialize();
+    }
+}
 
 
 // ----------------------------------------------------------------------------
@@ -340,12 +460,19 @@ void HandleNativeCommand(const std::string& raw_json_str) {
             g_AudioCapture.Start();
             g_State.is_streaming.store(true);
             g_State.state.store(ht306::ConnectionState::STREAMING);
-            g_State.AddLog(ht306::LogLevel::LOG_INFO, "Stream", "Audio stream started (96kHz 32-bit float 5.1)");
+            uint32_t cur_sr = g_State.telemetry.sample_rate.load();
+            if (cur_sr == 0) {
+                cur_sr = (g_State.sample_rate_mode.load() == ht306::SampleRatePreference::LOCK_48K) ? 48000u : 96000u;
+            }
+            g_State.AddLog(ht306::LogLevel::LOG_INFO, "Stream",
+                "Audio stream started (" + std::to_string(cur_sr / 1000) + "kHz 5.1)");
+            g_TelemetryDirty.store(true);
         } else {
             g_AudioCapture.Stop();
             g_State.is_streaming.store(false);
             g_State.state.store(g_UsbTransport.IsOpen() ? ht306::ConnectionState::READY : ht306::ConnectionState::DISCONNECTED);
             g_State.AddLog(ht306::LogLevel::LOG_INFO, "Stream", "Audio stream stopped");
+            g_TelemetryDirty.store(true);
         }
     }
     else if (action == "set_volume" || action == "set_master_volume") {
@@ -470,68 +597,32 @@ void HandleNativeCommand(const std::string& raw_json_str) {
         g_State.AddLog(ht306::LogLevel::LOG_INFO, "Driver", "Starting background installation for LG HT306 Virtual Audio Driver (WHQL)...");
         std::thread([hwnd]() {
             bool ok = ht306::audio::AudioPolicyManager::Instance().InstallDriver(hwnd);
+            if (!g_Running.load()) return;
             if (ok) {
-                ht306::audio::AudioEndpointHelper::EnumerateDevices(g_State);
-                ht306::audio::AudioPolicyManager::Instance().SwitchToHT306(g_State);
                 g_State.AddLog(ht306::LogLevel::LOG_INFO, "Driver", "LG HT306 Audio Driver successfully installed & set as default playback device!");
+                EnqueuePolicyAction(PolicyCmd::SWITCH_HT306, -1, true);
             } else {
                 g_State.AddLog(ht306::LogLevel::LOG_WARN, "Driver", "Driver installation cancelled or not completed.");
+                g_TelemetryDirty.store(true);
             }
-            g_TelemetryDirty.store(true);
         }).detach();
     }
     else if (action == "sync_audio_names" || action == "rename_audio_device") {
         g_State.AddLog(ht306::LogLevel::LOG_INFO, "Driver", "Menyinkronkan penamaan Windows Taskbar ke 'LG HT306 Home Theater'...");
-        std::thread([]() {
-            bool ok = ht306::audio::AudioPolicyManager::Instance().SyncEndpointNames();
-            if (ok) {
-                ht306::audio::AudioEndpointHelper::EnumerateDevices(g_State);
-                ht306::audio::AudioPolicyManager::Instance().SwitchToHT306(g_State);
-                g_State.AddLog(ht306::LogLevel::LOG_INFO, "Driver", "Nama audio taskbar berhasil diubah menjadi: LG HT306 Home Theater");
-            } else {
-                g_State.AddLog(ht306::LogLevel::LOG_WARN, "Driver", "Gagal atau dibatalkan menyinkronkan nama taskbar.");
-            }
-            g_TelemetryDirty.store(true);
-        }).detach();
+        EnqueuePolicyAction(PolicyCmd::SYNC_NAMES);
     }
     else if (action == "switch_to_ht306" || action == "set_taskbar_default" || action == "force_show_ht306") {
-        if (!g_State.hw_info.detected) {
-            ht306::audio::AudioPolicyManager::Instance().SetManualVisibilityOverride(true);
-        }
-        bool ok = ht306::audio::AudioPolicyManager::Instance().SwitchToHT306(g_State);
-        ht306::audio::AudioEndpointHelper::EnumerateDevices(g_State);
-        if (ok) {
-            g_State.AddLog(ht306::LogLevel::LOG_INFO, "AudioPolicy", "Switched Windows taskbar default audio device to LG HT306");
-        }
-        g_TelemetryDirty.store(true);
+        EnqueuePolicyAction(PolicyCmd::SWITCH_HT306);
     }
     else if (action == "restore_default_playback" || action == "hide_ht306_endpoint") {
-        ht306::audio::AudioPolicyManager::Instance().SetManualVisibilityOverride(false);
-        ht306::audio::AudioPolicyManager::Instance().RestorePreviousDefault(g_State);
-        ht306::audio::AudioEndpointHelper::EnumerateDevices(g_State);
-        g_TelemetryDirty.store(true);
+        EnqueuePolicyAction(PolicyCmd::RESTORE_DEFAULT);
     }
     else if (action == "toggle_debug_audio" || action == "set_debug_audio") {
         bool cur_override = ht306::audio::AudioPolicyManager::Instance().GetManualVisibilityOverride();
         bool next_override = !cur_override;
         JsonGetBool(json, "enabled", next_override);
         JsonGetBool(json, "enable", next_override);
-        ht306::audio::AudioPolicyManager::Instance().SetManualVisibilityOverride(next_override);
-        if (next_override) {
-            bool ok = ht306::audio::AudioPolicyManager::Instance().SwitchToHT306(g_State);
-            if (ok) {
-                g_State.AddLog(ht306::LogLevel::LOG_INFO, "DebugAudio", "Mode Debug Aktif: LG HT306 Home Theater diaktifkan tanpa RP2350");
-            }
-        } else {
-            if (!g_UsbTransport.CheckHardwarePresence()) {
-                ht306::audio::AudioPolicyManager::Instance().RestorePreviousDefault(g_State);
-                g_State.AddLog(ht306::LogLevel::LOG_INFO, "DebugAudio", "Mode Debug Nonaktif: LG HT306 Home Theater disembunyikan dari Taskbar");
-            } else {
-                g_State.AddLog(ht306::LogLevel::LOG_INFO, "DebugAudio", "Mode Debug Nonaktif (RP2350 masih terhubung)");
-            }
-        }
-        ht306::audio::AudioEndpointHelper::EnumerateDevices(g_State);
-        g_TelemetryDirty.store(true);
+        EnqueuePolicyAction(next_override ? PolicyCmd::DEBUG_ON : PolicyCmd::DEBUG_OFF);
     }
     else if (action == "reboot_bootsel") {
         bool ok = g_UsbTransport.RebootBootsel();
@@ -613,16 +704,15 @@ void HandleNativeCommand(const std::string& raw_json_str) {
     else if (action == "set_device" || action == "set_audio_device") {
         int dev_idx = 0;
         if (JsonGetInt(json, "device_index", dev_idx) || JsonGetInt(json, "index", dev_idx) || JsonGetInt(json, "dev", dev_idx)) {
-            if (dev_idx >= 0 && dev_idx < (int)g_State.available_devices.size()) {
-                g_State.active_device_index = dev_idx;
+            std::string dev_name;
+            if (g_State.SelectDeviceByIndex(dev_idx, &dev_name)) {
                 g_State.settings.target_device_index = dev_idx;
-                std::string dev_name = g_State.available_devices[dev_idx].name;
+                g_State.RequestCaptureReinit();
                 g_State.AddLog(ht306::LogLevel::LOG_INFO, "AudioDevice", "Active device changed to [" + std::to_string(dev_idx) + "]: " + dev_name);
             } else {
-                g_State.active_device_index = dev_idx;
-                g_State.settings.target_device_index = dev_idx;
-                g_State.AddLog(ht306::LogLevel::LOG_INFO, "AudioDevice", "Active device changed to index " + std::to_string(dev_idx));
+                g_State.AddLog(ht306::LogLevel::LOG_WARN, "AudioDevice", "Invalid audio device index: " + std::to_string(dev_idx));
             }
+            g_TelemetryDirty.store(true);
         }
     }
     else if (action == "set_format_mode") {
@@ -648,6 +738,29 @@ void HandleNativeCommand(const std::string& raw_json_str) {
         g_State.settings.format_mode = fmt;
         g_State.AddLog(ht306::LogLevel::LOG_INFO, "Format", "Format mode set to " + std::to_string(fmt));
     }
+    else if (action == "select_sample_rate" || action == "set_sample_rate") {
+        std::string mode = webview::detail::json_parse(json, "mode", 0);
+        int rate = 0;
+        JsonGetInt(json, "rate", rate);
+        std::string mode_lower = mode;
+        std::transform(mode_lower.begin(), mode_lower.end(), mode_lower.begin(),
+            [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+        ht306::SampleRatePreference pref = ht306::SampleRatePreference::AUTO;
+        std::string label = "Auto (<=96 kHz)";
+        if (mode_lower == "48k" || mode_lower == "48000" || mode_lower == "lock_48k" || (mode_lower.empty() && rate == 48000)) {
+            pref = ht306::SampleRatePreference::LOCK_48K;
+            label = "48 kHz (Lock)";
+        } else if (mode_lower == "96k" || mode_lower == "96000" || mode_lower == "lock_96k" || (mode_lower.empty() && rate == 96000)) {
+            pref = ht306::SampleRatePreference::LOCK_96K;
+            label = "96 kHz (Lock)";
+        }
+
+        g_State.sample_rate_mode.store(pref);
+        EnqueuePolicyAction(PolicyCmd::NONE, static_cast<int>(pref), false);
+        g_State.AddLog(ht306::LogLevel::LOG_INFO, "Format", "Sample rate mode: " + label);
+        g_TelemetryDirty.store(true);
+    }
     else if (action == "set_limiter") {
         bool lim = true;
         if (JsonGetBool(json, "limiter_enabled", lim) || JsonGetBool(json, "enabled", lim) || JsonGetBool(json, "limiter", lim)) {
@@ -666,7 +779,11 @@ void HandleNativeCommand(const std::string& raw_json_str) {
     }
     else if (action == "factory_reset") {
         g_State.settings = ht306::AppSettings();
+        g_State.sample_rate_mode.store(ht306::SampleRatePreference::AUTO);
+        g_State.SelectDeviceByIndex(0);
+        EnqueuePolicyAction(PolicyCmd::NONE, static_cast<int>(ht306::SampleRatePreference::AUTO), true);
         g_State.AddLog(ht306::LogLevel::LOG_WARN, "Config", "Settings reset to factory defaults");
+        g_TelemetryDirty.store(true);
     }
     else if (action == "save_config") {
         g_State.AddLog(ht306::LogLevel::LOG_INFO, "Config", "Configuration saved & synced to hardware bridge");
@@ -804,11 +921,18 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             return 0;
         }
     } else if (uMsg == WM_DEVICECHANGE) {
-        // USB hardware plugged in or removed - trigger instant connection check
-        g_UsbTransport.TriggerCheck();
-        ht306::audio::AudioPolicyManager::Instance().CheckDriverStatus();
-        ht306::audio::AudioEndpointHelper::EnumerateDevices(g_State);
-        g_TelemetryDirty.store(true);
+        if (wParam == DBT_DEVICEARRIVAL || wParam == DBT_DEVICEREMOVECOMPLETE) {
+            // USB hardware plugged in or removed - trigger instant connection check
+            g_UsbTransport.TriggerCheck();
+        }
+        if (wParam == DBT_DEVICEARRIVAL || wParam == DBT_DEVICEREMOVECOMPLETE || wParam == DBT_DEVNODES_CHANGED) {
+            static ULONGLONG s_last_dev_refresh_ms = 0;
+            ULONGLONG now_ms = GetTickCount64();
+            if (now_ms - s_last_dev_refresh_ms >= 250) {
+                s_last_dev_refresh_ms = now_ms;
+                EnqueuePolicyAction(PolicyCmd::NONE, -1, true);
+            }
+        }
         return TRUE;
     } else if (uMsg == WM_CLOSE) {
         ht306::audio::AudioPolicyManager::Instance().SetManualVisibilityOverride(false);
@@ -825,6 +949,22 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 // Background Telemetry Thread (~60 Hz / 16ms)
 // ----------------------------------------------------------------------------
 void TelemetryLoop() {
+    auto rateModeToString = [](ht306::SampleRatePreference pref) -> const char* {
+        switch (pref) {
+            case ht306::SampleRatePreference::LOCK_96K: return "96k";
+            case ht306::SampleRatePreference::LOCK_48K: return "48k";
+            default: return "auto";
+        }
+    };
+    auto capturePathToString = [](ht306::CapturePathMode mode) -> const char* {
+        switch (mode) {
+            case ht306::CapturePathMode::LOOPBACK: return "loopback";
+            case ht306::CapturePathMode::VBCABLE_CAPTURE: return "vbcable_capture";
+            case ht306::CapturePathMode::SWEEP_ONLY: return "sweep_only";
+            default: return "disconnected";
+        }
+    };
+
     uint32_t counter = 0;
     bool last_detected = false;
     bool last_usb_open = false;
@@ -836,6 +976,12 @@ void TelemetryLoop() {
     bool last_drv_default = false;
     bool last_drv_debug = false;
     std::string last_drv_name;
+    uint32_t last_out_rate = 0;
+    uint32_t last_in_rate = 0;
+    bool last_rate_clamped = false;
+    uint8_t last_sr_mode = 255;
+    uint8_t last_cap_path = 255;
+    int last_dev_idx = -1;
 
     while (g_Running.load()) {
         bool active_stream = g_State.is_streaming.load() || g_State.sweep_running.load();
@@ -863,7 +1009,7 @@ void TelemetryLoop() {
                 last_drv_default = drv.is_default;
                 last_drv_debug = cur_drv_debug;
                 last_drv_name = drv.endpoint_name;
-                ht306::audio::AudioEndpointHelper::EnumerateDevices(g_State);
+                EnqueuePolicyAction(PolicyCmd::NONE, -1, true);
                 drv_changed = true;
             }
         }
@@ -874,12 +1020,28 @@ void TelemetryLoop() {
         std::string cur_hb = g_State.hw_info.last_heartbeat_text;
         auto logs_snapshot = g_State.GetLogsSnapshot();
         size_t cur_log_count = logs_snapshot.size();
+        uint32_t cur_out_rate = g_State.telemetry.sample_rate.load();
+        uint32_t cur_in_rate = g_State.telemetry.input_sample_rate.load();
+        uint32_t cur_bit_depth = g_State.telemetry.bit_depth.load();
+        uint32_t cur_channels = g_State.telemetry.channels.load();
+        bool cur_rate_clamped = g_State.telemetry.rate_clamped.load();
+        auto cur_sr_enum = g_State.sample_rate_mode.load();
+        auto cur_cap_enum = g_State.telemetry.capture_path.load();
+        uint8_t cur_sr_mode = static_cast<uint8_t>(cur_sr_enum);
+        uint8_t cur_cap_path = static_cast<uint8_t>(cur_cap_enum);
+        int cur_dev_idx = g_State.active_device_index.load();
 
         bool hw_changed = (cur_detected != last_detected) ||
                           (cur_usb_open != last_usb_open) ||
                           (cur_com != last_com_port) ||
                           (cur_hb != last_hb) ||
                           (cur_log_count != last_log_count) ||
+                          (cur_out_rate != last_out_rate) ||
+                          (cur_in_rate != last_in_rate) ||
+                          (cur_rate_clamped != last_rate_clamped) ||
+                          (cur_sr_mode != last_sr_mode) ||
+                          (cur_cap_path != last_cap_path) ||
+                          (cur_dev_idx != last_dev_idx) ||
                           drv_changed;
         bool should_push = active_stream || g_TelemetryDirty.exchange(false) || hw_changed || (counter <= 2);
 
@@ -895,6 +1057,12 @@ void TelemetryLoop() {
         last_com_port = cur_com;
         last_hb = cur_hb;
         last_log_count = cur_log_count;
+        last_out_rate = cur_out_rate;
+        last_in_rate = cur_in_rate;
+        last_rate_clamped = cur_rate_clamped;
+        last_sr_mode = cur_sr_mode;
+        last_cap_path = cur_cap_path;
+        last_dev_idx = cur_dev_idx;
 
         std::string state_str = "READY";
         if (g_State.is_streaming.load()) {
@@ -903,13 +1071,26 @@ void TelemetryLoop() {
             state_str = "DISCONNECTED";
         }
 
+        const char* sr_mode_str = rateModeToString(cur_sr_enum);
+        const char* cap_path_str = capturePathToString(cur_cap_enum);
+        float cur_throughput = g_State.telemetry.throughput_kbs.load();
+        uint32_t cur_underruns = g_State.telemetry.underrun_count.load();
+        auto drv_status = ht306::audio::AudioPolicyManager::Instance().GetCachedDriverStatus();
+        bool drv_debug_override = ht306::audio::AudioPolicyManager::Instance().GetManualVisibilityOverride();
+        auto devices_snapshot = g_State.GetAvailableDevicesSnapshot();
+
         std::ostringstream ss;
         ss << std::fixed << std::setprecision(1);
 
         ss << "{"
            << "\"state\":\"" << state_str << "\","
            << "\"is_streaming\":" << (g_State.is_streaming.load() ? "true" : "false") << ","
-           << "\"format\":{\"rate\":96000,\"bits\":32,\"channels\":6},"
+           << "\"format\":{\"rate\":" << cur_out_rate << ",\"bits\":" << cur_bit_depth << ",\"channels\":" << cur_channels << "},"
+           << "\"sample_rate\":" << cur_out_rate << ","
+           << "\"input_sample_rate\":" << cur_in_rate << ","
+           << "\"sample_rate_mode\":\"" << sr_mode_str << "\","
+           << "\"rate_clamped\":" << (cur_rate_clamped ? "true" : "false") << ","
+           << "\"capture_path\":\"" << cap_path_str << "\","
            << "\"dBFS\":[";
         for (int i = 0; i < 6; ++i) {
             ss << g_State.meters[i].peak_db << (i < 5 ? "," : "");
@@ -941,23 +1122,29 @@ void TelemetryLoop() {
            << "\"heartbeat_text\":\"" << EscapeJsonString(g_State.hw_info.last_heartbeat_text) << "\""
            << "},"
            << "\"stats\":{"
-           << "\"throughput_kbs\":" << g_State.telemetry.throughput_kbs << ","
+           << "\"throughput_kbs\":" << cur_throughput << ","
            << "\"latency_ms\":" << g_State.telemetry.latency_ms << ","
            << "\"buffer_fill_pct\":" << g_State.telemetry.buffer_fill_pct << ","
            << "\"link_usage_pct\":" << g_State.telemetry.link_usage_pct << ","
-           << "\"underruns\":" << g_State.telemetry.underrun_count
+           << "\"underruns\":" << cur_underruns
            << "},"
            << "\"telemetry\":{"
-           << "\"throughput_kbs\":" << g_State.telemetry.throughput_kbs << ","
+           << "\"throughput_kbs\":" << cur_throughput << ","
            << "\"latency_ms\":" << g_State.telemetry.latency_ms << ","
            << "\"buffer_fill_pct\":" << g_State.telemetry.buffer_fill_pct << ","
            << "\"link_usage_pct\":" << g_State.telemetry.link_usage_pct << ","
-           << "\"underrun_count\":" << g_State.telemetry.underrun_count << ","
-           << "\"sample_rate\":96000,\"bit_depth\":32,\"channels\":6"
+           << "\"underrun_count\":" << cur_underruns << ","
+           << "\"sample_rate\":" << cur_out_rate << ","
+           << "\"input_sample_rate\":" << cur_in_rate << ","
+           << "\"bit_depth\":" << cur_bit_depth << ","
+           << "\"channels\":" << cur_channels << ","
+           << "\"rate_clamped\":" << (cur_rate_clamped ? "true" : "false") << ","
+           << "\"sample_rate_mode\":\"" << sr_mode_str << "\","
+           << "\"capture_path\":\"" << cap_path_str << "\""
            << "},"
            << "\"master_volume_db\":" << g_State.settings.master_volume_db << ","
            << "\"mute_master\":" << (g_State.settings.mute_master ? "true" : "false") << ","
-           << "\"active_device_index\":" << g_State.active_device_index << ","
+           << "\"active_device_index\":" << cur_dev_idx << ","
            << "\"pio_ready\":" << (g_State.hw_info.pio_ready ? "true" : "false") << ","
            << "\"mux_high\":" << (g_State.hw_info.mux_high ? "true" : "false") << ","
            << "\"dsp_locked\":" << (g_State.hw_info.dsp_locked ? "true" : "false") << ","
@@ -983,17 +1170,17 @@ void TelemetryLoop() {
         }
         ss << "],"
            << "\"audio_driver\":{"
-           << "\"installed\":" << (ht306::audio::AudioPolicyManager::Instance().GetCachedDriverStatus().installed ? "true" : "false") << ","
-           << "\"visible\":" << (ht306::audio::AudioPolicyManager::Instance().GetCachedDriverStatus().endpoint_visible ? "true" : "false") << ","
-           << "\"is_default\":" << (ht306::audio::AudioPolicyManager::Instance().GetCachedDriverStatus().is_default ? "true" : "false") << ","
-           << "\"debug_override\":" << (ht306::audio::AudioPolicyManager::Instance().GetManualVisibilityOverride() ? "true" : "false") << ","
-           << "\"name\":\"" << EscapeJsonString(ht306::audio::AudioPolicyManager::Instance().GetCachedDriverStatus().endpoint_name) << "\""
+           << "\"installed\":" << (drv_status.installed ? "true" : "false") << ","
+           << "\"visible\":" << (drv_status.endpoint_visible ? "true" : "false") << ","
+           << "\"is_default\":" << (drv_status.is_default ? "true" : "false") << ","
+           << "\"debug_override\":" << (drv_debug_override ? "true" : "false") << ","
+           << "\"name\":\"" << EscapeJsonString(drv_status.endpoint_name) << "\""
            << "},"
            << "\"devices\":[";
-        for (size_t i = 0; i < g_State.available_devices.size(); ++i) {
+        for (size_t i = 0; i < devices_snapshot.size(); ++i) {
             if (i > 0) ss << ",";
-            ss << "{\"index\":" << i << ",\"name\":\"" << EscapeJsonString(g_State.available_devices[i].name) << "\""
-               << ",\"is_default\":" << (g_State.available_devices[i].is_default ? "true" : "false") << "}";
+            ss << "{\"index\":" << i << ",\"name\":\"" << EscapeJsonString(devices_snapshot[i].name) << "\""
+               << ",\"is_default\":" << (devices_snapshot[i].is_default ? "true" : "false") << "}";
         }
         ss << "],";
 
@@ -1013,9 +1200,10 @@ void TelemetryLoop() {
            << "\"master_volume_db\":" << g_State.settings.master_volume_db << ","
            << "\"mute_master\":" << (g_State.settings.mute_master ? "true" : "false") << ","
            << "\"format_mode\":" << g_State.settings.format_mode << ","
+           << "\"sample_rate_mode\":\"" << sr_mode_str << "\","
            << "\"limiter_enabled\":" << (g_State.settings.limiter_enabled ? "true" : "false") << ","
            << "\"lip_sync_delay_ms\":" << g_State.settings.lip_sync_delay_ms << ","
-           << "\"active_device_index\":" << g_State.active_device_index << ","
+           << "\"active_device_index\":" << cur_dev_idx << ","
            << "\"trims_db\":[";
         for (int i = 0; i < 6; ++i) {
             ss << g_State.settings.trims[i] << (i < 5 ? "," : "");
@@ -1129,7 +1317,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     g_AudioCapture.Start();
     g_State.is_streaming.store(true);
 
-    // 2. Start background telemetry thread
+    // 2. Start background telemetry & policy worker threads
+    std::thread policy_thread(PolicyWorkerLoop);
     std::thread telemetry_thread(TelemetryLoop);
     HDEVNOTIFY hDevNotify = NULL;
 
@@ -1213,6 +1402,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
         // Graceful shutdown before w and its controller go out of scope
         g_Running.store(false);
+        g_PolicyCv.notify_all();
+        if (policy_thread.joinable()) {
+            policy_thread.join();
+        }
         if (telemetry_thread.joinable()) {
             telemetry_thread.join();
         }
@@ -1240,6 +1433,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     // 4. Resource cleanup upon exit (if not already done inside try)
     g_Running.store(false);
+    g_PolicyCv.notify_all();
+    if (policy_thread.joinable()) {
+        policy_thread.join();
+    }
     if (telemetry_thread.joinable()) {
         telemetry_thread.join();
     }

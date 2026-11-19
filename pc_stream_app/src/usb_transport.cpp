@@ -601,6 +601,7 @@ DWORD WINAPI UsbTransport::WorkerThreadProc(LPVOID param) {
 void UsbTransport::WorkerLoop() {
     uint32_t loop_counter = 0;
     ULONGLONG last_reconnect_time = 0;
+    ULONGLONG last_disconnect_inc_tick = 0;
     bool first_check = true;
     bool was_hw_present = false;
 
@@ -614,6 +615,7 @@ void UsbTransport::WorkerLoop() {
 
             if (hw_present) {
                 m_consecutive_disconnect_count = 0;
+                last_disconnect_inc_tick = 0;
 
                 // 1. Ensure CDC serial port is open & monitored
                 if (m_serial_handle == INVALID_HANDLE_VALUE) {
@@ -635,7 +637,10 @@ void UsbTransport::WorkerLoop() {
                     audio::AudioEndpointHelper::EnumerateDevices(m_state);
                 }
             } else {
-                m_consecutive_disconnect_count++;
+                if (first_check || (now - last_disconnect_inc_tick >= 900)) {
+                    last_disconnect_inc_tick = now;
+                    m_consecutive_disconnect_count++;
+                }
                 // Debounce: require 3 consecutive failed checks (3 seconds) before concluding physical disconnect
                 if (m_consecutive_disconnect_count >= 3) {
                     if (m_is_open.load() || m_serial_handle != INVALID_HANDLE_VALUE || m_state.hw_info.detected || was_hw_present) {

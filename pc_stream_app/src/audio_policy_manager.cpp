@@ -20,6 +20,13 @@ static const GUID KSDATAFORMAT_SUBTYPE_IEEE_FLOAT_GUID = {
 #define KSDATAFORMAT_SUBTYPE_IEEE_FLOAT KSDATAFORMAT_SUBTYPE_IEEE_FLOAT_GUID
 #endif
 
+#ifndef KSDATAFORMAT_SUBTYPE_PCM
+static const GUID KSDATAFORMAT_SUBTYPE_PCM_GUID = {
+    0x00000001, 0x0000, 0x0010, { 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71 }
+};
+#define KSDATAFORMAT_SUBTYPE_PCM KSDATAFORMAT_SUBTYPE_PCM_GUID
+#endif
+
 namespace ht306::audio {
 
 static std::string WideToUtf8(const std::wstring& wstr) {
@@ -320,6 +327,10 @@ bool AudioPolicyManager::SetEndpointVisibility(bool visible) {
         } else {
             HRESULT hrVis = pPolicyConfig->SetEndpointVisibility(endpoint_id.c_str(), 0);
             ok = SUCCEEDED(hrVis);
+            if (!m_ht306_capture_guid.empty()) {
+                std::wstring cap_id = L"{0.0.1.00000000}." + m_ht306_capture_guid;
+                pPolicyConfig->SetEndpointVisibility(cap_id.c_str(), 0);
+            }
         }
         pPolicyConfig->Release();
     }
@@ -328,9 +339,80 @@ bool AudioPolicyManager::SetEndpointVisibility(bool visible) {
         CoUninitialize();
     }
 
+    if (visible) {
+        EnsureCaptureEndpointActive();
+    }
+
     m_ht306_reg_state = visible ? 0x00000001 : 0x10000001;
     m_last_check_tick = 0; // Invalidate cache
     return ok;
+}
+
+bool AudioPolicyManager::EnsureCaptureEndpointActive() {
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
+    if (m_ht306_capture_guid.empty()) {
+        SyncEndpointNames();
+    }
+    if (m_ht306_capture_guid.empty()) {
+        return false;
+    }
+
+    std::wstring cap_id = L"{0.0.1.00000000}." + m_ht306_capture_guid;
+    HRESULT hrCom = CoInitializeEx(NULL, COINIT_MULTITHREADED);
+
+    DWORD dwState = 0;
+    IMMDeviceEnumerator* enumerator = NULL;
+    IMMDevice* cap_dev = NULL;
+    if (SUCCEEDED(CoCreateInstance(__uuidof(MMDeviceEnumerator), NULL, CLSCTX_ALL,
+                                   __uuidof(IMMDeviceEnumerator), (void**)&enumerator)) && enumerator) {
+        if (SUCCEEDED(enumerator->GetDevice(cap_id.c_str(), &cap_dev)) && cap_dev) {
+            cap_dev->GetState(&dwState);
+        }
+    }
+
+    if (dwState != DEVICE_STATE_ACTIVE) {
+        // Best-effort Registry write in case DeviceState has 0x10000001 / disabled bit
+        std::wstring capSubPath = L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\MMDevices\\Audio\\Capture\\" + m_ht306_capture_guid;
+        HKEY hSubKeyWrite = NULL;
+        if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, capSubPath.c_str(), 0, KEY_SET_VALUE, &hSubKeyWrite) == ERROR_SUCCESS) {
+            DWORD activeState = 0x00000001;
+            RegSetValueExW(hSubKeyWrite, L"DeviceState", 0, REG_DWORD, (const BYTE*)&activeState, sizeof(activeState));
+            RegCloseKey(hSubKeyWrite);
+        }
+
+        IPolicyConfig* pPolicyConfig = NULL;
+        if (SUCCEEDED(CoCreateInstance(CLSID_CPolicyConfigClient, NULL, CLSCTX_ALL,
+                                       IID_IPolicyConfig, (void**)&pPolicyConfig)) && pPolicyConfig) {
+            pPolicyConfig->SetEndpointVisibility(cap_id.c_str(), 1);
+            Sleep(40);
+            if (cap_dev) {
+                cap_dev->GetState(&dwState);
+            }
+            if (dwState != DEVICE_STATE_ACTIVE) {
+                // Toggle 0 -> 1 to force AudioSrv reload of capture endpoint state
+                pPolicyConfig->SetEndpointVisibility(cap_id.c_str(), 0);
+                pPolicyConfig->SetEndpointVisibility(cap_id.c_str(), 1);
+            }
+            for (int attempt = 0; attempt < 10 && dwState != DEVICE_STATE_ACTIVE; ++attempt) {
+                Sleep(40);
+                if (cap_dev) {
+                    cap_dev->GetState(&dwState);
+                }
+            }
+            pPolicyConfig->Release();
+        }
+    }
+
+    if (cap_dev) {
+        cap_dev->Release();
+    }
+    if (enumerator) {
+        enumerator->Release();
+    }
+    if (SUCCEEDED(hrCom)) {
+        CoUninitialize();
+    }
+    return (dwState == DEVICE_STATE_ACTIVE);
 }
 
 bool AudioPolicyManager::SetDefaultEndpoint(const std::wstring& device_id) {
@@ -407,17 +489,35 @@ bool AudioPolicyManager::SwitchToHT306(AppState& state) {
         m_switched_to_ht306 = true;
     }
 
-    // 3. Configure 5.1 surround 96kHz format
-    ConfigureEndpointSurround96k(status.endpoint_id);
-    CheckDriverStatus(); // Refresh cached status
+    // 3. Configure 5.1 surround format respecting user SampleRatePreference
+    uint32_t desired_rate = 96000;
+    auto sr_pref = state.sample_rate_mode.load();
+    if (sr_pref == SampleRatePreference::LOCK_48K) {
+        desired_rate = 48000;
+    } else if (sr_pref == SampleRatePreference::LOCK_96K) {
+        desired_rate = 96000;
+    } else {
+        uint32_t existing = QueryEndpoint6ChRateLocked(status.endpoint_id);
+        desired_rate = (existing == 48000 || existing == 96000) ? existing : 96000;
+    }
 
-    // 4. Sync active_device_index in state to the HT306 endpoint
-    for (size_t i = 0; i < state.available_devices.size(); ++i) {
-        if (!state.available_devices[i].id.empty() && state.available_devices[i].id == status.endpoint_id) {
-            state.active_device_index = (int)i;
-            break;
+    if (!ConfigureEndpointFormat(status.endpoint_id, desired_rate)) {
+        state.AddLog(LogLevel::LOG_WARN, "AudioPolicy",
+            "Gagal menyetel format 5.1 " + std::to_string(desired_rate) + "Hz pada endpoint Render HT306");
+    }
+    EnsureCaptureEndpointActive();
+    std::wstring cap_id = GetCaptureEndpointId();
+    if (!cap_id.empty()) {
+        if (!ConfigureEndpointFormat(cap_id, desired_rate)) {
+            state.AddLog(LogLevel::LOG_WARN, "AudioPolicy",
+                "Gagal menyetel format 5.1 " + std::to_string(desired_rate) + "Hz pada LG HT306 Loopback Stream");
         }
     }
+    CheckDriverStatus(); // Refresh cached status
+
+    // 4. Preserve target selection and notify capture thread
+    state.SelectDeviceById(status.endpoint_id);
+    state.RequestCaptureReinit();
 
     return true;
 }
@@ -450,12 +550,39 @@ bool AudioPolicyManager::RestorePreviousDefault(AppState& state) {
     }
 
     CheckDriverStatus(); // Refresh cached status
-    state.active_device_index = 0; // Default endpoint
+    state.SelectDeviceByIndex(0);
+    state.RequestCaptureReinit();
     return true;
 }
 
-bool AudioPolicyManager::ConfigureEndpointSurround96k(const std::wstring& device_id) {
-    if (device_id.empty()) return false;
+uint32_t AudioPolicyManager::QueryEndpoint6ChRateLocked(const std::wstring& device_id) {
+    if (device_id.empty()) return 0;
+    HRESULT hrCom = CoInitializeEx(NULL, COINIT_MULTITHREADED);
+    uint32_t found_rate = 0;
+
+    IPolicyConfig* pPolicyConfig = NULL;
+    if (SUCCEEDED(CoCreateInstance(CLSID_CPolicyConfigClient, NULL, CLSCTX_ALL, IID_IPolicyConfig, (void**)&pPolicyConfig)) && pPolicyConfig) {
+        WAVEFORMATEX* pwfx = NULL;
+        if (SUCCEEDED(pPolicyConfig->GetMixFormat(device_id.c_str(), &pwfx)) && pwfx) {
+            if (pwfx->nChannels >= 6 && (pwfx->nSamplesPerSec == 48000 || pwfx->nSamplesPerSec == 96000)) {
+                found_rate = pwfx->nSamplesPerSec;
+            }
+            CoTaskMemFree(pwfx);
+        }
+        pPolicyConfig->Release();
+    }
+
+    if (SUCCEEDED(hrCom)) {
+        CoUninitialize();
+    }
+    return found_rate;
+}
+
+bool AudioPolicyManager::ConfigureEndpointFormat(const std::wstring& device_id, uint32_t sample_rate) {
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
+    if (device_id.empty() || (sample_rate != 48000 && sample_rate != 96000)) {
+        return false;
+    }
 
     HRESULT hrCom = CoInitializeEx(NULL, COINIT_MULTITHREADED);
     bool success = false;
@@ -470,22 +597,63 @@ bool AudioPolicyManager::ConfigureEndpointSurround96k(const std::wstring& device
     );
 
     if (SUCCEEDED(hr) && pPolicyConfig) {
-        // Prepare 5.1 Surround 96 kHz 32-bit Float format
-        WAVEFORMATEXTENSIBLE wfx{};
-        wfx.Format.wFormatTag = WAVE_FORMAT_EXTENSIBLE;
-        wfx.Format.nChannels = 6;
-        wfx.Format.nSamplesPerSec = 96000;
-        wfx.Format.wBitsPerSample = 32;
-        wfx.Format.nBlockAlign = 6 * sizeof(float); // 24 bytes per 6-channel frame
-        wfx.Format.nAvgBytesPerSec = 96000 * wfx.Format.nBlockAlign;
-        wfx.Format.cbSize = sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX); // 22 bytes
-        wfx.Samples.wValidBitsPerSample = 32;
-        wfx.dwChannelMask = SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT | SPEAKER_FRONT_CENTER |
-                            SPEAKER_LOW_FREQUENCY | SPEAKER_SIDE_LEFT | SPEAKER_SIDE_RIGHT;
-        wfx.SubFormat = KSDATAFORMAT_SUBTYPE_IEEE_FLOAT;
+        const DWORD masks[] = {
+            SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT | SPEAKER_FRONT_CENTER |
+                SPEAKER_LOW_FREQUENCY | SPEAKER_SIDE_LEFT | SPEAKER_SIDE_RIGHT,
+            SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT | SPEAKER_FRONT_CENTER |
+                SPEAKER_LOW_FREQUENCY | SPEAKER_BACK_LEFT | SPEAKER_BACK_RIGHT
+        };
 
-        HRESULT hrSet = pPolicyConfig->SetDeviceFormat(device_id.c_str(), (WAVEFORMATEX*)&wfx, (WAVEFORMATEX*)&wfx);
-        success = SUCCEEDED(hrSet);
+        struct EpCandidate {
+            uint16_t container_bits;
+            uint16_t valid_bits;
+            bool is_float;
+        };
+        const EpCandidate candidates[] = {
+            { 24, 24, false }, // WDM 24-bit packed PCM (standard VB-Cable pin format)
+            { 32, 24, false }, // WDM 24-in-32 PCM
+            { 16, 16, false }, // WDM 16-bit PCM fallback
+            { 32, 32, true  }  // IEEE Float fallback
+        };
+
+        for (DWORD mask : masks) {
+            WAVEFORMATEXTENSIBLE mixFmt{};
+            mixFmt.Format.wFormatTag = WAVE_FORMAT_EXTENSIBLE;
+            mixFmt.Format.nChannels = 6;
+            mixFmt.Format.nSamplesPerSec = sample_rate;
+            mixFmt.Format.wBitsPerSample = 32;
+            mixFmt.Format.nBlockAlign = 6 * sizeof(float);
+            mixFmt.Format.nAvgBytesPerSec = sample_rate * mixFmt.Format.nBlockAlign;
+            mixFmt.Format.cbSize = sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX);
+            mixFmt.Samples.wValidBitsPerSample = 32;
+            mixFmt.dwChannelMask = mask;
+            mixFmt.SubFormat = KSDATAFORMAT_SUBTYPE_IEEE_FLOAT;
+
+            for (const auto& c : candidates) {
+                WAVEFORMATEXTENSIBLE epFmt{};
+                epFmt.Format.wFormatTag = WAVE_FORMAT_EXTENSIBLE;
+                epFmt.Format.nChannels = 6;
+                epFmt.Format.nSamplesPerSec = sample_rate;
+                epFmt.Format.wBitsPerSample = c.container_bits;
+                epFmt.Format.nBlockAlign = static_cast<WORD>(6 * (c.container_bits / 8));
+                epFmt.Format.nAvgBytesPerSec = sample_rate * epFmt.Format.nBlockAlign;
+                epFmt.Format.cbSize = sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX);
+                epFmt.Samples.wValidBitsPerSample = c.valid_bits;
+                epFmt.dwChannelMask = mask;
+                epFmt.SubFormat = c.is_float ? KSDATAFORMAT_SUBTYPE_IEEE_FLOAT : KSDATAFORMAT_SUBTYPE_PCM;
+
+                HRESULT hrSet = pPolicyConfig->SetDeviceFormat(
+                    device_id.c_str(),
+                    reinterpret_cast<WAVEFORMATEX*>(&epFmt),
+                    reinterpret_cast<WAVEFORMATEX*>(&mixFmt)
+                );
+                if (SUCCEEDED(hrSet)) {
+                    success = true;
+                    break;
+                }
+            }
+            if (success) break;
+        }
         pPolicyConfig->Release();
     }
 
@@ -493,6 +661,60 @@ bool AudioPolicyManager::ConfigureEndpointSurround96k(const std::wstring& device
         CoUninitialize();
     }
     return success;
+}
+
+bool AudioPolicyManager::ConfigureEndpointSurround96k(const std::wstring& device_id) {
+    return ConfigureEndpointFormat(device_id, 96000);
+}
+
+bool AudioPolicyManager::ApplySampleRateToHT306Endpoints(AppState& state, uint32_t sample_rate) {
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
+    if (sample_rate != 48000 && sample_rate != 96000) {
+        return false;
+    }
+
+    bool any_ok = false;
+    std::wstring render_id = GetRenderEndpointId();
+    if (!render_id.empty()) {
+        if (ConfigureEndpointFormat(render_id, sample_rate)) {
+            any_ok = true;
+        } else {
+            state.AddLog(LogLevel::LOG_WARN, "Format",
+                "Endpoint Render HT306 menolak ubah format ke " + std::to_string(sample_rate) + " Hz (sedang dikunci Exclusive?)");
+        }
+    }
+
+    EnsureCaptureEndpointActive();
+    std::wstring cap_id = GetCaptureEndpointId();
+    if (!cap_id.empty()) {
+        if (ConfigureEndpointFormat(cap_id, sample_rate)) {
+            any_ok = true;
+        } else {
+            state.AddLog(LogLevel::LOG_WARN, "Format",
+                "Endpoint Capture (LG HT306 Loopback Stream) menolak ubah format ke " + std::to_string(sample_rate) + " Hz");
+        }
+    }
+
+    state.RequestCaptureReinit();
+    return any_ok;
+}
+
+std::wstring AudioPolicyManager::GetRenderEndpointId() {
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
+    if (m_ht306_guid.empty()) {
+        SyncEndpointNames();
+    }
+    if (m_ht306_guid.empty()) return {};
+    return L"{0.0.0.00000000}." + m_ht306_guid;
+}
+
+std::wstring AudioPolicyManager::GetCaptureEndpointId() {
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
+    if (m_ht306_capture_guid.empty()) {
+        SyncEndpointNames();
+    }
+    if (m_ht306_capture_guid.empty()) return {};
+    return L"{0.0.1.00000000}." + m_ht306_capture_guid;
 }
 
 bool AudioPolicyManager::RenameEndpoint(const std::wstring& device_id, const std::wstring& new_name) {
@@ -519,6 +741,8 @@ bool AudioPolicyManager::RenameEndpoint(const std::wstring& device_id, const std
 }
 
 bool AudioPolicyManager::SyncEndpointNames() {
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
+
     HKEY hRenderKey = NULL;
     const wchar_t* renderPath = L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\MMDevices\\Audio\\Render";
     if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, renderPath, 0, KEY_ENUMERATE_SUB_KEYS | KEY_QUERY_VALUE, &hRenderKey) != ERROR_SUCCESS) {
@@ -526,6 +750,7 @@ bool AudioPolicyManager::SyncEndpointNames() {
     }
 
     m_ht306_guid.clear();
+    bool render_active_found = false;
     wchar_t subKeyName[256];
     DWORD index = 0;
     DWORD nameLen = 256;
@@ -604,8 +829,13 @@ bool AudioPolicyManager::SyncEndpointNames() {
                         }
                     }
                 } else {
-                    m_ht306_guid = subKeyName;
-                    m_ht306_reg_state = currentState;
+                    if (!render_active_found || currentState == DEVICE_STATE_ACTIVE) {
+                        m_ht306_guid = subKeyName;
+                        m_ht306_reg_state = currentState;
+                        if (currentState == DEVICE_STATE_ACTIVE) {
+                            render_active_found = true;
+                        }
+                    }
 
                     if (wDesc != L"LG HT306 Home Theater" || wIfName != L"5.1 Surround") {
                         HKEY hPropWrite = NULL;
@@ -631,6 +861,73 @@ bool AudioPolicyManager::SyncEndpointNames() {
     }
 
     RegCloseKey(hRenderKey);
+
+    // Scan Capture side for VB-Cable Output ("LG HT306 Loopback Stream" / "CABLE Output")
+    m_ht306_capture_guid.clear();
+    HKEY hCaptureKey = NULL;
+    const wchar_t* capturePath = L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\MMDevices\\Audio\\Capture";
+    if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, capturePath, 0, KEY_ENUMERATE_SUB_KEYS | KEY_QUERY_VALUE, &hCaptureKey) == ERROR_SUCCESS) {
+        bool cap_active_found = false;
+        index = 0;
+        nameLen = 256;
+        while (RegEnumKeyExW(hCaptureKey, index, subKeyName, &nameLen, NULL, NULL, NULL, NULL) == ERROR_SUCCESS) {
+            index++;
+            nameLen = 256;
+
+            std::wstring subPath = std::wstring(capturePath) + L"\\" + subKeyName;
+            std::wstring propPath = subPath + L"\\Properties";
+
+            HKEY hSubKeyRead = NULL;
+            DWORD currentState = 0;
+            DWORD cbState = sizeof(currentState);
+            if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, subPath.c_str(), 0, KEY_QUERY_VALUE, &hSubKeyRead) == ERROR_SUCCESS) {
+                RegQueryValueExW(hSubKeyRead, L"DeviceState", NULL, NULL, (LPBYTE)&currentState, &cbState);
+                RegCloseKey(hSubKeyRead);
+            }
+
+            DWORD stateLow = currentState & 0x0F;
+            if (stateLow != DEVICE_STATE_ACTIVE && stateLow != DEVICE_STATE_DISABLED) {
+                continue;
+            }
+
+            HKEY hPropKey = NULL;
+            if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, propPath.c_str(), 0, KEY_QUERY_VALUE, &hPropKey) == ERROR_SUCCESS) {
+                wchar_t desc[256] = { 0 };
+                wchar_t ifname[256] = { 0 };
+                wchar_t hwId[256] = { 0 };
+                DWORD cbDesc = sizeof(desc);
+                DWORD cbIfName = sizeof(ifname);
+                DWORD cbHwId = sizeof(hwId);
+
+                RegQueryValueExW(hPropKey, L"{a45c254e-df1c-4efd-8020-67d146a850e0},2", NULL, NULL, (LPBYTE)desc, &cbDesc);
+                RegQueryValueExW(hPropKey, L"{b3f8fa53-0004-438e-9003-51a46e139bfc},6", NULL, NULL, (LPBYTE)ifname, &cbIfName);
+                RegQueryValueExW(hPropKey, L"{a8b865dd-2e3d-4094-ad97-e593a70c75d6},8", NULL, NULL, (LPBYTE)hwId, &cbHwId);
+                RegCloseKey(hPropKey);
+
+                std::wstring wDesc(desc);
+                std::wstring wIfName(ifname);
+                std::wstring wHwId(hwId);
+
+                bool isVbCapture = (wHwId.find(L"VBAudioVACWDM") != std::wstring::npos) ||
+                                   (wDesc.find(L"CABLE Output") != std::wstring::npos) ||
+                                   (wDesc.find(L"HT306 Loopback") != std::wstring::npos) ||
+                                   (wIfName.find(L"VB-Audio") != std::wstring::npos);
+                bool is16ch = (wDesc.find(L"16ch") != std::wstring::npos) ||
+                              (wIfName.find(L"16ch") != std::wstring::npos);
+
+                if (isVbCapture && !is16ch) {
+                    if (!cap_active_found || currentState == DEVICE_STATE_ACTIVE) {
+                        m_ht306_capture_guid = subKeyName;
+                        if (currentState == DEVICE_STATE_ACTIVE) {
+                            cap_active_found = true;
+                        }
+                    }
+                }
+            }
+        }
+        RegCloseKey(hCaptureKey);
+    }
+
     m_last_check_tick = 0; // Invalidate cache so next check reads updated names
     return !m_ht306_guid.empty();
 }

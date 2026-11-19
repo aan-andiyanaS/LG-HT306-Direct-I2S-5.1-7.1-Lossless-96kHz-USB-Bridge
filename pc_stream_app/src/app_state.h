@@ -34,6 +34,19 @@ enum class RoutingPreset {
     DUAL_MONO
 };
 
+enum class CapturePathMode : uint8_t {
+    DISCONNECTED = 0,
+    LOOPBACK = 1,
+    VBCABLE_CAPTURE = 2,
+    SWEEP_ONLY = 3
+};
+
+enum class SampleRatePreference : uint8_t {
+    AUTO = 0,
+    LOCK_96K = 1,
+    LOCK_48K = 2
+};
+
 struct AudioEndpointInfo {
     std::wstring id;
     std::string name;
@@ -48,15 +61,18 @@ struct ChannelMeters {
 };
 
 struct StreamTelemetry {
-    uint32_t sample_rate = 96000;
-    uint32_t bit_depth = 32;
-    uint32_t channels = 6;
-    float throughput_kbs = 716.0f;
+    std::atomic<uint32_t> sample_rate{96000};
+    std::atomic<uint32_t> input_sample_rate{96000};
+    std::atomic<uint32_t> bit_depth{32};
+    std::atomic<uint32_t> channels{6};
+    std::atomic<bool> rate_clamped{false};
+    std::atomic<CapturePathMode> capture_path{CapturePathMode::DISCONNECTED};
+    std::atomic<float> throughput_kbs{716.0f};
     float latency_ms = 3.8f;
     float buffer_fill_pct = 62.0f;
-    uint64_t total_frames = 0;
-    uint64_t total_packets = 0;
-    uint32_t underrun_count = 0;
+    std::atomic<uint64_t> total_frames{0};
+    std::atomic<uint64_t> total_packets{0};
+    std::atomic<uint32_t> underrun_count{0};
     float jitter_ms = 0.18f;
     int link_usage_pct = 68;
 };
@@ -153,8 +169,12 @@ struct AppState {
     ChannelMeters meters[6]; // FL, FR, C, LFE, SL, SR
     AppSettings settings;
 
+    mutable std::mutex devices_mutex;
     std::vector<AudioEndpointInfo> available_devices;
-    int active_device_index = 0;
+    std::atomic<int> active_device_index{0};
+    std::wstring active_device_id;
+    std::atomic<SampleRatePreference> sample_rate_mode{SampleRatePreference::AUTO};
+    std::atomic<uint32_t> capture_reinit_generation{0};
 
     // 5.1 Acoustic Sweep test state
     std::atomic<int> sweep_active_channel{-1}; // -1 = idle, 0..5 = FL, C, FR, SR, SL, LFE
@@ -177,6 +197,17 @@ struct AppState {
     void AddLog(LogLevel level, const std::string& subsystem, const std::string& msg);
     void ClearLogs();
     std::vector<LogEntry> GetLogsSnapshot() const;
+
+    std::vector<AudioEndpointInfo> GetAvailableDevicesSnapshot() const;
+    void SetAvailableDevices(
+        std::vector<AudioEndpointInfo> next_devices,
+        const std::wstring& preferred_id_or_empty,
+        bool auto_select_ht306
+    );
+    bool SelectDeviceByIndex(int idx, std::string* out_name = nullptr);
+    bool SelectDeviceById(const std::wstring& id);
+    AudioEndpointInfo GetActiveDeviceSnapshot(int* out_index = nullptr) const;
+    void RequestCaptureReinit() { capture_reinit_generation.fetch_add(1, std::memory_order_release); }
 };
 
 } // namespace ht306

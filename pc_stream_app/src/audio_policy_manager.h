@@ -63,8 +63,21 @@ public:
     // Get current Windows default audio endpoint ID
     std::wstring GetCurrentDefaultEndpointId();
 
+    // Configure 5.1 surround format (supports 48000 or 96000 Hz)
+    bool ConfigureEndpointFormat(const std::wstring& device_id, uint32_t sample_rate);
+
     // Configure 5.1 surround (6 channels, 96 kHz, 24/32-bit)
     bool ConfigureEndpointSurround96k(const std::wstring& device_id);
+
+    // Apply sample rate to both eRender and eCapture HT306/VB-Cable endpoints & trigger reinit
+    bool ApplySampleRateToHT306Endpoints(AppState& state, uint32_t sample_rate);
+
+    // Thread-safe lookup for resolved HT306/VB-Cable endpoints
+    std::wstring GetRenderEndpointId();
+    std::wstring GetCaptureEndpointId();
+
+    // Ensure VB-Cable capture endpoint (LG HT306 Loopback Stream) is DEVICE_STATE_ACTIVE
+    bool EnsureCaptureEndpointActive();
 
     // Rename endpoint friendly name in Windows Audio Property Store
     bool RenameEndpoint(const std::wstring& device_id, const std::wstring& new_name);
@@ -75,9 +88,12 @@ private:
     AudioPolicyManager(const AudioPolicyManager&) = delete;
     AudioPolicyManager& operator=(const AudioPolicyManager&) = delete;
 
+    uint32_t QueryEndpoint6ChRateLocked(const std::wstring& device_id);
+
     std::recursive_mutex m_mutex;
     std::wstring m_saved_previous_device_id;
     std::wstring m_ht306_guid;
+    std::wstring m_ht306_capture_guid;
     DWORD m_ht306_reg_state = 1;
     bool m_switched_to_ht306 = false;
     bool m_manual_visibility_override = false;

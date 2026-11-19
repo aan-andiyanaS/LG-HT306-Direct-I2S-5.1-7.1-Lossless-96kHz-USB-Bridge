@@ -101,16 +101,33 @@
     });
 
     // --- MASTER VOLUME CONTROLS ---
-    const masterSlider = document.getElementById("master-slider");
-    const masterVolNum = document.getElementById("master-vol-num");
-    const masterZeroBtn = document.getElementById("master-zero-btn");
-    const masterMuteBtn = document.getElementById("master-mute-btn");
-    const quickMuteBtn = document.getElementById("mute-btn");
-
     function updateMaster(val) {
       const num = parseFloat(val);
-      if (masterSlider) masterSlider.value = num;
-      if (masterVolNum) masterVolNum.textContent = (num > 0 ? "+" : "") + num.toFixed(1) + " dB";
+      document.querySelectorAll("#master-slider").forEach((s) => {
+        if (s !== document.activeElement) s.value = num;
+      });
+      document.querySelectorAll("#master-vol-num").forEach((v) => {
+        v.textContent = (num > 0 ? "+" : "") + num.toFixed(1) + " dB";
+      });
+      document.querySelectorAll("#master-vol-readout").forEach((v) => {
+        v.textContent = (num > 0 ? "+" : "") + num.toFixed(1);
+      });
+      const badge = document.getElementById("dash-vol-status-badge");
+      if (badge) {
+        if (num === 0) {
+          badge.innerText = "● Unity Gain (100%)";
+          badge.className = "text-[11px] font-mono text-status-ok mt-1";
+        } else if (num > 0) {
+          badge.innerText = "▲ Boosted Level (+dB)";
+          badge.className = "text-[11px] font-mono text-status-warn mt-1";
+        } else if (num <= -40) {
+          badge.innerText = "▼ Whispering Quiet";
+          badge.className = "text-[11px] font-mono text-icon-gray mt-1";
+        } else {
+          badge.innerText = "▼ Attenuated";
+          badge.className = "text-[11px] font-mono text-text-secondary mt-1";
+        }
+      }
       window.sendNativeCommand("set_master_volume", { volume_db: num, muted: window.isMuted });
       if (typeof window.sendConfigUpdate === "function") {
         window.sendConfigUpdate({ master_volume_db: num });
@@ -120,28 +137,27 @@
 
     function toggleMasterMute() {
       window.isMuted = !window.isMuted;
-      const muteLabel = document.getElementById("mute-label");
-      if (muteLabel) muteLabel.textContent = window.isMuted ? "Unmute Master" : "Mute Master";
+      document.querySelectorAll("#mute-label").forEach((muteLabel) => {
+        muteLabel.textContent = window.isMuted ? "Unmute Master" : "Mute Master";
+      });
 
-      if (masterMuteBtn) {
+      document.querySelectorAll("#master-mute-btn, #mute-btn").forEach((btn) => {
         if (window.isMuted) {
-          masterMuteBtn.classList.add("bg-status-error", "text-text-primary");
-          masterMuteBtn.classList.remove("bg-surface-2", "text-text-secondary");
+          btn.classList.add("bg-status-error", "text-text-primary");
+          btn.classList.remove("bg-surface-2", "text-text-secondary");
         } else {
-          masterMuteBtn.classList.remove("bg-status-error", "text-text-primary");
-          masterMuteBtn.classList.add("bg-surface-2", "text-text-secondary");
+          btn.classList.remove("bg-status-error", "text-text-primary");
+          btn.classList.add("bg-surface-2", "text-text-secondary");
         }
+      });
+      const badge = document.getElementById("dash-vol-status-badge");
+      if (badge && window.isMuted) {
+        badge.innerText = "✕ Audio Output Dimatikan (Muted)";
+        badge.className = "text-[11px] font-mono text-status-error mt-1";
       }
-      if (quickMuteBtn) {
-        if (window.isMuted) {
-          quickMuteBtn.classList.add("bg-status-error", "text-text-primary");
-          quickMuteBtn.classList.remove("bg-surface-2", "text-text-primary");
-        } else {
-          quickMuteBtn.classList.remove("bg-status-error");
-          quickMuteBtn.classList.add("bg-surface-2");
-        }
-      }
-      const curVol = masterSlider ? parseFloat(masterSlider.value) : 0.0;
+
+      const s = document.getElementById("master-slider");
+      const curVol = s ? parseFloat(s.value) : 0.0;
       window.sendNativeCommand("set_master_volume", { volume_db: curVol, muted: window.isMuted });
       if (typeof window.sendConfigUpdate === "function") {
         window.sendConfigUpdate({ mute_master: window.isMuted });
@@ -149,10 +165,15 @@
     }
     window.toggleMasterMute = toggleMasterMute;
 
-    if (masterSlider) masterSlider.addEventListener("input", (e) => updateMaster(e.target.value));
-    if (masterZeroBtn) masterZeroBtn.addEventListener("click", () => updateMaster(0));
-    if (masterMuteBtn) masterMuteBtn.addEventListener("click", toggleMasterMute);
-    if (quickMuteBtn) quickMuteBtn.addEventListener("click", toggleMasterMute);
+    document.querySelectorAll("#master-slider").forEach((s) => {
+      s.addEventListener("input", (e) => updateMaster(e.target.value));
+    });
+    document.querySelectorAll("#master-zero-btn").forEach((b) => {
+      b.addEventListener("click", () => updateMaster(0));
+    });
+    document.querySelectorAll("#master-mute-btn, #mute-btn").forEach((b) => {
+      b.addEventListener("click", toggleMasterMute);
+    });
 
     // Explicit window exposure for inline onclick="setMasterDb(val)"
     window.setMasterDb = function (val) {

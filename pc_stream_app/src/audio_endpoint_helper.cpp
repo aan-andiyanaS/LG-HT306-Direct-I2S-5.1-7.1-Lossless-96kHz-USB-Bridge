@@ -15,16 +15,16 @@ static std::string WideToUtf8(const std::wstring& wstr) {
 }
 
 void AudioEndpointHelper::EnumerateDevices(AppState& state) {
-    HRESULT hrCom = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
+    HRESULT hrCom = CoInitializeEx(NULL, COINIT_MULTITHREADED);
 
-    state.available_devices.clear();
+    std::vector<AudioEndpointInfo> next_devices;
 
-    // Always provide Default option
+    // Always provide Default option at index 0
     AudioEndpointInfo default_item;
     default_item.id = L"";
     default_item.name = "Default Windows Playback Device";
     default_item.is_default = true;
-    state.available_devices.push_back(default_item);
+    next_devices.push_back(default_item);
 
     IMMDeviceEnumerator* enumerator = NULL;
     HRESULT hr = CoCreateInstance(
@@ -56,18 +56,7 @@ void AudioEndpointHelper::EnumerateDevices(AppState& state) {
                             AudioEndpointInfo info;
                             if (dev_id) info.id = dev_id;
                             info.name = WideToUtf8(var_name.pwszVal ? var_name.pwszVal : L"Unknown Audio Device");
-                            
-                            // Check if this is a dedicated virtual cable or HT306 device
-                            if (info.name.find("CABLE") != std::string::npos || 
-                                info.name.find("HT306") != std::string::npos ||
-                                info.name.find("Virtual") != std::string::npos) {
-                                // Suggest selecting this virtual endpoint
-                                if (state.active_device_index <= 0) {
-                                    state.active_device_index = (int)state.available_devices.size();
-                                }
-                            }
-
-                            state.available_devices.push_back(info);
+                            next_devices.push_back(info);
                         }
                         PropVariantClear(&var_name);
                         props->Release();
@@ -82,9 +71,7 @@ void AudioEndpointHelper::EnumerateDevices(AppState& state) {
         enumerator->Release();
     }
 
-    if (state.active_device_index < 0 && !state.available_devices.empty()) {
-        state.active_device_index = 0;
-    }
+    state.SetAvailableDevices(std::move(next_devices), L"", true);
 
     if (SUCCEEDED(hrCom)) {
         CoUninitialize();
