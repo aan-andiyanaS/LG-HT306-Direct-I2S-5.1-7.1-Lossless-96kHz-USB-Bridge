@@ -392,3 +392,109 @@ aw_st = transport.state; st = raw_st() if callable(raw_st) else raw_st).
        - Firmware `firmware/build/ht306_rp2350_zero.uf2` terkompilasi sukses dengan buffer 4 KB & queue 32 slot.
        - Companion App `pc_stream_app/build/ht306_desktop_app.exe` terkompilasi sukses dengan build tools w64devkit.
   - Files: `firmware/include/tusb_config.h`, `firmware/src/main.c`, `firmware/src/usb_descriptors.c`, `pc_stream_app/src/app_state.h`, `pc_stream_app/src/main_webview.cpp`, `pc_stream_app/src/usb_transport.h`, `pc_stream_app/src/usb_transport.cpp`, `tasks/todo.md`
+
+
+- [x] **Slice 29: Redesain Dashboard Modern Minimalis (Segmented Sample Rate Selector, Decluttering Statis, & Stabilisasi Readout Desibel VU Meter)**
+  - Acceptance:
+    1. **Eliminasi Total Visual Clutter & Kartu Statis**:
+       - Menghapus kartu statis berlebihan (`BIT DEPTH 32-bit`, `TOPOLOGY 5.1`, dan `LATENCY 3.8 ms` beserta teks-teks sub-pillnya) dari tampilan utama Dashboard.
+       - Menyimpan seluruh ID diagnostik sekunder (`dash-uptime`, `dash-heartbeat`, `dash-pio-status`, `dash-mux-status`, `dash-dsp-status`, `dash-buffer-fill`, `dash-link-pct`, `dash-link-bar`, `dash-bitrate`, `dash-underruns`, dll.) di dalam kontainer terpadu yang rapi agar loop telemetri tetap berjalan tanpa null reference.
+    2. **Implementasi Segmented Sample Rate Selector (`Auto | 96 kHz | 48 kHz`)**:
+       - Mengintegrasikan pemilih sample rate segmented 3-mode langsung di Dashboard dengan visual status aktif instan.
+       - Menerapkan aturan mode `Auto`: secara otomatis menurunkan/clamp sumber audio >96 kHz ke 96 kHz dan meneruskan sumber <=96 kHz secara native.
+       - Menambahkan IPC handler `select_sample_rate` pada antarmuka JavaScript (`settings.js`) dan C++ backend (`main_webview.cpp`).
+    3. **Penyelesaian Masalah Angka Desibel Melompat/Turun ke Bawah (Wrap Fix)**:
+       - Memperbaiki `pc_stream_app/ui/js/telemetry.js` agar selalu menyertakan `w-16 min-w-[64px] text-right font-code-sm text-code-sm whitespace-nowrap flex-shrink-0 tabular-nums` saat merender nilai desibel real-time.
+       - Mengunci baris 6-channel VU meters pada ketinggian tetap (`h-6`) sehingga angka desibel tidak pernah terbungkus ke bawah (*wrap downward*) meskipun sinyal keras atau berfluktuasi.
+    4. **Sinkronisasi Multi-Tab Master Control**:
+       - Menggunakan `querySelectorAll` pada `telemetry.js` dan `mixer.js` agar fader volume master, status mute, dan meter level di Dashboard dan Mixer selalu tersinkronisasi 1:1.
+    5. **Verifikasi Assembler & Test Suite**:
+       - Eksekusi `python pc_stream_app/tools/bundle_ui.py --bundle --inline` dan `bundle_ui.py --verify` berhasil 100% dengan status `[OK]` untuk seluruh 7 tab.
+       - Berkas produksi `pc_stream_app/build/ui/index.html` dan `pc_stream_app/ui/index.html` terbarui secara identik.
+       - Lulus 100% test suite `tests/verify_end_to_end.py` (TEST 1A, 1B, 2, 3, 4 bit-exact).
+  - Files: `pc_stream_app/ui/views/tab_dashboard.html`, `pc_stream_app/ui/js/telemetry.js`, `pc_stream_app/ui/js/settings.js`, `pc_stream_app/ui/js/mixer.js`, `pc_stream_app/src/main_webview.cpp`, `pc_stream_app/ui/index.html`, `pc_stream_app/build/ui/index.html`, `tasks/todo.md`
+
+
+- [x] **Slice 30: Penyelarasan Penuh 1:1 Dashboard Minimalis, Penguncian Lebar Window Resizing, dan Modernisasi Sidebar Icon-Rail dengan Hover Tooltips**
+  - Acceptance:
+    1. **Penyelarasan 100% 1:1 dengan `preview_dashboard_minimalist.html`**:
+       - Mengganti seluruh isi `pc_stream_app/ui/views/tab_dashboard.html` agar 100% identik dengan prototipe acuan target pengguna (`preview_dashboard_minimalist.html`).
+       - Menghapus blok 3 kartu statis ("BIT DEPTH", "TOPOLOGY", "LATENCY") yang sebelumnya sempat tercampur dari konsep lama, sehingga antarmuka bersih tanpa gangguan visual.
+       - Elemen diagnostik telemetri sekunder tetap dipertahankan dalam kontainer `hidden` agar loop `telemetry.js` dan `mixer.js` berjalan lancar tanpa exception.
+    2. **Penguncian Lebar Viewport saat Window Diperbesar (Window Maximize / Enlarge)**:
+       - Kontainer utama tab dashboard dibatasi dengan `w-full max-w-[960px] mx-auto` sehingga saat jendela dimaksimalkan atau ditarik melebar, tampilan dashboard tidak ikut melar/terdistorsi dan tetap terpusat dengan proporsi awal yang rapi.
+       - Padding viewport utama pada `shell.html` disesuaikan menjadi `pl-16` dan tata letak kontainer di-center dengan `flex flex-col items-center justify-start`.
+    3. **Modernisasi Menu Tab Menjadi Modern Minimalis Icon-Only Rail**:
+       - Sidebar navigasi pada `shell.html` diubah lebarnya dari `w-56` (224px) menjadi icon rail ramping `w-16` (64px).
+       - Menampilkan logo/ikon saja untuk setiap tab (Dashboard, Mixer, Routing, Profiles, Test, Log, Settings) dengan ukuran tombol `w-10 h-10` yang terpusat.
+       - Menambahkan floating tooltip di sisi kanan ikon yang otomatis muncul hanya saat kursor diarahkan ke ikon tab (`group-hover:opacity-100 transition-opacity pointer-events-none`).
+       - Memperbarui fungsi `switchTab` pada `pc_stream_app/ui/js/app.js` untuk mengelola pergantian kelas tombol ikon aktif/inaktif secara mulus.
+    4. **Perakitan & Sinkronisasi Bundle Produksi**:
+       - Perakitan sukses via `python pc_stream_app/tools/bundle_ui.py --bundle --inline-scripts` (309 KB, 141 element ID).
+       - Verifikasi integritas 7 view tab lulus 100% `[OK]` via `bundle_ui.py --verify`.
+       - Sinkronisasi otomatis ke `pc_stream_app/build/ui/index.html`.
+       - Verifikasi end-to-end DSP & USB transport lulus 100% (`tests/verify_end_to_end.py`).
+  - Files: `pc_stream_app/ui/shell.html`, `pc_stream_app/ui/views/tab_dashboard.html`, `pc_stream_app/ui/js/app.js`, `pc_stream_app/ui/js/settings.js`, `pc_stream_app/ui/js/mixer.js`, `pc_stream_app/ui/js/telemetry.js`, `pc_stream_app/ui/index.html`, `pc_stream_app/build/ui/index.html`, `tasks/todo.md`
+
+
+- [x] **Slice 31: Dokumentasi Prosedur Pengujian Meja Kerja Sementara (Injeksi Langsung Tanpa Buffer SN74LVC244A)**
+  - Acceptance:
+    1. Menambahkan panduan uji coba sementara meja kerja (*bench testing protocol*) pada `docs/01_Hardware_Architecture_and_Mod_Guide.id.md` (dan versi Inggris `.md`) pada Seksi 1.4.
+    2. Menambahkan Seksi 6.6 dan diagram sekuens Mermaid *Power Sequencing* pada `docs/06_Complete_Architecture_and_Topology.id.md`.
+    3. Merinci prasyarat mutlak pengujian: wajib menggunakan resistor seri redaman 33 Ω - 100 Ω (bukan kawat 0 Ω), panjang kabel pendek (≤ 10 cm), penyolderan star ground/DGND bersama lebih awal, konfirmasi `Pad B` bebas korsleting, serta pin `GP7..GP9` dibiarkan terbuka (NC).
+    4. Mendokumentasikan akar teknis kerentanan: `PIO0_SM0` memancarkan pulsa aktif `0V <-> 3,3V` (`BCK` 6,144 MHz & `LRCK` 96 kHz) secara konstan begitu USB RP2350 dicolok ke PC walau audio hening, sehingga memicu dioda proteksi internal `IC602 (Pulsus PS9850)` jika HT306 sedang mati/standby (`VCC33 = 0V`).
+    5. Menetapkan tabel protokol urutan daya manual tanpa toleransi salah langkah:
+       - **Menyalakan:** AC 220V ON ➔ Tekan Power HT306 ON ➔ Mode AUX ➔ Tunggu 2-3 detik (VCC33 stabil 3,28V, volume kecil) ➔ Baru colok kabel USB RP2350 ke PC.
+       - **Mematikan:** Stop audio ➔ Cabut kabel USB RP2350 dari PC terlebih dahulu (RP2350 padam 0V) ➔ Baru matikan / standby-kan HT306.
+    6. Menegaskan batasan dan risiko bahwa metode ini bersifat sementara hanya untuk uji bunyi awal (smoke test), bukan pengganti modul buffer `SN74LVC244A` untuk pemakaian harian permanen karena risiko pemadaman listrik PLN tiba-tiba, laptop sleep/hibernate, dan kelalaian manusia.
+  - Files: `docs/01_Hardware_Architecture_and_Mod_Guide.id.md`, `docs/01_Hardware_Architecture_and_Mod_Guide.md`, `docs/06_Complete_Architecture_and_Topology.id.md`, `tasks/todo.md`
+
+
+- [x] **Slice 32: Integrasi Dual-Path JRiver WASAPI Exclusive Safe (`eCapture` Primary HT306), Auto Sample Rate ≤96 kHz + Resampling DSP, dan Hardening Thread-Safety/UI**
+  - Acceptance:
+    1. **Dual-Path Audio Capture (`eCapture` Primary untuk HT306 + Auto-Activation — Opsi B)**:
+       - Mengidentifikasi akar penyebab masalah: endpoint capture VB-Cable `LG HT306 Loopback Stream` (`{0.0.1.00000000}.{551854a2-...}`) berstatus `0x10000001` (`DEVICE_STATE_DISABLED` di COM `GetState = 0x00000002`, gagal `0x88890004`) dan sebelumnya `AudioCapture` membuka `eRender` Shared Loopback lebih dulu sebelum JRiver Exclusive.
+       - Menambahkan `AudioPolicyManager::EnsureCaptureEndpointActive()` di `pc_stream_app/src/audio_policy_manager.cpp` (serta perbaikan deteksi `currentState == DEVICE_STATE_ACTIVE` pada `SyncEndpointNames()`, integrasi di `SetEndpointVisibility()`, `SwitchToHT306()`, dan `ApplySampleRateToHT306Endpoints()`) agar endpoint `eCapture` otomatis diaktifkan (`0x00000001`) tanpa UAC.
+       - Memprioritaskan `eCapture` (`AudioPolicyManager::GetCaptureEndpointId()`, tanpa `AUDCLNT_STREAMFLAGS_LOOPBACK`) sebagai jalur **UTAMA** saat targetnya HT306 pada `pc_stream_app/src/audio_capture.cpp`, dengan `eRender` Shared Loopback hanya sebagai fallback. Hasilnya `eRender` tetap bebas 100% untuk JRiver `[WASAPI]` Exclusive tanpa bentrok.
+       - Menambahkan `IAudioEndpointVolume` auto-unmute saat capture `MUTE`, peringatan gain `< 100%`, silence gate 600 ms pada `VBCABLE_CAPTURE` agar LED RP2350 kembali ke Blue Standby saat playback berhenti, serta `ConfigureEndpointFormat` (`PCM` untuk `pEndpointFormat` + `IEEE_FLOAT` untuk `pMixFormat`) sambil menjaga Exclusive Mode tetap aktif.
+    2. **Sample Rate Mode (`Auto | 96 kHz | 48 kHz`), Dekoder Multi-Format, & Resampling Anti-Aliased (`<=96 kHz`)**:
+       - Membuat modul pure C++17 `pc_stream_app/src/audio_rate_dsp.h` berisi `ResolveTargetSampleRate`, `FloatToInt32Safe` (skala `double` menghindari integer wrap-around di `+1.0f`), `DecodeInterleavedFrameToFloat6` (mendukung `IEEE_FLOAT32`, `PCM16`, `PCM24_PACKED`, `PCM32`), dan `RateResampler6Ch` (Blackman Windowed-Sinc 6-channel).
+       - Menghubungkan tombol Dashboard `select_sample_rate` (`auto`, `96k`, `48k`) ke `AppState::sample_rate_mode` dan `AudioPolicyManager::ApplySampleRateToHT306Endpoints`, serta membypass DSP pada jalur Bit-Perfect ketika format sudah 6-ch dan sample rate native cocok (`48 kHz` atau `96 kHz`).
+       - Pada mode `Auto`, sumber `>96 kHz` otomatis di-downsampling ke `96 kHz` (`rate_clamped = true`) dengan indikasi status clamp di Dashboard.
+    3. **Thread-Safety, Serialized COM Policy Worker, & Telemetri UI Akurat**:
+       - Mengamankan `AppState::available_devices` dengan `devices_mutex` + `GetAvailableDevicesSnapshot()` / `SelectDeviceByIndex()` / `SelectDeviceById()` serta mengubah field `StreamTelemetry` & `active_device_index` menjadi `std::atomic` pada `pc_stream_app/src/app_state.h` & `app_state.cpp`.
+       - Memisahkan `PumpSweepIfActive` berbasis `QueryPerformanceCounter`, `timeBeginPeriod(1)`, burst micro-pacing USB, serta menambahkan `PolicyWorkerLoop` pada `pc_stream_app/src/main_webview.cpp` dengan debounce `WM_DEVICECHANGE` (250 ms) dan debounce disconnect USB (900 ms di `usb_transport.cpp`).
+       - Mengganti angka hardcoded `96000` pada `TelemetryLoop()` dengan rate/bit/channel/capture_path aktual, serta menyinkronkan `pc_stream_app/ui/js/settings.js` (`window.renderSampleRateUi`, cooldown klik 400 ms, kalkulasi subframe lip-sync sesuai rate aktif) dan `pc_stream_app/ui/js/telemetry.js` (memperbaiki bug falsy `0 || 96000`).
+    4. **Verifikasi Build, Unit Test, & Probe WASAPI Live**:
+       - Unit test pure C++ (`pc_stream_app/tests/test_audio_rate_dsp.cpp`): **LULUS 4/4 suite** (`TestResolveTargetSampleRate`, `TestFloatToInt32Safe`, `TestDecodeInterleavedFormats`, `TestResampler`).
+       - Build penuh desktop (`cmake --build pc_stream_app/build` dengan w64devkit GCC): **exit code 0**, 0 error dan 0 warning pada seluruh berkas yang dimodifikasi.
+       - Verifikasi modul UI (`python pc_stream_app/tools/bundle_ui.py --verify`): **LULUS `[OK]` 7/7 tab** (127 root view IDs, test bundle 222.990 bytes / 141 total IDs).
+       - Verifikasi end-to-end (`python tests/verify_end_to_end.py`): **LULUS 100%** (TEST 1A, 1B, 2, 3, 4).
+       - Probe live WASAPI pada PC target (`LG HT306 Loopback Stream` Capture Shared + `LG HT306 Home Theater` Render **WASAPI Exclusive**): aktivasi Capture tanpa UAC (`0x00000002 -> 0x00000001`), test 48 kHz 2ch 16-bit & 24-bit Exclusive (`InitRen=0x00000000`, `maxAbs=0.500000`), dan test 96 kHz 6ch 24-bit Exclusive (`InitRen=0x00000000`, `pkts=94`, `frames=90240`, `maxAbs=0.500000`).
+- [x] **Slice 33: Audit Menyeluruh, Sinkronisasi Bilingual & Eliminasi Redundansi Seluruh File Markdown (`README` & `docs/`)**
+  - Acceptance:
+    1. **Audit Sinkronisasi & Konsistensi**:
+       - 100% 16 file markdown inti (`README.md`, `README.id.md`, dan modul `docs/01` s/d `07` bilingual) serta 6 berkas `docs/decisions/` (ADR-001 s/d ADR-003) terverifikasi saling sinkron tanpa ada tautan rusak (`0 broken links`).
+       - Seluruh tabel pinout hardware (`GP2`–`GP10`, `GP16`) terbukti 100% identik di setiap dokumen.
+    2. **Penyempurnaan Modul Dokumentasi**:
+       - Melengkapi dokumen `docs/06_Complete_Architecture_and_Topology.md` dan `docs/07_JRiver_Audio_Data_Topology.md` dalam Bahasa Inggris sebagai padanan utuh versi Indonesia.
+       - Memperbarui diagram alur garis besar pada `README.md` dan `README.id.md` serta struktur direktori (`pc_stream_app/` C++17 vs `pc_streamer/` prototipe).
+       - Menstandarkan navigasi dan menambahkan catatan evolusi arsitektur C++17 WebView2 pada `docs/05_PC_Audio_Bridge_PRD_and_Architecture.{id.md,md}`.
+       - Menambahkan `HT306_FLAG_BITDEPTH_32` dan mapping flag lengkap pada `docs/02_Lossless_96kHz_Codec_Specification.{id.md,md}`.
+       - Menyelaraskan referensi hasil uji 5 suite (`[TEST 1A]` 24-bit + `[TEST 1B]` 32-bit) pada `docs/04_Build_Flash_and_JRiver_Setup.{id.md,md}`.
+    3. **Verifikasi**: Lulus verifikasi skrip audit link dan seluruh test suite end-to-end (`python tests/verify_end_to_end.py`).
+- [x] **Slice 34: Pertukaran Urutan Dokumen Topologi (06 JRiver & 07 Complete Architecture) & Pembuatan Dokumen Kredit/Teknologi (08)**
+  - Acceptance:
+    1. **Pertukaran Posisi Dokumen 06 dan 07**:
+       - Menjadikan `06_JRiver_Audio_Data_Topology.{id.md,md}` sebagai dokumen 06 yang memetakan alur audio JRiver Media Center & VB-Cable secara berurutan setelah aplikasi PC Bridge (dokumen 05).
+       - Menjadikan `07_Complete_Architecture_and_Topology.{id.md,md}` sebagai dokumen 07 yang menyajikan arsitektur utuh tingkat sistem, proteksi anti-backpowering, dan skematik PCB.
+       - Memperbarui seluruh penomoran sub-bab (6.x $\leftrightarrow$ 7.x), tautan navigasi, dan breadcrumb.
+    2. **Pembuatan Dokumen Kredit & Ekosistem Teknologi (08)**:
+       - Membuat `08_Credits_and_Acknowledgments.id.md` dan `08_Credits_and_Acknowledgments.md`.
+       - Mendokumentasikan secara rinci latar belakang upcycling LG HT306, inspirasi arsitektur PIO RP2350, filosofi 64-bit audiophile JRiver, inventaris silikon hardware (RP2350, PS9850, TAS5352, SN74LVC244A), stack firmware (Pico SDK 2.3.1, TinyUSB, custom lossless Delta-Rice), arsitektur host C++17 WebView2 WASAPI, serta alat bantu pengujian.
+    3. **Sinkronisasi README & Audit Tautan**:
+       - Memperbarui Seksi 2 dan Seksi 5 pada `README.md` dan `README.id.md`.
+       - Lulus verifikasi audit 18 file markdown: `100% paired`, `0 broken relative links`.
+  - Files: `README.md`, `README.id.md`, `docs/05_PC_Audio_Bridge_PRD_and_Architecture.{id.md,md}`, `docs/06_JRiver_Audio_Data_Topology.{id.md,md}`, `docs/07_Complete_Architecture_and_Topology.{id.md,md}`, `docs/08_Credits_and_Acknowledgments.{id.md,md}`, `tasks/todo.md`
+
+
